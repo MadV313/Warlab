@@ -1,0 +1,61 @@
+
+body {
+  margin: 0;
+  background: url('assets/warlab_bg.jpg') center/cover no-repeat fixed;
+  font-family: 'Courier New', Courier, monospace;
+  color: #e0e0e0;
+}
+
+.container {
+  background-color: rgba(10, 10, 10, 0.85);
+  padding: 2rem;
+  margin: 5vh auto;
+  width: 85%;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #000;
+}
+
+h1 {
+  color: #ffa500;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: #bbb;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#market-timer {
+  text-align: center;
+  color: #aaa;
+  margin-bottom: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background-color: #222;
+  border-left: 5px solid gray;
+  padding: 1rem;
+  border-radius: 6px;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: scale(1.03);
+}
+
+.card.common { border-color: gray; }
+.card.uncommon { border-color: #4caf50; }
+.card.rare { border-color: #2196f3; }
+.card.legendary { border-color: gold; }
+
+.card h3 {
+  margin: 0 0 0.5rem;
+}
