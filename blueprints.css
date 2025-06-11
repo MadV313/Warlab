@@ -1,0 +1,95 @@
+/* blueprints.css — Gritty Warlab UI Styling */
+
+body {
+  font-family: 'Orbitron', sans-serif;
+  background: url('../assets/bg_workbench_dark.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #e2e2e2;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2em;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  margin: 0;
+  border-bottom: 2px solid #555;
+}
+
+section {
+  margin: 1.5rem;
+  padding: 1rem;
+  background: rgba(15, 15, 15, 0.85);
+  border: 1px solid #333;
+  border-radius: 10px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.5em;
+  border-bottom: 2px solid #444;
+  padding-bottom: 0.5rem;
+}
+
+.blueprint-grid, .inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: #1a1a1a;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+.card h3 {
+  margin: 0.5rem 0;
+}
+
+.unlocked {
+  border-color: #4caf50;
+  box-shadow: 0 0 10px #4caf50;
+}
+
+.locked {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.rarity-Common {
+  border-color: #aaa;
+}
+.rarity-Uncommon {
+  border-color: #00c853;
+}
+.rarity-Rare {
+  border-color: #2979ff;
+}
+.rarity-Legendary {
+  border-color: #ffd600;
+  box-shadow: 0 0 10px #ffd600;
+}
+
+.quantity {
+  margin-top: 0.5rem;
+  font-weight: bold;
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+.progress-bar {
+  text-align: center;
+  margin: 0.5rem 0 1.5rem;
+  font-size: 1.1em;
+  color: #90ee90;
+}
