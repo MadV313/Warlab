@@ -19,7 +19,8 @@ async function loadBlueprints() {
   const allBlueprintNames = Object.keys(masterData);
 
   // === BLUEPRINT PROGRESS ===
-  document.getElementById("progress").textContent = `Blueprints Unlocked: ${ownedBlueprints.length} / ${allBlueprintNames.length}`;
+  const progressBar = document.getElementById("progress");
+  progressBar.textContent = `Blueprints Unlocked: ${ownedBlueprints.length} / ${allBlueprintNames.length}`;
 
   // === BLUEPRINT CARDS ===
   allBlueprintNames.forEach(name => {
@@ -30,9 +31,9 @@ async function loadBlueprints() {
     card.className = `card ${owned ? 'owned' : 'missing'}`;
     card.innerHTML = `
       <h3>${name}</h3>
-      <p>Type: ${data.type}</p>
-      <p>Rarity: ${data.rarity}</p>
-      <p>Tags: ${data.tags.join(", ")}</p>
+      <p><strong>Type:</strong> ${data.type}</p>
+      <p><strong>Rarity:</strong> ${data.rarity}</p>
+      <p><strong>Tags:</strong> ${data.tags.join(", ")}</p>
     `;
     blueprintList.appendChild(card);
   });
@@ -42,8 +43,11 @@ async function loadBlueprints() {
   invEntries.sort((a, b) => a[0].localeCompare(b[0]));
   invEntries.forEach(([item, count]) => {
     const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<h4>${item}</h4><p>Qty: ${count}</p>`;
+    card.className = "card inventory-card";
+    card.innerHTML = `
+      <h4>${item}</h4>
+      <p><strong>Qty:</strong> ${count}</p>
+    `;
     inventoryList.appendChild(card);
   });
 }
