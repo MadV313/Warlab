@@ -1,12 +1,15 @@
 {
-  "123456789012345678": {
-    "username": "PlayerOne",
-    "blueprints_unlocked": ["Mlock", "Claymore"],
-    "inventory": {
-      "Magazine": 3,
-      "Receiver": 2,
-      "Combat Shirt": 1
-    }
+  "1234567890": {
+    "username": "PlayerName",
+    "coins": 50,
+    "tools": ["hammer", "pliers"],
+    "parts": {
+      "Upper Receiver": 2,
+      "Handguard": 1
+    },
+    "blueprints": ["M4", "BK-133"],
+    "crafted": [],
+    "prestige": 0,
+    "lastScavenge": "2025-06-11T00:00:00"
   }
 }
-
