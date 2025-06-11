@@ -13,7 +13,8 @@
     "produces": "Mlock",
     "tags": [
       "pistol"
-    ]
+    ],
+    "rarity": "Uncommon"
   },
   "m4": {
     "requirements": {
@@ -29,7 +30,8 @@
     "produces": "M4",
     "tags": [
       "assault"
-    ]
+    ],
+    "rarity": "Rare"
   },
   "mosin": {
     "requirements": {
@@ -45,7 +47,8 @@
     "produces": "Mosin",
     "tags": [
       "rifle"
-    ]
+    ],
+    "rarity": "Rare"
   },
   "bk-133": {
     "requirements": {
@@ -61,7 +64,8 @@
     "produces": "BK-133",
     "tags": [
       "shotgun"
-    ]
+    ],
+    "rarity": "Uncommon"
   },
   "usg 45": {
     "requirements": {
@@ -77,6 +81,7 @@
     "produces": "USG 45",
     "tags": [
       "smg"
-    ]
+    ],
+    "rarity": "Legendary"
   }
 }
