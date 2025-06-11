@@ -1,0 +1,37 @@
+{
+  "offers": [
+    {
+      "name": "Detonator",
+      "rarity": "Rare"
+    },
+    {
+      "name": "Saw",
+      "rarity": "Rare"
+    },
+    {
+      "name": "Tripwire",
+      "rarity": "Common"
+    },
+    {
+      "name": "NBC Gloves",
+      "rarity": "Rare"
+    },
+    {
+      "name": "Tactical Shirt",
+      "rarity": "Rare"
+    },
+    {
+      "name": "Wooden Stock",
+      "rarity": "Common"
+    },
+    {
+      "name": "Combat Boots",
+      "rarity": "Uncommon"
+    },
+    {
+      "name": "Hammer",
+      "rarity": "Uncommon"
+    }
+  ],
+  "expires": "2025-06-12T03:51:50.845694"
+}
