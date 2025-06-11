@@ -132,6 +132,46 @@ async def blueprint(interaction: discord.Interaction, target: discord.User, acti
     })
     await interaction.followup.send(msg, ephemeral=True)
 
+@bot.tree.command(name="labskin_unlock", description="(Admin) Unlock a labskin for a player.")
+@app_commands.describe(target="Target user", skin="Name of the skin to unlock")
+async def labskin_unlock(interaction: discord.Interaction, target: discord.User, skin: str):
+    await interaction.response.defer(ephemeral=True)
+    if not is_admin(interaction.user):
+        await interaction.followup.send("🚫 You don't have permission.", ephemeral=True)
+        return
+    try:
+        with open("data/user_profiles.json", "r") as f:
+            profiles = json.load(f)
+
+        user_id = str(target.id)
+        user_data = profiles.get(user_id, {
+            "username": target.name,
+            "coins": 0,
+            "prestige": 0,
+            "tools": [],
+            "parts": {},
+            "blueprints": [],
+            "crafted": [],
+            "labskins": [],
+            "activeSkin": "default",
+            "lastScavenge": None
+        })
+
+        if skin in user_data.get("labskins", []):
+            await interaction.followup.send(f"ℹ️ {target.name} already owns the **{skin}** labskin.", ephemeral=True)
+            return
+
+        user_data.setdefault("labskins", []).append(skin)
+        profiles[user_id] = user_data
+
+        with open("data/user_profiles.json", "w") as f:
+            json.dump(profiles, f, indent=2)
+
+        await interaction.followup.send(f"✅ Unlocked **{skin}** labskin for **{target.name}**!", ephemeral=True)
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
 # === Cog Loader & Slash Sync ===
 
 @bot.event
