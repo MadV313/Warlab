@@ -18,6 +18,7 @@ async function loadMarket() {
       <h3>${item.name}</h3>
       <p>Rarity: <strong>${item.rarity}</strong></p>
       <p>Cost: ${getCost(item.rarity)} Prestige</p>
+      <button onclick="buyBlueprint('${item.name}')">Buy</button>
     `;
     marketList.appendChild(card);
   });
@@ -33,5 +34,26 @@ function getCost(rarity) {
   }
 }
 
-loadMarket();
+async function buyBlueprint(itemName) {
+  const userId = localStorage.getItem("userId"); // Replace with your actual user ID logic
+  if (!userId) {
+    alert("⚠️ User not identified.");
+    return;
+  }
 
+  const res = await fetch('/api/buy-blueprint', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      userId: userId,
+      item: itemName
+    })
+  });
+
+  const result = await res.json();
+  alert(result.message || "✅ Purchase successful!");
+}
+
+loadMarket();
