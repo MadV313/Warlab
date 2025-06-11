@@ -1,0 +1,43 @@
+# routes/labskins.py
+
+from fastapi import APIRouter
+from pydantic import BaseModel
+import json
+from pathlib import Path
+
+USER_DATA_PATH = Path("data/user_profiles.json")
+router = APIRouter()
+
+class LabskinRequest(BaseModel):
+    userId: str
+    skin: str = None  # Optional — if present, try to equip
+
+@router.post("/api/labskins")
+async def labskin_logic(data: LabskinRequest):
+    user_id = data.userId
+    requested_skin = data.skin
+
+    with open(USER_DATA_PATH, "r") as f:
+        profiles = json.load(f)
+
+    user = profiles.get(user_id)
+    if not user:
+        return {"message": "❌ User not found."}
+
+    if user.get("prestige", 0) < 4:
+        return {"message": "🔒 Labskins unlock at Prestige IV."}
+
+    if requested_skin:
+        if requested_skin not in user.get("labskins", []):
+            return {"message": f"❌ You don't own the skin '{requested_skin}'."}
+        user["activeSkin"] = requested_skin
+        message = f"✅ Equipped skin: **{requested_skin}**."
+    else:
+        unlocked = ", ".join(user.get("labskins", [])) or "None unlocked"
+        active = user.get("activeSkin", "None")
+        message = f"🎨 Active Skin: {active}\n🎁 Unlocked Skins: {unlocked}"
+
+    with open(USER_DATA_PATH, "w") as f:
+        json.dump(profiles, f, indent=2)
+
+    return {"message": message}
