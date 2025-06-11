@@ -1,0 +1,18 @@
+{
+  "userId": "user_123",
+  "blueprintsUnlocked": ["Mlock", "M4", "Tactical Outfit"],
+  "blueprintProgress": "3/12",
+  "inventory": {
+    "Slide": 2,
+    "Receiver": 1,
+    "Suppressor": 1
+  },
+  "masterList": {
+    "M4": {
+      "type": "weapon",
+      "rarity": "Rare",
+      "tags": ["assault"]
+    },
+    ...
+  }
+}
