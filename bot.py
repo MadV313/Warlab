@@ -6,6 +6,7 @@ from discord import app_commands
 import json
 import os
 import requests
+from utils.adminLogger import log_admin_action
 
 # === Load Config ===
 with open("config.json", "r") as f:
@@ -127,6 +128,10 @@ async def blueprint(interaction: discord.Interaction, target: discord.User, acti
         return
     msg = safe_api_post("admin/blueprint", {
         "userId": str(target.id),
+        "action": action.lower(),
+        "item": item
+    })
+    log_admin_action(interaction.user, target, "Blueprint", {
         "action": action.lower(),
         "item": item
     })
