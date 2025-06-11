@@ -1,1 +1,12 @@
+{
+  "123456789012345678": {
+    "username": "PlayerOne",
+    "blueprints_unlocked": ["Mlock", "Claymore"],
+    "inventory": {
+      "Magazine": 3,
+      "Receiver": 2,
+      "Combat Shirt": 1
+    }
+  }
+}
 
