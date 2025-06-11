@@ -1,0 +1,87 @@
+{
+  "Mlock": {
+    "type": "weapon",
+    "rarity": "Uncommon",
+    "tags": [
+      "pistol"
+    ]
+  },
+  "M4": {
+    "type": "weapon",
+    "rarity": "Rare",
+    "tags": [
+      "assault"
+    ]
+  },
+  "Mosin": {
+    "type": "weapon",
+    "rarity": "Rare",
+    "tags": [
+      "rifle"
+    ]
+  },
+  "BK-133": {
+    "type": "weapon",
+    "rarity": "Uncommon",
+    "tags": [
+      "shotgun"
+    ]
+  },
+  "USG 45": {
+    "type": "weapon",
+    "rarity": "Legendary",
+    "tags": [
+      "smg"
+    ]
+  },
+  "Combat Outfit": {
+    "type": "armor",
+    "rarity": "Uncommon",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Tactical Outfit": {
+    "type": "armor",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "NBC Suit": {
+    "type": "armor",
+    "rarity": "Legendary",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "Claymore": {
+    "type": "explosive",
+    "rarity": "Rare",
+    "tags": [
+      "trap"
+    ]
+  },
+  "Improvised Explosive Device": {
+    "type": "explosive",
+    "rarity": "Uncommon",
+    "tags": [
+      "craftable"
+    ]
+  },
+  "Flashbang": {
+    "type": "explosive",
+    "rarity": "Uncommon",
+    "tags": [
+      "grenade"
+    ]
+  },
+  "Frag Grenade": {
+    "type": "explosive",
+    "rarity": "Rare",
+    "tags": [
+      "grenade"
+    ]
+  }
+}
