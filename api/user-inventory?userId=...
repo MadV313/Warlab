@@ -1,0 +1,27 @@
+# routes/user_inventory.py
+
+from fastapi import APIRouter, Request
+from typing import Optional
+import json
+from pathlib import Path
+
+USER_DATA = Path("data/user_profiles.json")
+
+router = APIRouter()
+
+@router.get("/api/user-inventory")
+async def get_user_inventory(userId: Optional[str] = None):
+    if not userId:
+        return {"error": "Missing userId"}
+
+    try:
+        with open(USER_DATA, "r") as f:
+            data = json.load(f)
+    except:
+        return {"error": "Could not load user data."}
+
+    user = data.get(userId, {"inventory": [], "unlocked_blueprints": []})
+    return {
+        "unlocked": user.get("unlocked_blueprints", []),
+        "inventory": user.get("inventory", [])
+    }
