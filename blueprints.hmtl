@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Warlab Blueprints</title>
+  <link rel="stylesheet" href="styles/blueprints.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Warlab Blueprints</h1>
+    
+    <section id="owned-blueprints">
+      <h2>Your Blueprints (<span id="owned-count">0</span>/12)</h2>
+      <div class="grid" id="blueprint-grid"></div>
+    </section>
+
+    <section id="inventory">
+      <h2>Your Inventory</h2>
+      <div class="grid" id="inventory-grid"></div>
+    </section>
+  </div>
+
+  <script src="scripts/renderBlueprints.js"></script>
+</body>
+</html>
