@@ -14,7 +14,8 @@
     "tags": [
       "armor",
       "combat"
-    ]
+    ],
+    "rarity": "Uncommon"
   },
   "tactical outfit": {
     "requirements": {
@@ -31,7 +32,8 @@
     "tags": [
       "armor",
       "tactical"
-    ]
+    ],
+    "rarity": "Rare"
   },
   "nbc suit": {
     "requirements": {
@@ -51,6 +53,7 @@
       "armor",
       "nbc",
       "hazmat"
-    ]
+    ],
+    "rarity": "Legendary"
   }
 }
