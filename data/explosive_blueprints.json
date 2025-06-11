@@ -10,7 +10,8 @@
     "tags": [
       "explosive",
       "trap"
-    ]
+    ],
+    "rarity": "Rare"
   },
   "improvised explosive device": {
     "requirements": {
@@ -23,7 +24,8 @@
     "tags": [
       "explosive",
       "craftable"
-    ]
+    ],
+    "rarity": "Rare"
   },
   "flashbang": {
     "requirements": {
@@ -36,7 +38,8 @@
     "tags": [
       "explosive",
       "grenade"
-    ]
+    ],
+    "rarity": "Uncommon"
   },
   "frag grenade": {
     "requirements": {
@@ -49,6 +52,7 @@
     "tags": [
       "explosive",
       "grenade"
-    ]
+    ],
+    "rarity": "Uncommon"
   }
 }
