@@ -1,0 +1,54 @@
+{
+  "claymore": {
+    "requirements": {
+      "Claymore Housing": 1,
+      "Explosive Charge": 1,
+      "Tripwire": 1,
+      "Remote Detonator": 1
+    },
+    "produces": "Claymore",
+    "tags": [
+      "explosive",
+      "trap"
+    ]
+  },
+  "improvised explosive device": {
+    "requirements": {
+      "Cooking Pot": 1,
+      "Explosive Charge": 1,
+      "Detonator": 1,
+      "Nails": 1
+    },
+    "produces": "Improvised Explosive Device",
+    "tags": [
+      "explosive",
+      "craftable"
+    ]
+  },
+  "flashbang": {
+    "requirements": {
+      "Empty Shell": 1,
+      "Fuse": 1,
+      "Flash Compound": 1,
+      "Wire Wrap": 1
+    },
+    "produces": "Flashbang",
+    "tags": [
+      "explosive",
+      "grenade"
+    ]
+  },
+  "frag grenade": {
+    "requirements": {
+      "Explosive Compound": 1,
+      "Fuse": 1,
+      "Metal Shell": 1,
+      "Shrapnel Add-on": 1
+    },
+    "produces": "Frag Grenade",
+    "tags": [
+      "explosive",
+      "grenade"
+    ]
+  }
+}
