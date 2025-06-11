@@ -1,0 +1,10 @@
+{
+  "token": "MTM4MjE4ODg1MDY3MTI1NTYxMg.GDIgqa.PetonTWffVmWfBfm_1yFTPOCdE-II2JgWn2KBY",
+  "guild_id": "1166441420643639348",
+  "command_channel_id": "1382187883590455296",
+  "admin_role_id": "1173049392371085392",
+  "log_channel_id": "1367583463775146167",
+  "scavenge_cooldown_minutes": 1440,
+  "max_inventory_size": 100,
+  "blueprint_trader_enabled": true
+}
