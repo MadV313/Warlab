@@ -1,0 +1,62 @@
+# routes/buy_item.py
+
+from fastapi import APIRouter, Request
+from pydantic import BaseModel
+import json
+from pathlib import Path
+
+USER_DATA = Path("data/user_profiles.json")
+ITEMS_MASTER = Path("data/items_master.json")
+
+router = APIRouter()
+
+class BuyRequest(BaseModel):
+    userId: str
+    item: str
+
+@router.post("/api/buy-item")
+async def buy_item(data: BuyRequest):
+    user_id = data.userId
+    item_name = data.item
+
+    # Load master list
+    try:
+        with open(ITEMS_MASTER, "r") as f:
+            items = json.load(f)
+    except:
+        return {"message": "❌ Failed to load item catalog."}
+
+    if item_name not in items:
+        return {"message": "❌ That item doesn't exist."}
+
+    item_data = items[item_name]
+    rarity = item_data.get("rarity", "Common")
+    cost_map = {
+        "Common": 15,
+        "Uncommon": 40,
+        "Rare": 90,
+        "Legendary": 180
+    }
+    cost = cost_map.get(rarity, 999)
+
+    # Load user profile
+    try:
+        with open(USER_DATA, "r") as f:
+            profiles = json.load(f)
+    except:
+        profiles = {}
+
+    user = profiles.get(user_id, {"inventory": [], "prestige": 0})
+
+    if user["prestige"] < cost:
+        return {"message": f"❌ Not enough Prestige. You need {cost}, but have {user['prestige']}."}
+
+    # Process purchase
+    user["prestige"] -= cost
+    user["inventory"].append(item_name)
+    profiles[user_id] = user
+
+    with open(USER_DATA, "w") as f:
+        json.dump(profiles, f, indent=2)
+
+    return {"message": f"✅ You bought {item_name} for {cost} Prestige!"}
