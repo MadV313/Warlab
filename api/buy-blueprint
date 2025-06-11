@@ -1,0 +1,69 @@
+# routes/buy_blueprint.py
+
+from fastapi import APIRouter
+from pydantic import BaseModel
+import json
+from pathlib import Path
+
+USER_DATA_PATH = Path("data/user_profiles.json")
+ITEMS_MASTER_PATH = Path("data/blackmarket_items_master.json")
+
+router = APIRouter()
+
+class BuyBlueprintRequest(BaseModel):
+    userId: str
+    item: str
+
+@router.post("/api/buy-blueprint")
+async def buy_blueprint(data: BuyBlueprintRequest):
+    user_id = data.userId
+    item_name = data.item
+
+    # Load blueprint catalog
+    try:
+        with open(ITEMS_MASTER_PATH, "r") as f:
+            blueprint_catalog = json.load(f)
+    except:
+        return {"message": "❌ Failed to load blueprint catalog."}
+
+    if item_name not in blueprint_catalog:
+        return {"message": "❌ This blueprint doesn't exist."}
+
+    item_data = blueprint_catalog[item_name]
+    rarity = item_data.get("rarity", "Common")
+
+    cost_map = {
+        "Common": 30,
+        "Uncommon": 75,
+        "Rare": 150,
+        "Legendary": 300
+    }
+    cost = cost_map.get(rarity, 999)
+
+    # Load user profile
+    try:
+        with open(USER_DATA_PATH, "r") as f:
+            profiles = json.load(f)
+    except:
+        profiles = {}
+
+    user = profiles.get(user_id, {"inventory": [], "prestige": 0, "unlocked_blueprints": []})
+    already_unlocked = item_name in user.get("unlocked_blueprints", [])
+
+    if user["prestige"] < cost:
+        return {"message": f"❌ Not enough Prestige. {cost} required, you have {user['prestige']}."}
+
+    # Process transaction
+    user["prestige"] -= cost
+    if not already_unlocked:
+        user.setdefault("unlocked_blueprints", []).append(item_name)
+        message = f"✅ You unlocked the **{item_name}** blueprint!"
+    else:
+        message = f"✅ You bought **{item_name}**, but you already had it unlocked."
+
+    profiles[user_id] = user
+
+    with open(USER_DATA_PATH, "w") as f:
+        json.dump(profiles, f, indent=2)
+
+    return {"message": message}
