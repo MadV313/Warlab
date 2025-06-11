@@ -1,1 +1,82 @@
-
+{
+  "mlock": {
+    "requirements": {
+      "Slide": 1,
+      "Frame": 1,
+      "Barrel": 1,
+      "Magazine": 1
+    },
+    "optional": [
+      "Suppressor",
+      "Red Dot"
+    ],
+    "produces": "Mlock",
+    "tags": [
+      "pistol"
+    ]
+  },
+  "m4": {
+    "requirements": {
+      "Receiver": 1,
+      "Handguard": 1,
+      "Magazine": 1,
+      "Buttstock": 1
+    },
+    "optional": [
+      "Optic",
+      "Suppressor"
+    ],
+    "produces": "M4",
+    "tags": [
+      "assault"
+    ]
+  },
+  "mosin": {
+    "requirements": {
+      "Receiver": 1,
+      "Gas Tube": 1,
+      "Slide Bolt": 1,
+      "Buttstock": 1
+    },
+    "optional": [
+      "PSO Scope",
+      "Muzzle Brake"
+    ],
+    "produces": "Mosin",
+    "tags": [
+      "rifle"
+    ]
+  },
+  "bk-133": {
+    "requirements": {
+      "Barrel": 1,
+      "Pump Slide": 1,
+      "Receiver": 1,
+      "Wooden Stock": 1
+    },
+    "optional": [
+      "Red Dot",
+      "Sawed-Off Mod"
+    ],
+    "produces": "BK-133",
+    "tags": [
+      "shotgun"
+    ]
+  },
+  "usg 45": {
+    "requirements": {
+      "Hand Guard": 1,
+      "Receiver": 1,
+      "Magazine": 1,
+      "Tactical Stock": 1
+    },
+    "optional": [
+      "Suppressor",
+      "Reflex Sight"
+    ],
+    "produces": "USG 45",
+    "tags": [
+      "smg"
+    ]
+  }
+}
