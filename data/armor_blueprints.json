@@ -1,0 +1,56 @@
+{
+  "combat outfit": {
+    "requirements": {
+      "Combat Shirt": 1,
+      "Combat Pants": 1,
+      "Plat Carrier": 1,
+      "Combat Boots": 1
+    },
+    "optional": [
+      "Combat Helmet",
+      "Combat Gloves"
+    ],
+    "produces": "Combat Outfit",
+    "tags": [
+      "armor",
+      "combat"
+    ]
+  },
+  "tactical outfit": {
+    "requirements": {
+      "Tactical Jacket": 1,
+      "Tactical Pants": 1,
+      "Tactical Vest": 1,
+      "Assault Boots": 1
+    },
+    "optional": [
+      "Assault Backpack",
+      "Assault Helmet"
+    ],
+    "produces": "Tactical Outfit",
+    "tags": [
+      "armor",
+      "tactical"
+    ]
+  },
+  "nbc suit": {
+    "requirements": {
+      "NBC Hood": 1,
+      "NBC Jacket": 1,
+      "NBC Pants": 1,
+      "NBC Boots": 1,
+      "NBC Gloves": 1,
+      "Gas Mask": 1
+    },
+    "optional": [
+      "Combat Gasmask",
+      "Canister Filter"
+    ],
+    "produces": "NBC Suit",
+    "tags": [
+      "armor",
+      "nbc",
+      "hazmat"
+    ]
+  }
+}
