@@ -18,6 +18,7 @@ async function loadMarket() {
       <h3>${item.name}</h3>
       <p>Rarity: <strong>${item.rarity}</strong></p>
       <p>Cost: ${getCost(item.rarity)} Prestige</p>
+      <button onclick="buyItem('${item.name}')">Buy</button>
     `;
     container.appendChild(card);
   });
@@ -31,6 +32,28 @@ function getCost(rarity) {
     case "Legendary": return 180;
     default: return "?";
   }
+}
+
+async function buyItem(itemName) {
+  const userId = localStorage.getItem("userId"); // or fetch from session/cookie
+  if (!userId) {
+    alert("⚠️ User not identified.");
+    return;
+  }
+
+  const res = await fetch('/api/buy-item', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      userId: userId,
+      item: itemName
+    })
+  });
+
+  const result = await res.json();
+  alert(result.message || "✅ Purchase complete!");
 }
 
 loadMarket();
