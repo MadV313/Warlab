@@ -41,6 +41,9 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
     except Exception as e:
+        print(f"❌ Slash command sync failed: {e}")
+
+# === Merged Slash Commands ===
 
 # === Merged Slash Commands ===
 @app_commands.command(name="blackmarket", description="Browse the current black market offers")
