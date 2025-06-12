@@ -71,12 +71,12 @@ async def blueprint(
 
 @app_commands.command(name="craft", description="Craft a weapon or item from available parts")
 @app_commands.describe(item="Name of the item to craft")
-    async def craft(self, interaction: discord.Interaction, item: str):
+async def craft(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="fortify", description="Reinforce your stash with tools and materials")
 @app_commands.describe(type="Choose a reinforcement to install")
-    async def fortify(self, interaction: discord.Interaction, type: str):
+async def fortify(self, interaction: discord.Interaction, type: str):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige 4 required)")
@@ -85,7 +85,7 @@ async def labskins(self, interaction: discord.Interaction):
 
 @app_commands.command(name="market", description="View and buy items from the Black Market")
 @app_commands.describe(item="Exact name of the item you want to buy from the market")
-    async def market(self, interaction: discord.Interaction, item: str):
+async def market(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="part", description="Admin: Give or remove parts from a player")
@@ -95,7 +95,7 @@ async def labskins(self, interaction: discord.Interaction):
         item="Part name (must match system list)",
         quantity="How many to give or remove"
     )
-    async def part(
+async def part(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
@@ -127,7 +127,7 @@ async def rollblueprint(self, interaction: discord.Interaction):
 async def scavenge(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-    async def scavenge(self, interaction: discord.Interaction):
+async def scavenge(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="stash", description="View your stash, blueprints, and build-ready weapons.")
@@ -150,7 +150,7 @@ async def task(self, interaction: discord.Interaction):
         item="Tool name (must be valid)",
         quantity="How many to give or remove"
     )
-    async def tool(
+async def tool(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
@@ -163,12 +163,12 @@ async def task(self, interaction: discord.Interaction):
             return
 
 @app_commands.command(name="turnin", description="Submit a crafted item for rewards")
-    @app_commands.describe(item="Exact name of the crafted item or 'all' to submit everything")
-    async def turnin(self, interaction: discord.Interaction, item: str):
+@app_commands.describe(item="Exact name of the crafted item or 'all' to submit everything")
+async def turnin(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 # === Run Bot ===
 async def main():
-    async with bot:
+async with bot:
         await bot.start(TOKEN)
 
 asyncio.run(main())
