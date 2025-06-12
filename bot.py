@@ -167,8 +167,8 @@ async def tool(
 async def turnin(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 # === Run Bot ===
-async def main():
-async with bot:
+    async def main():
+    async with bot:
         await bot.start(TOKEN)
 
 asyncio.run(main())
