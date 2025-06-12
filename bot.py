@@ -38,18 +38,13 @@ bot = commands.Bot(command_prefix=PREFIX, intents=INTENTS)
 # === On Ready ===
 @bot.event
 async def on_ready():
-    print("🛠️ DEBUG: Entered `on_ready`")
-    print(f"✅ WARLAB Bot is online as {bot.user}")
     try:
         synced = await bot.tree.sync()
-        print(f"🌐 Synced {len(synced)} slash commands.")
     except Exception as e:
-        print(f"❌ Slash command sync failed: {e}")
 
 # === Merged Slash Commands ===
 @app_commands.command(name="blackmarket", description="Browse the current black market offers")
     async def blackmarket(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `blackmarket`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="blueprint", description="Admin: Give or remove blueprints from a player")
@@ -60,7 +55,6 @@ async def on_ready():
         quantity="How many copies to add (ignored on removal)"
     )
     async def blueprint(
-        print("🛠️ DEBUG: Entered `blueprint`")
         self,
         interaction: discord.Interaction,
         user: discord.Member,
@@ -75,24 +69,20 @@ async def on_ready():
 @app_commands.command(name="craft", description="Craft a weapon or item from available parts")
     @app_commands.describe(item="Name of the item to craft")
     async def craft(self, interaction: discord.Interaction, item: str):
-        print("🛠️ DEBUG: Entered `craft`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="fortify", description="Reinforce your stash with tools and materials")
     @app_commands.describe(type="Choose a reinforcement to install")
     async def fortify(self, interaction: discord.Interaction, type: str):
-        print("🛠️ DEBUG: Entered `fortify`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige 4 required)")
     async def labskins(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `labskins`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="market", description="View and buy items from the Black Market")
     @app_commands.describe(item="Exact name of the item you want to buy from the market")
     async def market(self, interaction: discord.Interaction, item: str):
-        print("🛠️ DEBUG: Entered `market`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="part", description="Admin: Give or remove parts from a player")
@@ -103,7 +93,6 @@ async def on_ready():
         quantity="How many to give or remove"
     )
     async def part(
-        print("🛠️ DEBUG: Entered `part`")
         self,
         interaction: discord.Interaction,
         user: discord.Member,
@@ -117,36 +106,29 @@ async def on_ready():
 
 @app_commands.command(name="raid", description="Attempt to raid another player's stash.")
     async def raid(self, interaction: discord.Interaction, target: discord.Member):
-        print("🛠️ DEBUG: Entered `raid`")
         attacker_id = str(interaction.user.id)
         defender_id = str(target.id)
         now = datetime.utcnow()
 
 @app_commands.command(name="rank", description="View your current rank, prestige, and buy upgrades.")
     async def rank(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `rank`")
         uid = str(interaction.user.id)
         profiles = self.load_profiles()
         user = profiles.get(uid)
 
 @app_commands.command(name="rollblueprint", description="Roll for a random blueprint based on rarity")
     async def rollblueprint(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `rollblueprint`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="scavenge", description="Scavenge for random materials (1x per day)")
     async def scavenge(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `scavenge`")
         await interaction.response.defer(ephemeral=True)
 
-@app_commands.command(name="scavenge", description="Scavenge for random materials (1x per day)")
     async def scavenge(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `scavenge`")
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="stash", description="View your stash, blueprints, and build-ready weapons.")
     async def stash(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `stash`")
         uid = str(interaction.user.id)
         profiles = self.load_json(USER_DATA_FILE)
         items_master = self.load_json(ITEMS_MASTER_FILE)
@@ -154,7 +136,6 @@ async def on_ready():
 
 @app_commands.command(name="task", description="Complete your daily Warlab mission for rewards.")
     async def task(self, interaction: discord.Interaction):
-        print("🛠️ DEBUG: Entered `task`")
         uid = str(interaction.user.id)
         profiles = self.load_json(USER_DATA_FILE)
         now_str = datetime.utcnow().strftime("%Y-%m-%d")
@@ -167,7 +148,6 @@ async def on_ready():
         quantity="How many to give or remove"
     )
     async def tool(
-        print("🛠️ DEBUG: Entered `tool`")
         self,
         interaction: discord.Interaction,
         user: discord.Member,
@@ -182,13 +162,10 @@ async def on_ready():
 @app_commands.command(name="turnin", description="Submit a crafted item for rewards")
     @app_commands.describe(item="Exact name of the crafted item or 'all' to submit everything")
     async def turnin(self, interaction: discord.Interaction, item: str):
-        print("🛠️ DEBUG: Entered `turnin`")
         await interaction.response.defer(ephemeral=True)
 # === Run Bot ===
 async def main():
-    print("🛠️ DEBUG: Entered `main`")
     async with bot:
         await bot.start(TOKEN)
 
-print("🚀 Launching WARLAB inline bot...")
 asyncio.run(main())
