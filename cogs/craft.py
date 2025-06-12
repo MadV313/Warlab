@@ -32,15 +32,12 @@ class Craft(commands.Cog):
 
         recipe = recipes[item_lower]
         user_data = profiles.get(user_id, {
-            "inventory": [],
+            "stash": [],
             "blueprints": [],
             "prestige": 0,
-            "tools": [],
-            "parts": {},
             "crafted": [],
             "labskins": [],
-            "activeSkin": "default",
-            "lastScavenge": None
+            "equipped_skin": "default",
         })
 
         prestige = user_data.get("prestige", 0)
@@ -61,30 +58,27 @@ class Craft(commands.Cog):
             return
 
         # === Check parts ===
-        if not has_required_parts(user_data["inventory"], recipe["requirements"]):
+        if not has_required_parts(user_data.get("stash", []), recipe["requirements"]):
             reqs = ", ".join([f"{v}x {k}" for k, v in recipe["requirements"].items()])
             await interaction.followup.send(f"❌ You’re missing parts. Needed: {reqs}", ephemeral=True)
             return
 
         # === Craft it ===
-        remove_parts(user_data["inventory"], recipe["requirements"])
-        crafted_item = {
-            "item": recipe["produces"],
-            "rarity": recipe.get("rarity", "Common"),
-            "type": recipe.get("type", "Unknown")
-        }
-        user_data["inventory"].append(crafted_item)
+        remove_parts(user_data["stash"], recipe["requirements"])
+        crafted_item = recipe["produces"]
+        user_data["stash"].append(crafted_item)
+        user_data.setdefault("crafted", []).append(crafted_item)
         profiles[user_id] = user_data
         await save_file(USER_DATA, profiles)
 
         # === Visual feedback ===
         embed = discord.Embed(
             title="✅ Crafting Successful",
-            description=f"You crafted **{crafted_item['item']}**!",
+            description=f"You crafted **{crafted_item}**!",
             color=0x2ecc71
         )
-        embed.add_field(name="Type", value=crafted_item["type"], inline=True)
-        embed.add_field(name="Rarity", value=crafted_item["rarity"], inline=True)
+        embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
+        embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="Warlab | SV13 Bot")
 
         await interaction.followup.send(embed=embed, ephemeral=True)
