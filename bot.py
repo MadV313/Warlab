@@ -57,7 +57,7 @@ async def blackmarket(self, interaction: discord.Interaction):
         item="Blueprint name (must match list)",
         quantity="How many copies to add (ignored on removal)"
     )
-    async def blueprint(
+async def blueprint(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
