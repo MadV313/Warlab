@@ -1,4 +1,4 @@
-# bot.py — WARLAB main launcher
+# bot.py — WARLAB main launcher (15 cog loader integrated)
 
 import discord
 from discord.ext import commands
@@ -49,7 +49,7 @@ async def craft(interaction: discord.Interaction, item: str):
     msg = safe_api_post("craft", {"userId": str(interaction.user.id), "item": item})
     await interaction.followup.send(msg)
 
-@bot.tree.command(name="inventory", description="View your Warlab inventory.")
+@bot.tree.command(name="stash", description="View your Warlab inventory.")
 async def inventory(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     try:
@@ -182,14 +182,29 @@ async def labskin_unlock(interaction: discord.Interaction, target: discord.User,
 @bot.event
 async def on_ready():
     print(f"🧪 WARLAB Bot is live as {bot.user}")
-    for filename in os.listdir("./cogs"):
-        if filename.endswith(".py"):
-            ext = f"cogs.{filename[:-3]}"
-            try:
-                await bot.load_extension(ext)
-                print(f"✅ Loaded cog: {ext}")
-            except Exception as e:
-                print(f"❌ Failed to load {ext}: {e}")
+    cogs_to_load = [
+        "cogs.blackmarket",
+        "cogs.blueprint",
+        "cogs.craft",
+        "cogs.fortify",
+        "cogs.labskins",
+        "cogs.market",
+        "cogs.part",
+        "cogs.raid",
+        "cogs.rank",
+        "cogs.rollblueprint",
+        "cogs.scavange",
+        "cogs.stash",
+        "cogs.task",
+        "cogs.tool",
+        "cogs.turnin"
+    ]
+    for ext in cogs_to_load:
+        try:
+            await bot.load_extension(ext)
+            print(f"✅ Loaded cog: {ext}")
+        except Exception as e:
+            print(f"❌ Failed to load {ext}: {e}")
     try:
         synced = await bot.tree.sync()
         print(f"✅ Synced {len(synced)} slash commands globally.")
