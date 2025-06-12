@@ -1,27 +1,3 @@
-# cogs/scavenge.py — WARLAB daily gathering logic
-
-import discord
-from discord.ext import commands
-from discord import app_commands
-import json
-import random
-from datetime import datetime, timedelta
-
-from utils.fileIO import load_file, save_file
-
-USER_DATA = "data/user_profiles.json"
-
-# === Sample Loot Pool ===
-SCAVENGE_LOOT = [
-    {"item": "Nails", "rarity": "Common"},
-    {"item": "Wood Plank", "rarity": "Common"},
-    {"item": "Scrap Metal", "rarity": "Uncommon"},
-    {"item": "Duct Tape", "rarity": "Uncommon"},
-    {"item": "Screwdriver", "rarity": "Rare"},
-    {"item": "Wrench", "rarity": "Rare"},
-    {"item": "Suppressor", "rarity": "Legendary"}
-]
-
 # cogs/scavenge.py — WARLAB daily gathering logic (with rarity weighting)
 
 import discord
@@ -80,7 +56,15 @@ class Scavenge(commands.Cog):
         for _ in range(2):
             item = weighted_choice(SCAVENGE_LOOT, rarity_weights)
             if item:
-                found.append(item)
+                found.append(item["item"])
+
+        # Weekend bonus
+        is_weekend = now.weekday() in [5, 6]
+        if is_weekend:
+            print("📣 Weekend Event Active! Bonus rewards applied.")
+            bonus_item = weighted_choice(SCAVENGE_LOOT, rarity_weights)
+            if bonus_item:
+                found.append(bonus_item["item"])
 
         # Update user data
         user["inventory"].extend(found)
