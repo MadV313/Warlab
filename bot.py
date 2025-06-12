@@ -51,7 +51,7 @@ async def blackmarket(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="blueprint", description="Admin: Give or remove blueprints from a player")
-    @app_commands.describe(
+@app_commands.describe(
         user="Target player",
         action="Give or remove blueprint",
         item="Blueprint name (must match list)",
@@ -70,12 +70,12 @@ async def blackmarket(self, interaction: discord.Interaction):
             return
 
 @app_commands.command(name="craft", description="Craft a weapon or item from available parts")
-    @app_commands.describe(item="Name of the item to craft")
+@app_commands.describe(item="Name of the item to craft")
     async def craft(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="fortify", description="Reinforce your stash with tools and materials")
-    @app_commands.describe(type="Choose a reinforcement to install")
+@app_commands.describe(type="Choose a reinforcement to install")
     async def fortify(self, interaction: discord.Interaction, type: str):
         await interaction.response.defer(ephemeral=True)
 
@@ -84,12 +84,12 @@ async def labskins(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="market", description="View and buy items from the Black Market")
-    @app_commands.describe(item="Exact name of the item you want to buy from the market")
+@app_commands.describe(item="Exact name of the item you want to buy from the market")
     async def market(self, interaction: discord.Interaction, item: str):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="part", description="Admin: Give or remove parts from a player")
-    @app_commands.describe(
+@app_commands.describe(
         user="Target player",
         action="Give or remove parts",
         item="Part name (must match system list)",
@@ -144,7 +144,7 @@ async def task(self, interaction: discord.Interaction):
         now_str = datetime.utcnow().strftime("%Y-%m-%d")
 
 @app_commands.command(name="tool", description="Admin: Give or remove tools from a player")
-    @app_commands.describe(
+@app_commands.describe(
         user="Target player",
         action="Give or remove tools",
         item="Tool name (must be valid)",
