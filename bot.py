@@ -164,4 +164,7 @@ async def main():
 
 if __name__ == "__main__":
     print("🚦 Boot complete. Launching main()")
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"❌ CRASH in asyncio.run(main()): {e}")
