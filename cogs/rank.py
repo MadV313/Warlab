@@ -15,7 +15,16 @@ RANK_TITLES = {
     3: "Weapon Tech",
     4: "Raider Elite",
     5: "Master Craftsman",
-    6: "Architect Prime"
+    6: "Architect Prime",
+    7: "Shadow Engineer",
+    8: "Warlab Veteran",
+    9: "Legendary Craftsman"
+}
+
+SPECIAL_REWARDS = {
+    1: {"title": "💉 Technician", "color": 0x3cb4fc},
+    2: {"title": "🔬 Scavenger Elite", "color": 0x88e0a0},
+    3: {"title": "☣️ Black Lab Agent", "color": 0x880808}
 }
 
 BOOST_CATALOG = {
@@ -45,7 +54,6 @@ class RankView(discord.ui.View):
             await interaction.response.send_message("🔒 You need at least 5 full builds to prestige.", ephemeral=True)
             return
 
-        # Reset player progress
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
@@ -64,7 +72,6 @@ class RankView(discord.ui.View):
         owned = self.user_data.get("boosts", {})
         coins = self.user_data.get("coins", 0)
 
-        # Only show boosts not yet owned
         options = []
         for key, boost in BOOST_CATALOG.items():
             if owned.get(key, False):
@@ -114,7 +121,6 @@ class BoostDropdown(discord.ui.View):
             await interaction.response.send_message(f"❌ You need {boost['cost']} coins to buy this boost.", ephemeral=True)
             return
 
-        # Purchase
         self.user_data["coins"] -= boost["cost"]
         self.user_data.setdefault("boosts", {})[selection] = True
         self.update_callback(self.user_id, self.user_data)
@@ -158,8 +164,25 @@ class Rank(commands.Cog):
         turnins = user.get("turnins", 0)
         boosts = user.get("boosts", {})
 
-        embed = discord.Embed(title=f"🏅 {interaction.user.display_name}'s Rank", color=0x88e0ef)
+        # Default embed color
+        embed_color = 0x88e0ef
+        special_title = None
+
+        # Special role injection based on prestige
+        if prestige >= 10:
+            special_title = SPECIAL_REWARDS[3]
+        elif prestige >= 5:
+            special_title = SPECIAL_REWARDS[2]
+        elif prestige >= 2:
+            special_title = SPECIAL_REWARDS[1]
+
+        if special_title:
+            embed_color = special_title["color"]
+
+        embed = discord.Embed(title=f"🏅 {interaction.user.display_name}'s Rank", color=embed_color)
         embed.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(level, "???"), inline=False)
+        if special_title:
+            embed.add_field(name="🧬 Prestige Class", value=special_title["title"], inline=False)
         embed.add_field(name="🧬 Prestige", value=str(prestige), inline=True)
         embed.add_field(name="💰 Coins", value=str(coins), inline=True)
         embed.add_field(name="📦 Turn-ins", value=str(turnins), inline=True)
