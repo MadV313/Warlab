@@ -47,7 +47,7 @@ async def on_ready():
 
 # === Merged Slash Commands ===
 @app_commands.command(name="blackmarket", description="Browse the current black market offers")
-    async def blackmarket(self, interaction: discord.Interaction):
+async def blackmarket(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="blueprint", description="Admin: Give or remove blueprints from a player")
@@ -80,7 +80,7 @@ async def on_ready():
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige 4 required)")
-    async def labskins(self, interaction: discord.Interaction):
+async def labskins(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="market", description="View and buy items from the Black Market")
@@ -108,37 +108,37 @@ async def on_ready():
             return
 
 @app_commands.command(name="raid", description="Attempt to raid another player's stash.")
-    async def raid(self, interaction: discord.Interaction, target: discord.Member):
+async def raid(self, interaction: discord.Interaction, target: discord.Member):
         attacker_id = str(interaction.user.id)
         defender_id = str(target.id)
         now = datetime.utcnow()
 
 @app_commands.command(name="rank", description="View your current rank, prestige, and buy upgrades.")
-    async def rank(self, interaction: discord.Interaction):
+async def rank(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
         profiles = self.load_profiles()
         user = profiles.get(uid)
 
 @app_commands.command(name="rollblueprint", description="Roll for a random blueprint based on rarity")
-    async def rollblueprint(self, interaction: discord.Interaction):
+async def rollblueprint(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="scavenge", description="Scavenge for random materials (1x per day)")
-    async def scavenge(self, interaction: discord.Interaction):
+async def scavenge(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
     async def scavenge(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
 @app_commands.command(name="stash", description="View your stash, blueprints, and build-ready weapons.")
-    async def stash(self, interaction: discord.Interaction):
+async def stash(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
         profiles = self.load_json(USER_DATA_FILE)
         items_master = self.load_json(ITEMS_MASTER_FILE)
         recipes = self.load_json(ITEM_RECIPES_FILE)
 
 @app_commands.command(name="task", description="Complete your daily Warlab mission for rewards.")
-    async def task(self, interaction: discord.Interaction):
+async def task(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
         profiles = self.load_json(USER_DATA_FILE)
         now_str = datetime.utcnow().strftime("%Y-%m-%d")
