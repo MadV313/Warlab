@@ -21,6 +21,13 @@ ITEM_COSTS = {
     "Legendary": 300
 }
 
+RARITY_EMOJIS = {
+    "Common": "⚪",
+    "Uncommon": "🟢",
+    "Rare": "🔵",
+    "Legendary": "🟣"
+}
+
 class BlackMarket(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -47,7 +54,12 @@ class BlackMarket(commands.Cog):
             name = item["name"]
             rarity = item["rarity"]
             cost = ITEM_COSTS.get(rarity, 999)
-            embed.add_field(name=name, value=f"Rarity: {rarity}\nCost: {cost} Prestige", inline=False)
+            emoji = RARITY_EMOJIS.get(rarity, "❔")
+            embed.add_field(
+                name=f"{emoji} {name}",
+                value=f"Rarity: **{rarity}**\nCost: **{cost} Prestige**",
+                inline=False
+            )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
