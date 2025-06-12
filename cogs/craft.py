@@ -45,6 +45,12 @@ class Craft(commands.Cog):
 
         prestige = user_data.get("prestige", 0)
 
+        # === Blueprint ownership check ===
+        blueprint_name = recipe.get("blueprint_name", recipe["produces"])
+        if blueprint_name not in user_data.get("blueprints", []):
+            await interaction.followup.send(f"🔒 You must own the blueprint for **{blueprint_name}** to craft this item.", ephemeral=True)
+            return
+
         # === Prestige-gated crafting checks ===
         if "tactical" in item_lower and not can_craft_tactical(prestige):
             await interaction.followup.send("🔒 You must be Prestige II to craft tactical gear.", ephemeral=True)
@@ -54,19 +60,34 @@ class Craft(commands.Cog):
             await interaction.followup.send("🔒 You must be Prestige III to craft explosives or special items.", ephemeral=True)
             return
 
-        # === Check parts
+        # === Check parts ===
         if not has_required_parts(user_data["inventory"], recipe["requirements"]):
             reqs = ", ".join([f"{v}x {k}" for k, v in recipe["requirements"].items()])
             await interaction.followup.send(f"❌ You’re missing parts. Needed: {reqs}", ephemeral=True)
             return
 
-        # === Craft it
+        # === Craft it ===
         remove_parts(user_data["inventory"], recipe["requirements"])
-        user_data["inventory"].append(recipe["produces"])
+        crafted_item = {
+            "item": recipe["produces"],
+            "rarity": recipe.get("rarity", "Common"),
+            "type": recipe.get("type", "Unknown")
+        }
+        user_data["inventory"].append(crafted_item)
         profiles[user_id] = user_data
         await save_file(USER_DATA, profiles)
 
-        await interaction.followup.send(f"✅ Crafted **{recipe['produces']}** successfully!", ephemeral=True)
+        # === Visual feedback ===
+        embed = discord.Embed(
+            title="✅ Crafting Successful",
+            description=f"You crafted **{crafted_item['item']}**!",
+            color=0x2ecc71
+        )
+        embed.add_field(name="Type", value=crafted_item["type"], inline=True)
+        embed.add_field(name="Rarity", value=crafted_item["rarity"], inline=True)
+        embed.set_footer(text="Warlab | SV13 Bot")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
