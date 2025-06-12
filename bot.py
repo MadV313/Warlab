@@ -162,5 +162,6 @@ async def main():
         await bot.start(TOKEN)
     print("🛑 Bot shutdown cleanly.")
 
-print("🚦 Boot complete. Launching main()")
-asyncio.run(main())
+if __name__ == "__main__":
+    print("🚦 Boot complete. Launching main()")
+    asyncio.run(main())
