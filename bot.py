@@ -18,6 +18,11 @@ from utils.inventory import weighted_choice
 
 print("🟡 Imports successful. Loading config...")
 
+# === Debug: Print ENV visibility
+print(f"🔍 ENV token = {'SET' if os.getenv('token') else 'MISSING'}")
+print(f"🔍 ENV guild_id = {os.getenv('guild_id')}")
+print(f"📂 Current working directory = {os.getcwd()}")
+
 # === Load Config (Hybrid: config.json + env variables for secrets) ===
 try:
     with open("config.json", "r") as f:
@@ -31,9 +36,8 @@ except Exception as e:
 config["token"] = os.getenv("token", config.get("token"))
 config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
 
-if not config.get("token"):
-    print("❌ Bot token is missing. Set 'token' as an environment variable in Railway.")
-    raise SystemExit
+# Crash if token is missing
+assert config.get("token"), "❌ TOKEN missing — check Railway environment variable 'token'"
 
 TOKEN = config["token"]
 PREFIX = "/"
@@ -58,7 +62,6 @@ async def on_ready():
         print(f"❌ Slash command sync failed: {e}")
 
 # === Slash Commands ===
-
 @app_commands.command(name="blackmarket", description="Browse the current black market offers")
 async def blackmarket(interaction: Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -165,6 +168,7 @@ async def turnin(interaction: Interaction, item: str):
 
 # === Run Bot ===
 async def main():
+    print("✅ main() function is executing.")
     print("🚀 Starting bot...")
     try:
         async with bot:
