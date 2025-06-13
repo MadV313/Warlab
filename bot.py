@@ -18,13 +18,21 @@ from utils.inventory import weighted_choice
 
 print("🟡 Imports successful. Loading config...")
 
-# === Load Config ===
+# === Load Config (Hybrid: config.json + env variables for secrets) ===
 try:
     with open("config.json", "r") as f:
         config = json.load(f)
     print("✅ Config loaded successfully.")
 except Exception as e:
-    print(f"❌ Failed to load config: {e}")
+    print(f"❌ Failed to load config.json: {e}")
+    config = {}
+
+# Inject secrets from environment
+config["token"] = os.getenv("token", config.get("token"))
+config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
+
+if not config.get("token"):
+    print("❌ Bot token is missing. Set 'token' as an environment variable in Railway.")
     raise SystemExit
 
 TOKEN = config["token"]
