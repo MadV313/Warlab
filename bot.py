@@ -158,9 +158,13 @@ async def turnin(interaction: Interaction, item: str):
 # === Run Bot ===
 async def main():
     print("🚀 Starting bot...")
-    async with bot:
-        await bot.start(TOKEN)
-    print("🛑 Bot shutdown cleanly.")
+    try:
+        async with bot:
+            await bot.start(TOKEN)
+    except Exception as e:
+        print(f"❌ Exception during bot.start: {e}")
+    finally:
+        print("🛑 Bot shutdown (finally block)")
 
 if __name__ == "__main__":
     print("🚦 Boot complete. Launching main()")
