@@ -62,11 +62,13 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Slash sync failed: {e}")
 
-# === Track All Command Invocations in Logs ===
-@bot.tree.listener()
-async def on_app_command_completion(interaction: Interaction, command: app_commands.Command):
-    user = interaction.user
-    print(f"🟢 /{command.name} by {user.display_name} ({user.id})")
+# === Log Slash Command Usage ===
+@bot.listen("on_interaction")
+async def log_interaction(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.application_command:
+        name = interaction.data.get("name")
+        user = interaction.user
+        print(f"🟢 /{name} by {user.display_name} ({user.id})")
 
 # === Run Bot ===
 async def main():
