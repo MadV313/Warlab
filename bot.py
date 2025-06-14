@@ -1,92 +1,90 @@
-# bot.py — WARLAB Cog Loader + Full Sync + Debug Logging
-
-print("🟡 Booting WARLAB Bot...")
+# cogs/scavenge.py — WARLAB daily gathering logic (with rarity weighting + debug)
 
 import discord
 from discord.ext import commands
-from discord import Interaction, app_commands
+from discord import app_commands
 import json
-import os
-import asyncio
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 
-print("🟡 Imports successful. Loading config...")
+from utils.fileIO import load_file, save_file
+from utils.inventory import weighted_choice
 
-# === Load config.json ===
-try:
-    with open("config.json", "r") as f:
-        config = json.load(f)
-    print("✅ Config loaded successfully.")
-except Exception as e:
-    print(f"❌ Failed to load config.json: {e}")
-    config = {}
+USER_DATA = "data/user_profiles.json"
+RARITY_WEIGHTS = "data/rarity_weights.json"
 
-# === Inject Railway env ===
-config["token"]   = os.getenv("token",   config.get("token"))
-config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
+SCAVENGE_LOOT = [
+    {"item": "Nails", "rarity": "Common"},
+    {"item": "Wood Plank", "rarity": "Common"},
+    {"item": "Scrap Metal", "rarity": "Uncommon"},
+    {"item": "Duct Tape", "rarity": "Uncommon"},
+    {"item": "Screwdriver", "rarity": "Rare"},
+    {"item": "Wrench", "rarity": "Rare"},
+    {"item": "Suppressor", "rarity": "Legendary"}
+]
 
-if not config.get("token"):
-    raise RuntimeError("❌ DISCORD TOKEN MISSING - Set Railway var 'token'")
+class Scavenge(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
 
-TOKEN     = config["token"]
-GUILD_ID  = int(config.get("guild_id", "0"))
-PREFIX    = "/"
+    @app_commands.command(name="scavenge", description="Scavenge for random materials (1x per day)")
+    async def scavenge(self, interaction: discord.Interaction):
+        print(f"🟢 /scavenge triggered by {interaction.user.display_name} ({interaction.user.id})")
+        await interaction.response.defer(ephemeral=True)
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.guilds          = True
-intents.members         = True
+        try:
+            user_id = str(interaction.user.id)
+            now = datetime.utcnow()
 
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+            profiles = await load_file(USER_DATA) or {}
+            user = profiles.get(user_id, {"inventory": [], "last_scavenge": None})
 
-# === Auto-load cogs from /cogs ===
-@bot.event
-async def setup_hook():
-    print("🧩 Loading cogs from /cogs...")
-    for filename in os.listdir("./cogs"):
-        if filename.endswith(".py") and filename != "__init__.py":
-            cog_path = f"cogs.{filename[:-3]}"
-            try:
-                await bot.load_extension(cog_path)
-                print(f"✅ Loaded cog: {cog_path}")
-            except Exception as e:
-                print(f"❌ Failed to load {cog_path}: {e}")
+            # ✅ FIX: Access config from bot instance
+            cooldown_min = self.bot.config.get("scavenge_cooldown_minutes", 1440)
+            if user["last_scavenge"]:
+                last_time = datetime.fromisoformat(user["last_scavenge"])
+                if now < last_time + timedelta(minutes=cooldown_min):
+                    remaining = (last_time + timedelta(minutes=cooldown_min)) - now
+                    mins = int(remaining.total_seconds() // 60)
+                    print(f"⏳ Cooldown active: {mins} mins remaining")
+                    await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
+                    return
 
-# === Sync Slash Commands on Ready ===
-@bot.event
-async def on_ready():
-    print("✅ Bot connected and ready.")
-    guild = discord.Object(id=GUILD_ID)
-    try:
-        # Copy global commands → guild for instant testing
-        bot.tree.copy_global_to(guild=guild)
-        synced = await bot.tree.sync(guild=guild)
-        print(f"✅ Synced {len(synced)} slash commands to guild {GUILD_ID}")
-    except Exception as e:
-        print(f"❌ Slash sync failed: {e}")
+            rarity_weights = await load_file(RARITY_WEIGHTS)
+            print(f"📊 Rarity weights loaded: {rarity_weights}")
 
-# === Log Slash Command Usage ===
-@bot.listen("on_interaction")
-async def log_interaction(interaction: Interaction):
-    if interaction.type == discord.InteractionType.application_command:
-        cmd = interaction.data.get("name")
-        usr = interaction.user
-        print(f"🟢 /{cmd} by {usr.display_name} ({usr.id})")
+            found = []
+            for i in range(2):
+                item = weighted_choice(SCAVENGE_LOOT, rarity_weights)
+                print(f"🎯 Pull {i+1}: {item}")
+                if item:
+                    found.append(item)
 
-# === Run Bot ===
-async def main():
-    print("🚀 Starting bot...")
-    try:
-        async with bot:
-            await bot.start(TOKEN)
-    except Exception as e:
-        print(f"❌ Exception in bot.start: {e}")
-    finally:
-        print("🛑 Bot shutdown")
+            if now.weekday() in [5, 6]:
+                print("🎉 Weekend bonus roll triggered")
+                bonus = weighted_choice(SCAVENGE_LOOT, rarity_weights)
+                print(f"🎁 Bonus: {bonus}")
+                if bonus:
+                    found.append(bonus)
 
-if __name__ == "__main__":
-    print("🚦 Launching main()")
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        print(f"❌ CRASH in main(): {e}")
+            # Extract item names only
+            item_names = [entry["item"] for entry in found]
+
+            user["inventory"].extend(item_names)
+            user["last_scavenge"] = now.isoformat()
+            profiles[user_id] = user
+            await save_file(USER_DATA, profiles)
+
+            if item_names:
+                print(f"📦 Items found: {item_names}")
+                await interaction.followup.send(f"🔎 You scavenged and found: **{', '.join(item_names)}**", ephemeral=True)
+            else:
+                print("📭 Nothing found")
+                await interaction.followup.send("🔎 You searched but found nothing this time.", ephemeral=True)
+
+        except Exception as e:
+            print(f"❌ SCAVENGE EXCEPTION: {e}")
+            await interaction.followup.send("⚠️ Something went wrong during scavenging.", ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(Scavenge(bot))
