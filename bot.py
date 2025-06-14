@@ -44,7 +44,7 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 async def setup_hook():
     print("🧩 Loading cogs from /cogs...")
     for filename in os.listdir("./cogs"):
-        if filename.endswith(".py"):
+        if filename.endswith(".py") and filename != "__init__.py":
             cog_path = f"cogs.{filename[:-3]}"
             try:
                 await bot.load_extension(cog_path)
