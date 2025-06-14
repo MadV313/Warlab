@@ -24,12 +24,12 @@ def remove_parts(user_parts: dict, requirements: dict):
 
 def weighted_choice(loot_list, rarity_weights):
     """
-    Selects one item from a loot list based on rarity weighting.
+    Selects one item (full dict) from a loot list based on rarity weighting.
     Each entry in loot_list must include 'item' and 'rarity'.
     """
     weighted_items = []
     for entry in loot_list:
         rarity = entry["rarity"]
         weight = rarity_weights.get(rarity, 0)
-        weighted_items.extend([entry["item"]] * weight)
+        weighted_items.extend([entry] * weight)  # Append full entry, not just name
     return random.choice(weighted_items) if weighted_items else None
