@@ -22,20 +22,20 @@ except Exception as e:
     config = {}
 
 # === Inject Railway env ===
-config["token"] = os.getenv("token", config.get("token"))
+config["token"]   = os.getenv("token",   config.get("token"))
 config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
 
 if not config.get("token"):
     raise RuntimeError("❌ DISCORD TOKEN MISSING - Set Railway var 'token'")
 
-TOKEN = config["token"]
-GUILD_ID = int(config.get("guild_id", "0"))
-PREFIX = "/"
+TOKEN     = config["token"]
+GUILD_ID  = int(config.get("guild_id", "0"))
+PREFIX    = "/"
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.guilds = True
-intents.members = True
+intents.guilds          = True
+intents.members         = True
 
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
@@ -56,19 +56,22 @@ async def setup_hook():
 @bot.event
 async def on_ready():
     print("✅ Bot connected and ready.")
+    guild = discord.Object(id=GUILD_ID)
     try:
-        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        # Copy global commands → guild for instant testing
+        bot.tree.copy_global_to(guild=guild)
+        synced = await bot.tree.sync(guild=guild)
         print(f"✅ Synced {len(synced)} slash commands to guild {GUILD_ID}")
     except Exception as e:
         print(f"❌ Slash sync failed: {e}")
 
 # === Log Slash Command Usage ===
 @bot.listen("on_interaction")
-async def log_interaction(interaction: discord.Interaction):
+async def log_interaction(interaction: Interaction):
     if interaction.type == discord.InteractionType.application_command:
-        name = interaction.data.get("name")
-        user = interaction.user
-        print(f"🟢 /{name} by {user.display_name} ({user.id})")
+        cmd = interaction.data.get("name")
+        usr = interaction.user
+        print(f"🟢 /{cmd} by {usr.display_name} ({usr.id})")
 
 # === Run Bot ===
 async def main():
