@@ -18,26 +18,14 @@ from utils.inventory import weighted_choice
 
 print("🟡 Imports successful. Loading config...")
 
-# === Debug: Print ENV visibility
-print(f"🔍 ENV token = {'SET' if os.getenv('token') else 'MISSING'}")
-print(f"🔍 ENV guild_id = {os.getenv('guild_id')}")
-print(f"📂 Current working directory = {os.getcwd()}")
-
-# === Load Config (Hybrid: config.json + env variables for secrets) ===
+# === Load Config ===
 try:
     with open("config.json", "r") as f:
         config = json.load(f)
     print("✅ Config loaded successfully.")
 except Exception as e:
-    print(f"❌ Failed to load config.json: {e}")
-    config = {}
-
-# Inject secrets from environment
-config["token"] = os.getenv("token", config.get("token"))
-config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
-
-# Crash if token is missing
-assert config.get("token"), "❌ TOKEN missing — check Railway environment variable 'token'"
+    print(f"❌ Failed to load config: {e}")
+    raise SystemExit
 
 TOKEN = config["token"]
 PREFIX = "/"
@@ -56,12 +44,18 @@ bot = commands.Bot(command_prefix=PREFIX, intents=INTENTS)
 async def on_ready():
     print("✅ Bot connected and ready.")
     try:
-        synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} slash commands.")
+        guild_id = config.get("guild_id")
+        if guild_id:
+            synced = await bot.tree.sync(guild=discord.Object(id=int(guild_id)))
+            print(f"✅ Synced {len(synced)} slash commands to guild {guild_id}")
+        else:
+            synced = await bot.tree.sync()
+            print(f"✅ Synced {len(synced)} global slash commands.")
     except Exception as e:
         print(f"❌ Slash command sync failed: {e}")
 
 # === Slash Commands ===
+
 @app_commands.command(name="blackmarket", description="Browse the current black market offers")
 async def blackmarket(interaction: Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -168,7 +162,6 @@ async def turnin(interaction: Interaction, item: str):
 
 # === Run Bot ===
 async def main():
-    print("✅ main() function is executing.")
     print("🚀 Starting bot...")
     try:
         async with bot:
