@@ -180,7 +180,7 @@ class Fortify(commands.Cog):
             catalog = await load_file(CATALOG_PATH) or {}
 
             if profile is None:
-                await interaction.followup.send("❌ You must use `/register` before accessing your stash.", ephemeral=True)
+                await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
                 return
 
             profile.setdefault("inventory", [])
