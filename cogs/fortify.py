@@ -133,7 +133,7 @@ class Fortify(commands.Cog):
     @app_commands.command(name="fortify", description="Open fortification UI and choose reinforcement")
     async def fortify(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-
+    
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id, {
@@ -142,22 +142,30 @@ class Fortify(commands.Cog):
             "reinforcements": {},
             "stash_hp": 0
         })
-
-        # Auto-upgrade legacy reinforcement format (int ➝ dict)
-        for key, val in profile.get("reinforcements", {}).items():
-            if isinstance(val, int):
-                profile["reinforcements"][key] = {"count": val, "damage": 0}
-
+    
+        # Upgrade old reinforcements
+        for k, v in profile.get("reinforcements", {}).items():
+            if isinstance(v, int):
+                profile["reinforcements"][k] = {"count": v, "damage": 0}
+    
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
-
+    
         view = ReinforcementView(profile)
-
+    
         if not view.children:
-            await interaction.followup.send("✅ All stash reinforcements are fully installed. No more fortifications available.", ephemeral=True)
+            await interaction.followup.send(
+                content="✅ All stash reinforcements are fully installed. No more fortifications available.",
+                ephemeral=True
+            )
             return
-
-        await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+    
+        # FINAL SAFE UI SEND (no embed, safe with all clients):
+        await interaction.followup.send(
+            content="🔧 Select a reinforcement to install:",
+            view=view,
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(Fortify(bot))
