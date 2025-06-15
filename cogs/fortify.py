@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (with Debug + Safe View)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed Crash on Missing Reinforcements Key)
 
 import discord
 from discord.ext import commands
@@ -43,13 +43,11 @@ class ReinforceButton(discord.ui.Button):
         cost = REINFORCEMENT_COSTS[self.rtype]
         missing = []
 
-        # Check tools
         for tool in cost.get("tools", []):
             has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
             if not has_tool:
                 missing.append(tool)
 
-        # Check materials/special
         for item in cost.get("materials", []):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
@@ -61,13 +59,11 @@ class ReinforceButton(discord.ui.Button):
             await interaction.response.send_message(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
-        # Deduct materials
         for item in cost.get("materials", []):
             profile["inventory"].remove(item)
         for item in cost.get("special", []):
             profile["inventory"].remove(item)
 
-        # Reduce tool durability
         for tool in cost.get("tools", []):
             for i, t in enumerate(profile["tools"]):
                 if t.startswith(tool):
@@ -79,7 +75,6 @@ class ReinforceButton(discord.ui.Button):
                         profile["tools"][i] = f"{tool} ({uses} uses left)"
                     break
 
-        # Apply reinforcement
         profile["reinforcements"][self.rtype] = profile["reinforcements"].get(self.rtype, 0) + 1
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
@@ -87,7 +82,6 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        # Show preview
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": profile["reinforcements"],
@@ -131,15 +125,18 @@ class Fortify(commands.Cog):
         try:
             user_id = str(interaction.user.id)
             profiles = await load_file(USER_DATA) or {}
-            profile = profiles.get(user_id, {
-                "inventory": [],
-                "tools": [],
-                "reinforcements": {},
-                "stash_hp": 0
-            })
+            profile = profiles.get(user_id) or {}
+
+            # Ensure profile has all required keys
+            profile.setdefault("inventory", [])
+            profile.setdefault("tools", [])
+            profile.setdefault("reinforcements", {})
+            profile.setdefault("stash_hp", 0)
+
             profiles[user_id] = profile
             await save_file(USER_DATA, profiles)
-            print(f"✅ Profile loaded. Reinforcements: {profile['reinforcements']}")
+
+            print(f"✅ Profile loaded. Reinforcements: {profile.get('reinforcements', {})}")
 
             view = ReinforcementView(profile)
             print(f"🧱 ReinforcementView loaded with {len(view.children)} buttons")
