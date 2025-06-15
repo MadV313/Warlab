@@ -38,7 +38,7 @@ class Stash(commands.Cog):
         equipped_skin = user.get("equipped_skin", "None")
         coins = user.get("coins", 0)
 
-        # Group stash by item 'type' (not tags)
+        # Group stash by 'type' field
         grouped = {
             "🔫 Gun Parts": [],
             "🪖 Armor Parts": [],
@@ -50,23 +50,23 @@ class Stash(commands.Cog):
 
         for item, qty in stash_items.items():
             info = items_master.get(item, {})
-            type_ = info.get("type", "").lower()
+            item_type = info.get("type", "").lower()
             label = f"{item} x{qty}"
 
-            if type_ == "gun_part":
+            if item_type == "gun_part":
                 grouped["🔫 Gun Parts"].append(label)
-            elif type_ == "armor_part":
+            elif item_type == "armor_part":
                 grouped["🪖 Armor Parts"].append(label)
-            elif type_ == "explosive_part":
+            elif item_type == "explosive_part":
                 grouped["💣 Explosives"].append(label)
-            elif type_ == "tool":
+            elif item_type == "tool":
                 grouped["🛠️ Tools"].append(label)
-            elif type_ == "skin":
+            elif item_type == "skin":
                 grouped["🏚️ Workshop Skins"].append(label)
             else:
                 grouped["🎒 Misc"].append(label)
 
-        # Check for build-ready weapons
+        # Identify build-ready items
         buildables = []
         for blueprint in blueprints:
             recipe = recipes.get(blueprint.lower())
@@ -77,18 +77,29 @@ class Stash(commands.Cog):
             status = "✅ Build Ready" if can_build else "❌ Missing Parts"
             buildables.append(f"{recipe['produces']} — {status}")
 
-        # Build embed
-        embed = discord.Embed(title=f"🎒 {interaction.user.display_name}'s Stash", color=0x74c1f2)
+        # Embed output
+        embed = discord.Embed(
+            title=f"🎒 {interaction.user.display_name}'s Stash",
+            color=0x74c1f2
+        )
 
         for group, items in grouped.items():
             if items:
                 embed.add_field(name=group, value="\n".join(items), inline=False)
 
         if blueprints:
-            embed.add_field(name="📘 Blueprints Owned", value="\n".join([f"• {bp}" for bp in blueprints]), inline=False)
+            embed.add_field(
+                name="📘 Blueprints Owned",
+                value="\n".join([f"• {bp}" for bp in blueprints]),
+                inline=False
+            )
 
         if buildables:
-            embed.add_field(name="🧰 Buildable Weapons", value="\n".join(buildables), inline=False)
+            embed.add_field(
+                name="🧰 Buildable Weapons",
+                value="\n".join(buildables),
+                inline=False
+            )
 
         embed.add_field(name="💰 Coins", value=str(coins), inline=True)
         embed.add_field(name="🏚️ Equipped Workshop Skin", value=equipped_skin, inline=True)
