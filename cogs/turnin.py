@@ -1,11 +1,10 @@
-# cogs/turnin.py — Submit crafted items for rewards (with Prestige DM enhancements)
+# cogs/turnin.py — Submit crafted items for rewards (dropdown-only)
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 from utils.fileIO import load_file, save_file
 from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
-import json
 from datetime import datetime
 
 USER_DATA = "data/user_profiles.json"
@@ -18,6 +17,8 @@ REWARD_VALUES = {
     "coin_enabled": True,
     "coin_bonus": 25
 }
+
+# ──────────────────────────────────────────────────────────────────
 
 class ConfirmRewardButton(discord.ui.Button):
     def __init__(self, player_id, player_name):
@@ -47,42 +48,38 @@ class ConfirmRewardButton(discord.ui.Button):
 
         await interaction.response.defer()
 
+# ──────────────────────────────────────────────────────────────────
+
 class RewardConfirmView(discord.ui.View):
     def __init__(self, player_id, player_name):
         super().__init__(timeout=None)
         self.add_item(ConfirmRewardButton(player_id, player_name))
 
-class TurnIn(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+# ──────────────────────────────────────────────────────────────────
 
-    @app_commands.command(name="turnin", description="Submit a crafted item for rewards")
-    @app_commands.describe(item="Exact name of the crafted item or 'all' to submit everything")
-    async def turnin(self, interaction: discord.Interaction, item: str):
+class TurnInDropdown(discord.ui.Select):
+    def __init__(self, user_id, crafted_items):
+        self.user_id = user_id
+        options = [discord.SelectOption(label=item, value=item) for item in crafted_items[:24]]
+        options.insert(0, discord.SelectOption(label="All", value="all", description="Submit all crafted items"))
+        super().__init__(placeholder="Select a crafted item to turn in...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if str(interaction.user.id) != self.user_id:
+            await interaction.response.send_message("⚠️ You can’t use another player’s menu.", ephemeral=True)
+            return
+
         await interaction.response.defer(ephemeral=True)
+        user_id = self.user_id
+        item = self.values[0].lower()
 
-        user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-
-        # ❌ Registration check
-        if user_id not in profiles:
-            await interaction.followup.send(
-                "❌ You don’t have a profile yet. Please use `/register` first.",
-                ephemeral=True
-            )
-            return
-
-        user_data = profiles[user_id]
         logs = await load_file(TURNIN_LOG) or {}
+        user_data = profiles[user_id]
 
-        # ❌ No crafted builds check
         crafted_items = user_data.get("crafted", [])
-        if not crafted_items:
-            await interaction.followup.send("❌ You have no crafted items to turn in. Try using `/craft` first.", ephemeral=True)
-            return
-
-        is_bulk = item.lower() == "all"
-        items_to_turnin = crafted_items[:] if is_bulk else [item.strip()]
+        is_bulk = item == "all"
+        items_to_turnin = crafted_items[:] if is_bulk else [item]
 
         reward_summary = []
         total_prestige = 0
@@ -132,7 +129,7 @@ class TurnIn(commands.Cog):
         embed.set_footer(text=f"Total: {total_prestige} Prestige" + (f", {total_coins} Coins" if total_coins else ""))
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-        # Admin Payout Message
+        # Admin payout
         admin_embed = discord.Embed(
             title="🔧 Craft Turn-In",
             description=(
@@ -144,11 +141,42 @@ class TurnIn(commands.Cog):
             ),
             color=0xf1c40f
         )
-
         view = RewardConfirmView(user_id, interaction.user.name)
-        channel = self.bot.get_channel(TRADER_ORDERS_CHANNEL_ID)
+        channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
         if channel:
             await channel.send(embed=admin_embed, view=view)
+
+# ──────────────────────────────────────────────────────────────────
+
+class TurnInView(discord.ui.View):
+    def __init__(self, user_id, crafted_items):
+        super().__init__(timeout=60)
+        self.add_item(TurnInDropdown(user_id, crafted_items))
+
+# ──────────────────────────────────────────────────────────────────
+
+class TurnIn(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="turnin", description="Submit a crafted item for rewards")
+    async def turnin(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        user_id = str(interaction.user.id)
+        profiles = await load_file(USER_DATA) or {}
+        user_data = profiles.get(user_id)
+
+        if not user_data:
+            await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+            return
+
+        crafted = user_data.get("crafted", [])
+        if not crafted:
+            await interaction.followup.send("❌ You have no crafted items to turn in. Try using `/craft` first.", ephemeral=True)
+            return
+
+        await interaction.followup.send("📦 Select a crafted item to submit for rewards:", view=TurnInView(user_id, crafted), ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(TurnIn(bot))
