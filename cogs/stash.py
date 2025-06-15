@@ -1,4 +1,4 @@
-# cogs/stash.py — Expanded stash viewer with parts, coins, lab skins
+# cogs/stash.py — Expanded stash viewer with parts, coins, lab skins using type field
 
 import discord
 from discord.ext import commands
@@ -38,7 +38,7 @@ class Stash(commands.Cog):
         equipped_skin = user.get("equipped_skin", "None")
         coins = user.get("coins", 0)
 
-        # Group stash by tag logic
+        # Group stash by item 'type' (not tags)
         grouped = {
             "🔫 Gun Parts": [],
             "🪖 Armor Parts": [],
@@ -50,18 +50,18 @@ class Stash(commands.Cog):
 
         for item, qty in stash_items.items():
             info = items_master.get(item, {})
-            tags = info.get("tags", [])
+            type_ = info.get("type", "").lower()
             label = f"{item} x{qty}"
 
-            if "gun_part" in tags:
+            if type_ == "gun_part":
                 grouped["🔫 Gun Parts"].append(label)
-            elif "armor_part" in tags:
+            elif type_ == "armor_part":
                 grouped["🪖 Armor Parts"].append(label)
-            elif "explosive_part" in tags:
+            elif type_ == "explosive_part":
                 grouped["💣 Explosives"].append(label)
-            elif "tool" in tags:
+            elif type_ == "tool":
                 grouped["🛠️ Tools"].append(label)
-            elif "skin" in tags:
+            elif type_ == "skin":
                 grouped["🏚️ Workshop Skins"].append(label)
             else:
                 grouped["🎒 Misc"].append(label)
