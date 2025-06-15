@@ -43,7 +43,7 @@ def render_stash_visual(reinforcements):
     row2 = f"{bf_emojis[5]} {lc_slots[0]} {lc_slots[1]} {lc_slots[2]} {bf_emojis[6]}"
     row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
     row4 = rg_row
-    row5 = f"  {dog}      {clay}"
+    row5 = f"  {dog}       {clay}"
 
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
