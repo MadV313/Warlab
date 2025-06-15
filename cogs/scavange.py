@@ -47,6 +47,18 @@ class Scavenge(commands.Cog):
             user.setdefault("stash", [])
             user.setdefault("coins", 0)
             user.setdefault("last_scavenge", None)
+            user.setdefault("boosts", {})
+            user.setdefault("scavenges", 0)
+
+            boosts = user.get("boosts", {})
+            pulls = random.randint(2, 5)
+            if boosts.get("perm_loot_boost"):
+                pulls += 1
+            if boosts.get("daily_loot_boost"):
+                last_date = user.get("daily_loot_boost_used", "1970-01-01")
+                if last_date != now.strftime("%Y-%m-%d"):
+                    pulls += 1
+                    user["daily_loot_boost_used"] = now.strftime("%Y-%m-%d")
 
             # Cooldown: 3 hours = 180 minutes
             cooldown_min = 180
@@ -59,17 +71,15 @@ class Scavenge(commands.Cog):
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
-            # Load master item pool and rarity weights
+            # Load item pool and weights
             item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
             print(f"📦 Item catalog size: {len(item_catalog)}")
             print(f"📊 Rarity weights: {rarity_weights}")
 
-            # Prepare weighted pool
             loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if "rarity" in v]
 
             found = []
-            pulls = random.randint(2, 5)
             for i in range(pulls):
                 item = weighted_choice(loot_pool, rarity_weights)
                 if item:
@@ -77,8 +87,11 @@ class Scavenge(commands.Cog):
                     print(f"🎯 Pull {i+1}: {item_name}")
                     found.append(item_name)
 
-            # Roll coin bonus
             coins_found = random.randint(5, 25)
+            if boosts.get("coin_doubler"):
+                coins_found *= 2
+                print(f"💰 Coin Doubler activated! Final coins: {coins_found}")
+
             user["coins"] += coins_found
 
             # Weekend bonus
@@ -93,6 +106,7 @@ class Scavenge(commands.Cog):
             # Update profile
             user["stash"].extend(found)
             user["last_scavenge"] = now.isoformat()
+            user["scavenges"] += 1
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
@@ -119,4 +133,4 @@ class Scavenge(commands.Cog):
             await interaction.followup.send("⚠️ Something went wrong during scavenging.", ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(Scave_
+    await bot.add_cog(Scavenge(bot))
