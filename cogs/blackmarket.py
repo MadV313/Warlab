@@ -60,7 +60,12 @@ class BuyButton(discord.ui.Button):
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
-        await interaction.response.send_message(f"✅ You purchased **{self.item_name}**!", ephemeral=True)
+
+        await interaction.response.send_message(
+            f"✅ You purchased **{self.item_name}**!\n"
+            f"💰 New Balance: **{user['coins']} coins**",
+            ephemeral=True
+        )
 
 # ─────────────────────────────────────────────────────────────────────
 class BlackMarket(commands.Cog):
