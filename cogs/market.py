@@ -89,10 +89,17 @@ class Market(commands.Cog):
         # Load or refresh rotation (3-hour window)
         market = await load_file(MARKET_FILE)
         if not market or market.get("expires", "") < datetime.utcnow().isoformat():
-            market = await self.generate_market()
-            await save_file(MARKET_FILE, market)
+            try:
+                market = await self.generate_market()
+                await save_file(MARKET_FILE, market)
+            except Exception as e:
+                await interaction.followup.send(f"❌ Market generation failed: {str(e)}", ephemeral=True)
+                return
 
-        offers = market["offers"]
+        offers = market.get("offers", [])
+        if not offers:
+            await interaction.followup.send("⚠️ No items available in today’s market.", ephemeral=True)
+            return
 
         embed = discord.Embed(
             title="🛒 WARLAB Market — Tools & Parts",
@@ -121,8 +128,11 @@ class Market(commands.Cog):
     async def generate_market(self):
         full_pool = await load_file(ROTATION_FILE) or {}
 
-        tools = [name for name, data in full_pool.items() if data.get("type") == "tool"]
-        parts = [name for name, data in full_pool.items() if data.get("type") != "tool"]
+        if not isinstance(full_pool, dict):
+            raise ValueError("Rotation file is invalid or not structured correctly.")
+
+        tools = [name for name, data in full_pool.items() if isinstance(data, dict) and data.get("type") == "tool"]
+        parts = [name for name, data in full_pool.items() if isinstance(data, dict) and data.get("type") != "tool"]
 
         selected_tools = random.sample(tools, k=2) if len(tools) >= 2 else tools
         selected_parts = random.sample(parts, k=3) if len(parts) >= 3 else parts
