@@ -1,15 +1,14 @@
-# cogs/task.py
+# cogs/task.py — Daily Warlab mission with new boost logic
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
-import random
+import json, random
 from datetime import datetime
 
-USER_DATA_FILE = "data/user_profiles.json"
-ITEMS_MASTER_FILE = "data/items_master.json"
-BLACKMARKET_FILE = "data/blackmarket_items_master.json"
+USER_DATA_FILE       = "data/user_profiles.json"
+ITEMS_MASTER_FILE    = "data/items_master.json"
+BLACKMARKET_FILE     = "data/blackmarket_items_master.json"
 
 DAILY_TASKS = [
     "Cleared an infected nest outside Topolin.",
@@ -25,95 +24,102 @@ DAILY_TASKS = [
     "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> agents hiding near the abandoned Roslavl factory."
 ]
 
-TOOL_POOL = ["Pliers", "Saw", "Nails", "Hammer"]
+TOOL_POOL = ["Pliers", "Saw", "Nails", "Hammer"]  # guaranteed-tool list
 
 class Task(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def load_json(self, path):
+    # ───────────────────────── helpers ──────────────────────────
+    @staticmethod
+    def _load(path):
         try:
             with open(path, "r") as f:
                 return json.load(f)
         except:
             return {}
 
-    def save_profiles(self, data):
-        with open(USER_DATA_FILE, "w") as f:
+    @staticmethod
+    def _save(path, data):
+        with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
+    # ───────────────────────── command ──────────────────────────
     @app_commands.command(name="task", description="Complete your daily Warlab mission for rewards.")
     async def task(self, interaction: discord.Interaction):
-        uid = str(interaction.user.id)
-        profiles = self.load_json(USER_DATA_FILE)
-        now_str = datetime.utcnow().strftime("%Y-%m-%d")
+        uid       = str(interaction.user.id)
+        profiles  = self._load(USER_DATA_FILE)
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
         user = profiles.get(uid)
         if not user:
-            await interaction.response.send_message("❌ You don’t have a profile yet. Use `/rank` or `/turnin` to get started.", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ You don’t have a profile yet. Use `/rank` or `/turnin` to get started.",
+                ephemeral=True
+            )
             return
 
-        if user.get("last_task") == now_str:
-            await interaction.response.send_message("🕒 You’ve already completed your daily task. Try again tomorrow.", ephemeral=True)
+        if user.get("last_task") == today_str:
+            await interaction.response.send_message(
+                "🕒 You’ve already completed your daily task. Try again tomorrow.",
+                ephemeral=True
+            )
             return
 
-        items_master = self.load_json(ITEMS_MASTER_FILE)
-        blackmarket_items = self.load_json(BLACKMARKET_FILE)
+        # ── Load loot pools ─────────────────────────────────────
+        items_master = self._load(ITEMS_MASTER_FILE)
+        black_market = self._load(BLACKMARKET_FILE)
 
-        # Pools
-        items_pool = list(items_master.keys())
-        rare_pool = list(blackmarket_items.keys())
+        std_pool  = list(items_master.keys())
+        rare_pool = list(black_market.keys())
 
-        task_desc = random.choice(DAILY_TASKS)
+        # ── Coin reward (with doubler) ──────────────────────────
         base_coins = random.randint(40, 80)
         if user.get("boosts", {}).get("coin_doubler"):
             base_coins *= 2
         user["coins"] = user.get("coins", 0) + base_coins
-        user["last_task"] = now_str
+        user["last_task"] = today_str
 
-        loot_boost = user.get("boosts", {}).get("loot_boost", False)
-        loot_roll = random.randint(1, 100)
-        item_count = 1
+        # ── Determine how many bonus rolls ──────────────────────
+        bonus_rolls = 0
+        boosts      = user.get("boosts", {})
 
-        if loot_boost:
-            if loot_roll >= 95:
-                item_count = 3
-            elif loot_roll >= 80:
-                item_count = 2
+        if boosts.get("perm_loot_boost"):
+            bonus_rolls += 1
 
-        item_rewards = []
+        if boosts.get("daily_loot_boost") and user.get("daily_task_loot_used") != today_str:
+            bonus_rolls += 1
+            user["daily_task_loot_used"] = today_str  # stamp usage
 
-        # 🔧 Always give one guaranteed tool
+        # always 1 extra roll by default
+        total_rolls = 1 + bonus_rolls
+
+        # ── Guaranteed tool ─────────────────────────────────────
         guaranteed_tool = random.choice(TOOL_POOL)
-        item_rewards.append(guaranteed_tool)
+        item_rewards    = [guaranteed_tool]
         user.setdefault("stash", []).append(guaranteed_tool)
 
-        # 🎲 Add item rolls (on top of guaranteed tool)
-        for _ in range(item_count):
+        # ── Random loot rolls ───────────────────────────────────
+        for _ in range(total_rolls):
             is_rare = random.randint(1, 100) <= 5
-            if is_rare and rare_pool:
-                item = random.choice(rare_pool)
-            else:
-                item = random.choice(items_pool)
-            item_rewards.append(item)
-            user.setdefault("stash", []).append(item)
+            loot    = random.choice(rare_pool) if (is_rare and rare_pool) else random.choice(std_pool)
+            item_rewards.append(loot)
+            user["stash"].append(loot)
 
-        # 🎁 Chance to re-unlock Coin Doubler
-        bonus_msgs = []
-        if user.get("boosts", {}).get("coin_doubler") and random.randint(1, 100) == 69:
-            user["boosts"]["coin_doubler"] = True
-            bonus_msgs.append("💥 Lucky draw! You unlocked: **Coin Doubler**!")
-
+        # ── Persist profile ─────────────────────────────────────
         profiles[uid] = user
-        self.save_profiles(profiles)
+        self._save(USER_DATA_FILE, profiles)
 
-        embed = discord.Embed(title="📋 Daily Task Complete!", color=0x8de68a)
-        embed.add_field(name="🧪 Mission", value=task_desc, inline=False)
-        embed.add_field(name="💰 Coins Earned", value=f"{base_coins} coins", inline=True)
-        embed.add_field(name="📦 Items Gained", value="\n".join([f"🔧 {i}" for i in item_rewards]), inline=False)
-
-        if bonus_msgs:
-            embed.add_field(name="🎁 Bonus Rewards", value="\n".join(bonus_msgs), inline=False)
+        # ── Build embed ─────────────────────────────────────────
+        mission = random.choice(DAILY_TASKS)
+        embed   = discord.Embed(title="📋 Daily Task Complete!", color=0x8DE68A)
+        embed.add_field(name="🧪 Mission",       value=mission,            inline=False)
+        embed.add_field(name="💰 Coins Earned",  value=f"{base_coins}",    inline=True)
+        embed.add_field(
+            name="📦 Items Gained",
+            value="\n".join([f"🔧 {itm}" for itm in item_rewards]),
+            inline=False
+        )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
