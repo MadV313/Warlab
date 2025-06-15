@@ -1,4 +1,4 @@
-# cogs/raid.py — Updated Warlab Raid System with Visuals, Coin Theft, Retaliation, and Broadcasts
+# cogs/raid.py — Updated Warlab Raid System with Boosts, Visuals, Coin Theft, and Retaliation
 
 import discord
 from discord.ext import commands
@@ -8,6 +8,8 @@ import json
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import asyncio
+
+from utils.boosts import is_weekend_boost_active  # ✅ NEW
 
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
@@ -98,14 +100,19 @@ class Raid(commands.Cog):
         stolen_coins = 0
         result_summary = []
 
+        # ── Weekend Boost Check ─────────────────────────────
+        weekend_bonus = is_weekend_boost_active()
+        item_bonus = 1 if weekend_bonus else 0
+        coin_multiplier = 1.3 if weekend_bonus else 1.0
+
         if blocked:
             result = f"❌ Raid repelled by {', '.join(triggered)}!"
         else:
             result = "✅ Raid successful!"
 
             inv = defender.get("inventory", [])
-            steal_count = min(len(inv), random.randint(1, 3))
-            stolen_items = random.sample(inv, steal_count) if inv else []
+            max_steal = min(len(inv), random.randint(1, 3 + item_bonus))
+            stolen_items = random.sample(inv, max_steal) if inv else []
             for item in stolen_items:
                 inv.remove(item)
                 attacker.setdefault("inventory", []).append(item)
@@ -114,7 +121,7 @@ class Raid(commands.Cog):
             def_coins = defender.get("coins", 0)
             if def_coins > 0:
                 steal_percent = random.randint(10, 50)
-                stolen_coins = max(1, int(def_coins * (steal_percent / 100)))
+                stolen_coins = max(1, int(def_coins * (steal_percent / 100) * coin_multiplier))
                 defender["coins"] -= stolen_coins
                 attacker["coins"] = attacker.get("coins", 0) + stolen_coins
 
