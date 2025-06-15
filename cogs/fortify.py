@@ -41,18 +41,15 @@ class ReinforceButton(discord.ui.Button):
         cost = REINFORCEMENT_COSTS[rtype]
         missing = []
 
-        # Check tools
         for tool in cost.get("tools", []):
             has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
             if not has_tool:
                 missing.append(tool)
 
-        # Check materials
         for item in cost.get("materials", []):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
 
-        # Check special
         for item in cost.get("special", []):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
@@ -62,13 +59,11 @@ class ReinforceButton(discord.ui.Button):
                 f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
-        # Deduct materials
         for item in cost.get("materials", []):
             profile["inventory"].remove(item)
         for item in cost.get("special", []):
             profile["inventory"].remove(item)
 
-        # Reduce tool durability
         for tool in cost.get("tools", []):
             for i, t in enumerate(profile["tools"]):
                 if t.startswith(tool):
@@ -80,7 +75,6 @@ class ReinforceButton(discord.ui.Button):
                         profile["tools"][i] = f"{tool} ({uses} uses left)"
                     break
 
-        # Apply reinforcement
         profile["reinforcements"][rtype] = profile["reinforcements"].get(rtype, 0) + 1
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
@@ -88,7 +82,6 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        # Create updated preview link
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": profile["reinforcements"]
@@ -123,7 +116,7 @@ class Fortify(commands.Cog):
     @app_commands.command(name="fortify", description="Open fortification UI and choose reinforcement")
     async def fortify(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-    
+
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id, {
@@ -134,14 +127,19 @@ class Fortify(commands.Cog):
         })
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
-    
+
         view = ReinforcementView(profile)
-    
+
         if not view.children:
             await interaction.followup.send("✅ All stash reinforcements are fully installed. No more fortifications available.", ephemeral=True)
             return
-    
+
         await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(Fortify(bot))
+    cog = Fortify(bot)
+    await bot.add_cog(cog)
+    try:
+        bot.tree.add_command(cog.fortify)  # Ensures slash command is bound
+    except Exception:
+        pass
