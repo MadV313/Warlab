@@ -1,4 +1,4 @@
-# cogs/raid.py
+# cogs/raid.py — Updated Warlab Raid System with Visuals, Retaliation, and Broadcasts
 
 import discord
 from discord.ext import commands
@@ -6,38 +6,37 @@ from discord import app_commands
 import random
 import json
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
+USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
-USER_DATA_FILE = "data/user_profiles.json"
 RAID_LOG_FILE = "data/raid_log.json"
+CATALOG_PATH = "data/labskin_catalog.json"
+WARLAB_CHANNEL_ID = 1382187883590455296
+FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="
 
-DEFENSE_LIMITS = {
-    "barbed_fence": 10,
-    "locked_container": 5,
-    "reinforced_gate": 5,
-    "claymore": 1,
-    "guard_dog": 1
+REINFORCEMENT_ROLLS = {
+    "Guard Dog": 50,
+    "Claymore Trap": 35,
+    "Barbed Fence": 25,
+    "Reinforced Gate": 20,
+    "Locked Container": 15
 }
 
 class Raid(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def load_data(self, path):
+    def load(self, path):
         try:
             with open(path, "r") as f:
                 return json.load(f)
         except:
-            return {}
+            return {} if path.endswith(".json") else []
 
-    def save_data(self, path, data):
+    def save(self, path, data):
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
-
-    def log_raid(self, log_entry):
-        logs = self.load_data(RAID_LOG_FILE)
-        logs.append(log_entry)
-        self.save_data(RAID_LOG_FILE, logs)
 
     @app_commands.command(name="raid", description="Attempt to raid another player's stash.")
     async def raid(self, interaction: discord.Interaction, target: discord.Member):
@@ -49,126 +48,134 @@ class Raid(commands.Cog):
             await interaction.response.send_message("❌ You cannot raid yourself.", ephemeral=True)
             return
 
-        cooldowns = self.load_data(COOLDOWN_FILE)
-        users = self.load_data(USER_DATA_FILE)
+        cooldowns = self.load(COOLDOWN_FILE)
+        users = self.load(USER_DATA)
         attacker = users.get(attacker_id)
         defender = users.get(defender_id)
 
         if not attacker or not defender:
-            await interaction.response.send_message("❌ One of the players has no stash data.", ephemeral=True)
+            await interaction.response.send_message("❌ One of the players has no profile.", ephemeral=True)
             return
 
-        # --- Retaliation bypass ---
-        retaliation_rights = defender.get("retaliation_rights", {}).get(attacker_id)
-        is_retaliation = False
-        if retaliation_rights:
-            is_retaliation = True
-            del defender["retaliation_rights"][attacker_id]
-        elif defender_id in cooldowns.get(attacker_id, {}):
-            last_raid = datetime.fromisoformat(cooldowns[attacker_id][defender_id])
-            if now - last_raid < timedelta(hours=24):
-                hours_left = 24 - (now - last_raid).seconds // 3600
-                await interaction.response.send_message(f"⏳ Wait {hours_left}h before raiding {target.display_name} again.", ephemeral=True)
+        last_attacks = cooldowns.get(attacker_id, {})
+        cooldown_time = timedelta(hours=12 if defender_id in last_attacks else 3)
+        if defender_id in last_attacks:
+            last_time = datetime.fromisoformat(last_attacks[defender_id])
+            if now - last_time < cooldown_time:
+                wait = cooldown_time - (now - last_time)
+                await interaction.response.send_message(f"⏳ You must wait {wait.seconds // 3600}h to raid this player again.", ephemeral=True)
                 return
 
-        # HP check
-        defender_hp = defender.get("stash_hp", 100)
-        if defender_hp > 40:
-            await interaction.response.send_message(f"🛡️ {target.display_name}'s stash is too secure to raid.", ephemeral=True)
-            return
+        reinforcements = defender.get("reinforcements", {})
+        stash_hp = defender.get("stash_hp", 0)
+        visual_embed = discord.Embed(
+            title=f"🔐 {target.display_name}'s Fortified Stash",
+            description=f"""
+```
+{self.render_stash(reinforcements)}
+```""",
+            color=0x95a5a6
+        )
+        await interaction.response.send_message(embed=visual_embed, ephemeral=True)
 
-        defense = defender.get("defenses", {})
-        summary = ["📦 **Defense Report**"]
+        triggered = []
         blocked = False
-        triggered_defenses = []
-        stolen_items = []
+        roll_attempts = 3
 
-        for item, max_qty in DEFENSE_LIMITS.items():
-            qty = defense.get(item, 0)
-            for i in range(qty):
-                roll = random.randint(1, 100)
-                if item == "guard_dog" and roll <= 50:
+        for attempt in range(roll_attempts):
+            for dtype, chance in REINFORCEMENT_ROLLS.items():
+                qty = reinforcements.get(dtype, 0)
+                if qty > 0 and random.randint(1, 100) <= chance:
+                    reinforcements[dtype] -= 1
                     blocked = True
-                    summary.append("🐕 Guard Dog lunged at the raider! Raid blocked.")
-                    defense[item] -= 1
-                    triggered_defenses.append("Guard Dog")
+                    triggered.append(dtype)
                     break
-                elif item == "claymore" and roll <= 35:
-                    blocked = True
-                    summary.append("💥 Claymore detonated and stopped the raid!")
-                    defense[item] -= 1
-                    triggered_defenses.append("Claymore")
-                    break
-                elif item == "barbed_fence" and roll <= 25:
-                    summary.append("🪓 Barbed Fence took damage.")
-                    defense[item] -= 1
-                    triggered_defenses.append("Barbed Fence")
-                elif item == "reinforced_gate" and roll <= 20:
-                    summary.append("🚪 Reinforced Gate cracked.")
-                    defense[item] -= 1
-                    triggered_defenses.append("Reinforced Gate")
-                elif item == "locked_container" and roll <= 15:
-                    summary.append("🔐 Locked Container absorbed impact.")
-                    defense[item] -= 1
-                    triggered_defenses.append("Locked Container")
+            if blocked:
+                break
+            # Refresh updated visual per attempt
+            visual_embed.description = f"""
+```
+{self.render_stash(reinforcements)}
+```"""
+            await interaction.edit_original_response(embed=visual_embed)
+            await discord.utils.sleep_until(datetime.utcnow() + timedelta(seconds=1))
 
-        for item in defense:
-            defense[item] = max(defense[item], 0)
-
-        defender["defenses"] = defense
+        stolen = []
+        result_summary = []
 
         if blocked:
-            result = "❌ **Raid was repelled!**"
-            loot_summary = []
+            result = f"❌ Raid repelled by {', '.join(triggered)}!"
         else:
-            result = "✅ **Raid successful!**"
-            stash = defender.get("stash", [])
-            steal_count = min(len(stash), random.randint(1, 3))
-            stolen_items = random.sample(stash, steal_count) if stash else []
-            for item in stolen_items:
-                stash.remove(item)
-                attacker.setdefault("stash", []).append(item)
-            defender["stash"] = stash
-            loot_summary = [f"🎒 Stolen items: `{', '.join(stolen_items)}`" if stolen_items else "⚠️ No loot found."]
-
-            # Retaliation rights granted
+            result = "✅ Raid successful!"
+            inv = defender.get("inventory", [])
+            steal_count = min(len(inv), random.randint(1, 3))
+            stolen = random.sample(inv, steal_count) if inv else []
+            for item in stolen:
+                inv.remove(item)
+                attacker.setdefault("inventory", []).append(item)
+            defender["inventory"] = inv
+            attacker["successful_raids"] = attacker.get("successful_raids", 0) + 1
+            result_summary.append(f"🎒 Items stolen: `{', '.join(stolen)}`" if stolen else "⚠️ No items found.")
             defender.setdefault("retaliation_rights", {})[attacker_id] = now.isoformat()
 
-        # Save updates
         users[attacker_id] = attacker
         users[defender_id] = defender
-        self.save_data(USER_DATA_FILE, users)
+        self.save(USER_DATA, users)
+        cooldowns.setdefault(attacker_id, {})[defender_id] = now.isoformat()
+        self.save(COOLDOWN_FILE, cooldowns)
 
-        if not is_retaliation:
-            cooldowns.setdefault(attacker_id, {})[defender_id] = now.isoformat()
-            self.save_data(COOLDOWN_FILE, cooldowns)
-
-        # Raid log entry
         self.log_raid({
             "timestamp": now.isoformat(),
             "attacker": attacker_id,
             "defender": defender_id,
             "blocked": blocked,
-            "items_stolen": stolen_items,
-            "defenses_triggered": triggered_defenses
+            "items": stolen,
+            "defenses_triggered": triggered
         })
 
-        # Final message to attacker
-        await interaction.response.send_message(
-            f"⚔️ **Raid on {target.display_name}**\n{result}\n\n" +
-            "\n".join(summary + loot_summary),
-            ephemeral=True
+        channel = self.bot.get_channel(WARLAB_CHANNEL_ID)
+        if channel:
+            await channel.send(f"📣 **{interaction.user.display_name} raided {target.display_name}!**\n{result}")
+
+        await interaction.followup.send(
+            f"⚔️ **Raid on {target.display_name}**\n{result}\n\n" + "\n".join(result_summary), ephemeral=True
         )
 
-        # DM to defender
         try:
             await target.send(
-                f"⚠️ **{interaction.user.display_name} raided your stash!**\n{result}\n\n" +
-                "\n".join(summary + loot_summary) +
-                ("\n\n🔁 You’ve earned 1 retaliation raid. Use `/raid @attacker` within 24h to strike back." if not blocked else "")
+                f"⚠️ {interaction.user.display_name} raided your stash!\n{result}\n\n" +
+                "\n".join(result_summary) +
+                ("\n\n🔁 You may retaliate using `/raid` within 24h." if not blocked else "")
             )
         except:
             pass
+
+    def render_stash(self, reinforcements):
+        bf = reinforcements.get("Barbed Fence", 0)
+        lc = reinforcements.get("Locked Container", 0)
+        rg = reinforcements.get("Reinforced Gate", 0)
+        gd = reinforcements.get("Guard Dog", 0)
+        cm = reinforcements.get("Claymore Trap", 0)
+
+        lc_slots = ["🔐" if i < lc else "🔲" for i in range(5)]
+        rg_row = " ".join(["🚪" if i < rg else "🔲" for i in range(5)])
+        bf_emojis = ["🧱" if i < bf else "🔲" for i in range(9)]
+        dog = "🐶" if gd else "🔲"
+        clay = "💣" if cm else "🔲"
+
+        row1 = f"{bf_emojis[0]} {bf_emojis[1]} {bf_emojis[2]} {bf_emojis[3]} {bf_emojis[4]}"
+        row2 = f"{bf_emojis[5]} {lc_slots[0]} {lc_slots[1]} {lc_slots[2]} {bf_emojis[6]}"
+        row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
+        row4 = rg_row
+        row5 = f"  {dog}       {clay}"
+
+        return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
+
+    def log_raid(self, entry):
+        logs = self.load(RAID_LOG_FILE)
+        if not isinstance(logs, list): logs = []
+        logs.append(entry)
+        self.save(RAID_LOG_FILE, logs)
 
 async def setup(bot):
     await bot.add_cog(Raid(bot))
