@@ -1,0 +1,321 @@
+{
+  "Saw": {
+    "type": "tool",
+    "rarity": "Common",
+    "tags": [
+      "build"
+    ]
+  },
+  "Nails": {
+    "type": "tool",
+    "rarity": "Common",
+    "tags": [
+      "build"
+    ]
+  },
+  "Pliers": {
+    "type": "tool",
+    "rarity": "Common",
+    "tags": [
+      "trap",
+      "wire"
+    ]
+  },
+  "Slide": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "pistol"
+    ]
+  },
+  "Frame": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "pistol"
+    ]
+  },
+  "Barrel": {
+    "type": "gun_part",
+    "rarity": "Rare",
+    "tags": [
+      "pistol",
+      "shotgun"
+    ]
+  },
+  "Magazine": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "pistol",
+      "smg",
+      "assault"
+    ]
+  },
+  "Suppressor": {
+    "type": "mod",
+    "rarity": "Legendary",
+    "tags": [
+      "pistol",
+      "smg",
+      "assault"
+    ]
+  },
+  "Red Dot": {
+    "type": "mod",
+    "rarity": "Rare",
+    "tags": [
+      "optic"
+    ]
+  },
+  "Receiver": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "assault",
+      "shotgun",
+      "rifle",
+      "smg"
+    ]
+  },
+  "Handguard": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "assault"
+    ]
+  },
+  "Buttstock": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "assault",
+      "rifle"
+    ]
+  },
+  "Optic": {
+    "type": "mod",
+    "rarity": "Rare",
+    "tags": [
+      "optic"
+    ]
+  },
+  "Gas Tube": {
+    "type": "gun_part",
+    "rarity": "Rare",
+    "tags": [
+      "rifle"
+    ]
+  },
+  "Slide Bolt": {
+    "type": "gun_part",
+    "rarity": "Rare",
+    "tags": [
+      "rifle"
+    ]
+  },
+  "PSO Scope": {
+    "type": "mod",
+    "rarity": "Legendary",
+    "tags": [
+      "optic"
+    ]
+  },
+  "Muzzle Brake": {
+    "type": "mod",
+    "rarity": "Uncommon",
+    "tags": [
+      "rifle"
+    ]
+  },
+  "Pump Slide": {
+    "type": "gun_part",
+    "rarity": "Rare",
+    "tags": [
+      "shotgun"
+    ]
+  },
+  "Wooden Stock": {
+    "type": "gun_part",
+    "rarity": "Common",
+    "tags": [
+      "shotgun"
+    ]
+  },
+  "Sawed-Off Mod": {
+    "type": "mod",
+    "rarity": "Rare",
+    "tags": [
+      "shotgun"
+    ]
+  },
+  "Hand Guard": {
+    "type": "gun_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "smg"
+    ]
+  },
+  "Tactical Stock": {
+    "type": "gun_part",
+    "rarity": "Rare",
+    "tags": [
+      "smg"
+    ]
+  },
+  "Reflex Sight": {
+    "type": "mod",
+    "rarity": "Rare",
+    "tags": [
+      "optic",
+      "smg"
+    ]
+  },
+  "Combat Shirt": {
+    "type": "armor_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Combat Pants": {
+    "type": "armor_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Plat Carrier": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Combat Boots": {
+    "type": "armor_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Combat Helmet": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Combat Gloves": {
+    "type": "armor_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "combat"
+    ]
+  },
+  "Tactical Jacket": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "Tactical Pants": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "Tactical Vest": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "Assault Boots": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "Assault Backpack": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "Assault Helmet": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "tactical"
+    ]
+  },
+  "NBC Hood": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "NBC Jacket": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "NBC Pants": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "NBC Boots": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "NBC Gloves": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "Gas Mask": {
+    "type": "armor_part",
+    "rarity": "Rare",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "Combat Gasmask": {
+    "type": "armor_part",
+    "rarity": "Legendary",
+    "tags": [
+      "nbc",
+      "hazmat"
+    ]
+  },
+  "Canister Filter": {
+    "type": "armor_part",
+    "rarity": "Uncommon",
+    "tags": [
+      "nbc"
+    ]
+  }
+}
