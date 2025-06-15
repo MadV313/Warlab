@@ -58,13 +58,11 @@ class RankView(discord.ui.View):
             await interaction.response.send_message("🔒 You need at least 5 full builds to prestige.", ephemeral=True)
             return
 
-        # Prestige roll logic
         rolled_id = random.choice(list(SPECIAL_REWARDS.keys()))
         self.user_data["special_class"] = rolled_id
-
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
+        self.user_data["rank_level"] = self.user_data["prestige"]  # 🔄 Sync rank with prestige
         self.user_data["builds_completed"] = 0
-        self.user_data["rank_level"] = 0
         self.user_data["stash"] = []
         self.user_data["boosts"] = {}
         self.update_callback(self.user_id, self.user_data)
@@ -218,13 +216,10 @@ class Rank(commands.Cog):
         boosts = user.get("boosts", {})
         rolled_class_id = user.get("special_class")
 
-        # Determine true reward if player qualifies
         special_reward = self.determine_special_reward(user)
-        if special_reward:
-            embed_color = special_reward["color"]
-        else:
-            special_reward = SPECIAL_REWARDS.get(rolled_class_id)
-            embed_color = special_reward["color"] if special_reward else 0x88e0ef
+        embed_color = special_reward["color"] if special_reward else (
+            SPECIAL_REWARDS.get(rolled_class_id, {}).get("color", 0x88e0ef)
+        )
 
         embed = discord.Embed(title=f"🏅 {interaction.user.display_name}'s Rank", color=embed_color)
         embed.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(level, "???"), inline=False)
