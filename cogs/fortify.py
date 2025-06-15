@@ -1,11 +1,10 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Preview (no type field)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json
 from urllib.parse import quote
-
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
@@ -27,28 +26,18 @@ REINFORCEMENT_COSTS = {
     "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
 
-class ReinforcementDropdown(discord.ui.Select):
-    def __init__(self, profile):
-        options = []
-        for rtype, cost in REINFORCEMENT_COSTS.items():
-            current = profile["reinforcements"].get(rtype, 0)
-            max_amt = MAX_REINFORCEMENTS[rtype]
-            if current < max_amt:
-                options.append(discord.SelectOption(label=rtype, description=f"{current}/{max_amt} installed"))
-
-        super().__init__(
-            placeholder="Select a reinforcement to install...",
-            min_values=1,
-            max_values=1,
-            options=options
-        )
+class ReinforceButton(discord.ui.Button):
+    def __init__(self, label, profile):
+        super().__init__(label=label, style=discord.ButtonStyle.blurple)
+        self.rtype = label
+        self.profile = profile
 
     async def callback(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
 
-        rtype = self.values[0]
+        rtype = self.rtype
         cost = REINFORCEMENT_COSTS[rtype]
         missing = []
 
@@ -120,8 +109,12 @@ class ReinforcementDropdown(discord.ui.Select):
 
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
-        super().__init__(timeout=60)
-        self.add_item(ReinforcementDropdown(profile))
+        super().__init__(timeout=90)
+        for rtype, cost in REINFORCEMENT_COSTS.items():
+            current = profile["reinforcements"].get(rtype, 0)
+            max_allowed = MAX_REINFORCEMENTS[rtype]
+            if current < max_allowed:
+                self.add_item(ReinforceButton(label=rtype, profile=profile))
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
