@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed UI Crash)
+# cogs/fortify.py — WARLAB stash fortification system + Damage Tracking + Tool Durability Display
 
 import discord
 from discord.ext import commands
@@ -67,18 +67,29 @@ class ReinforceButton(discord.ui.Button):
         for item in cost.get("special", []):
             profile["inventory"].remove(item)
 
-        for tool in cost.get("tools", []):
-            for i, t in enumerate(profile["tools"]):
-                if t.startswith(tool):
-                    uses = int(t.split("(")[1].split()[0])
-                    uses -= 1
-                    if uses <= 0:
-                        profile["tools"].pop(i)
-                    else:
-                        profile["tools"][i] = f"{tool} ({uses} uses left)"
-                    break
+        # Update tools and reduce durability
+        updated_tools = []
+        for tool in profile["tools"]:
+            base = tool.split(" (")[0]
+            if base in cost.get("tools", []) and "(0" not in tool:
+                uses = int(tool.split("(")[1].split()[0])
+                uses -= 1
+                if uses > 0:
+                    updated_tools.append(f"{base} ({uses} uses left)")
+                # If uses drop to 0, do not re-add
+                cost["tools"].remove(base)  # avoid double use
+            else:
+                updated_tools.append(tool)
+        profile["tools"] = updated_tools
 
-        profile["reinforcements"][rtype] = profile["reinforcements"].get(rtype, 0) + 1
+        # Initialize or update reinforcement
+        reinf = profile.get("reinforcements", {})
+        if rtype not in reinf or isinstance(reinf[rtype], int):
+            reinf[rtype] = {"count": 1, "damage": 0}
+        else:
+            reinf[rtype]["count"] += 1
+        profile["reinforcements"] = reinf
+
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
 
@@ -87,7 +98,7 @@ class ReinforceButton(discord.ui.Button):
 
         preview_data = {
             "stash_hp": profile["stash_hp"],
-            "reinforcements": profile["reinforcements"]
+            "reinforcements": reinf
         }
         json_encoded = quote(json.dumps(preview_data))
         visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
@@ -99,15 +110,19 @@ class ReinforceButton(discord.ui.Button):
         )
         embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
         embed.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
-        embed.set_footer(text="WARLAB | SV13 Bot")
 
+        if profile["tools"]:
+            embed.add_field(name="🧰 Tools Remaining", value="\n".join(profile["tools"]), inline=False)
+
+        embed.set_footer(text="WARLAB | SV13 Bot")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
         for rtype in REINFORCEMENT_COSTS:
-            current = profile["reinforcements"].get(rtype, 0)
+            current_data = profile["reinforcements"].get(rtype, {})
+            current = current_data["count"] if isinstance(current_data, dict) else current_data
             if current < MAX_REINFORCEMENTS[rtype]:
                 self.add_item(ReinforceButton(label=rtype))
 
@@ -127,6 +142,12 @@ class Fortify(commands.Cog):
             "reinforcements": {},
             "stash_hp": 0
         })
+
+        # Auto-upgrade legacy reinforcement format (int ➝ dict)
+        for key, val in profile.get("reinforcements", {}).items():
+            if isinstance(val, int):
+                profile["reinforcements"][key] = {"count": val, "damage": 0}
+
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
