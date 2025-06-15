@@ -174,7 +174,11 @@ class Fortify(commands.Cog):
         try:
             user_id = str(interaction.user.id)
             profiles = await load_file(USER_DATA) or {}
-            profile = profiles.get(user_id) or {}
+            profile = profiles.get(user_id)
+
+            if profile is None:
+                await interaction.followup.send("❌ You must use `/register` before accessing your stash.", ephemeral=True)
+                return
 
             profile.setdefault("inventory", [])
             profile.setdefault("tools", [])
