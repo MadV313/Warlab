@@ -101,9 +101,16 @@ class RankView(discord.ui.View):
         guild = interaction.guild
         role_id = PRESTIGE_ROLES.get(prestige_level)
         if guild and role_id:
-            role = guild.get_role(role_id)
-            if role:
-                await interaction.user.add_roles(role, reason="Prestige reward role")
+            # Remove all previous prestige roles
+            roles_to_remove = [guild.get_role(rid) for lvl, rid in PRESTIGE_ROLES.items() if lvl != prestige_level]
+            for r in roles_to_remove:
+                if r and r in interaction.user.roles:
+                    await interaction.user.remove_roles(r, reason="Old prestige role removed")
+        
+            # Add new prestige role
+            new_role = guild.get_role(role_id)
+            if new_role:
+                await interaction.user.add_roles(new_role, reason="Prestige reward role")
 
     @discord.ui.button(label="⚡ Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
     async def buy_boost_button(self, interaction: discord.Interaction, button: discord.ui.Button):
