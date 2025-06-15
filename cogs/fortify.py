@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + UI Preview
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Preview
 
 import discord
 from discord.ext import commands
@@ -9,7 +9,7 @@ from urllib.parse import quote
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="  # 🔁 Your hosted fortify UI endpoint
+FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="  # ✅ Hosted UI endpoint
 
 MAX_REINFORCEMENTS = {
     "Barbed Fence": 10,
@@ -23,7 +23,7 @@ REINFORCEMENT_COSTS = {
     "Barbed Fence": {"tools": ["Pliers", "Nails"], "stash_hp": 1},
     "Locked Container": {"tools": ["Hammer", "Nails"], "stash_hp": 2},
     "Claymore Trap": {"tools": ["Pliers", "Nails"], "raid_block": 0.25},
-    "Guard Dog": {"tools": [], "special": ["Guard Dog"], "raid_block": 0.5},
+    "Guard Dog": {"special": ["Guard Dog"], "raid_block": 0.5},
     "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
 
@@ -61,12 +61,17 @@ class Fortify(commands.Cog):
         missing = []
 
         # Check materials
-        for item in cost["materials"]:
+        for item in cost.get("materials", []):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
 
-        # Check tools (validates durability)
-        for tool in cost["tools"]:
+        # Check special (like Guard Dog)
+        for item in cost.get("special", []):
+            if profile["inventory"].count(item) < 1:
+                missing.append(item)
+
+        # Check tools (must have uses left)
+        for tool in cost.get("tools", []):
             has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
             if not has_tool:
                 missing.append(tool)
@@ -76,11 +81,13 @@ class Fortify(commands.Cog):
             return
 
         # Deduct materials
-        for item in cost["materials"]:
+        for item in cost.get("materials", []):
+            profile["inventory"].remove(item)
+        for item in cost.get("special", []):
             profile["inventory"].remove(item)
 
         # Reduce tool durability
-        for tool in cost["tools"]:
+        for tool in cost.get("tools", []):
             for i, t in enumerate(profile["tools"]):
                 if t.startswith(tool):
                     uses = int(t.split("(")[1].split()[0])
@@ -91,7 +98,7 @@ class Fortify(commands.Cog):
                         profile["tools"][i] = f"{tool} ({uses} uses left)"
                     break
 
-        # Apply upgrade
+        # Apply reinforcement
         profile["reinforcements"][type] = current_count + 1
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
@@ -99,7 +106,7 @@ class Fortify(commands.Cog):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        # 🔍 Prepare visual preview link
+        # 🔍 Prepare Visual UI link
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": profile["reinforcements"]
@@ -107,10 +114,10 @@ class Fortify(commands.Cog):
         json_encoded = quote(json.dumps(preview_data))
         visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
 
-        # ✅ Final response with UI
+        # ✅ Final embed with open UI button
         embed = discord.Embed(
             title=f"✅ {type} installed!",
-            description=f"Your stash has been fortified.",
+            description="Your stash has been fortified.",
             color=0x3498db
         )
         embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
