@@ -20,11 +20,11 @@ MAX_REINFORCEMENTS = {
 }
 
 REINFORCEMENT_COSTS = {
-    "Barbed Fence": {"tools": ["Pliers"], "materials": ["Nails"], "stash_hp": 1},
-    "Locked Container": {"tools": ["Hammer"], "materials": ["Nails"], "stash_hp": 2},
-    "Claymore Trap": {"tools": ["Pliers"], "materials": ["Nails"], "raid_block": 0.25},
-    "Guard Dog": {"tools": [], "materials": ["Guard Dog"], "raid_block": 0.5},
-    "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers"], "materials": ["Nails"], "stash_hp": 3}
+    "Barbed Fence": {"tools": ["Pliers", "Nails"], "stash_hp": 1},
+    "Locked Container": {"tools": ["Hammer", "Nails"], "stash_hp": 2},
+    "Claymore Trap": {"tools": ["Pliers", "Nails"], "raid_block": 0.25},
+    "Guard Dog": {"tools": [], "special": ["Guard Dog"], "raid_block": 0.5},
+    "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
 
 class Fortify(commands.Cog):
