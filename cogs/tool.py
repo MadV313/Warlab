@@ -1,6 +1,7 @@
 # cogs/tool.py — Admin: Give or remove tools from a player (Dropdown Flow)
 
 import discord
+from typing import Literal
 from discord.ext import commands
 from discord import app_commands
 from utils.fileIO import load_file, save_file
