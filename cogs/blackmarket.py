@@ -19,7 +19,7 @@ ITEM_COSTS = {
     "Uncommon" : 150,
     "Rare"     : 300,
     "Legendary": 500,
-    "Special"  : 250          # ← Guard Dog price
+    "Special"  : 250  # ← Guard Dog price
 }
 
 RARITY_EMOJIS = {
@@ -78,7 +78,15 @@ class BlackMarket(commands.Cog):
 
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        user     = profiles.get(user_id, {"coins": 0})
+        user     = profiles.get(user_id)
+
+        # 🔒 Must be registered
+        if not user:
+            await interaction.followup.send(
+                "❌ You don’t have a profile yet. Please use `/register` first.",
+                ephemeral=True
+            )
+            return
 
         # Load or (re)generate rotation
         market = await load_file(MARKET_FILE)
