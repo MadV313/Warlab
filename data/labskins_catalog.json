@@ -1,0 +1,51 @@
+{
+  "Rust Bucket": {
+    "emoji": "🏚️",
+    "description": "A corroded, rusty old lab setup. Basic, no frills.",
+    "color": 0x7f8c8d,
+    "unlock": {
+      "prestige": 1,
+      "builds_required": 4
+    }
+  },
+  "Field Technician": {
+    "emoji": "🏪",
+    "description": "Tactical repair station used by survivors in the field.",
+    "color": 0x2ecc71,
+    "unlock": {
+      "prestige": 2
+    }
+  },
+  "Contaminated Worksite": {
+    "emoji": "🏥",
+    "description": "Bright yellow, with biohazard symbols. High-security zone.",
+    "color": 0xf1c40f,
+    "unlock": {
+      "prestige": 3
+    }
+  },
+  "Tactical Emerald": {
+    "emoji": "🏢",
+    "description": "Sleek green tactical theme. Enhanced UI and visuals.",
+    "color": 0x27ae60,
+    "unlock": {
+      "prestige": 4
+    }
+  },
+  "Warlab Blacksite": {
+    "emoji": "🕋",
+    "description": "Secret blacksite aesthetics. Shadowy, elite. Prestige-exclusive.",
+    "color": 0x000000,
+    "unlock": {
+      "prestige": 5
+    }
+  },
+  "Dark Ops": {
+    "emoji": "🏰",
+    "description": "Black and red stealth design. Rare, high-tier drop.",
+    "color": 0xc0392b,
+    "unlock": {
+      "raids_successful": 25
+    }
+  }
+}
