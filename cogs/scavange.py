@@ -81,10 +81,15 @@ class Scavenge(commands.Cog):
             # Load item pool and weights
             item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
+            if not item_catalog or not rarity_weights:
+                raise ValueError("Missing or invalid loot tables or weights.")
+
             print(f"📦 Item catalog size: {len(item_catalog)}")
             print(f"📊 Rarity weights: {rarity_weights}")
 
-            loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if "rarity" in v]
+            loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if isinstance(v, dict) and "rarity" in v]
+            if not loot_pool:
+                raise ValueError("Loot pool is empty after parsing items.")
 
             found = []
             for i in range(pulls):
@@ -102,7 +107,7 @@ class Scavenge(commands.Cog):
             user["coins"] += coins_found
 
             # Weekend bonus
-            if is_weekend_boost_active():  # ✅ Refactored here
+            if is_weekend_boost_active():
                 print("🎉 Weekend bonus triggered")
                 bonus = weighted_choice(loot_pool, rarity_weights)
                 if bonus:
