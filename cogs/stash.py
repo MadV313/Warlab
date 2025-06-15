@@ -30,7 +30,7 @@ class Stash(commands.Cog):
 
         user = profiles.get(uid)
         if not user:
-            await interaction.response.send_message("❌ You don’t have a profile yet.", ephemeral=True)
+            await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
         stash_items = Counter(user.get("stash", []))
