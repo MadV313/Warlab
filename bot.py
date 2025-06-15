@@ -1,88 +1,81 @@
-# bot.py — WARLAB Slash Command Loader (Confirmed Syncing)
+# bot.py — WARLAB Cog Loader + Reliable Slash Sync
 
 print("🟡 Booting WARLAB Bot...")
 
 import discord
 from discord.ext import commands
-from discord import Interaction, app_commands
-import json
-import os
-import asyncio
+from discord import app_commands
+import json, os, asyncio
 from datetime import datetime
 
-print("🟡 Imports successful. Loading config...")
-
-# === Load config.json ===
+# ── Load config ──────────────────────────────────────────────────────────────
 try:
     with open("config.json", "r") as f:
         config = json.load(f)
-    print("✅ Config loaded successfully.")
+    print("✅ Config loaded.")
 except Exception as e:
     print(f"❌ Failed to load config.json: {e}")
     config = {}
 
-# === Inject Railway env ===
-config["token"] = os.getenv("token", config.get("token"))
+config["token"]   = os.getenv("token",   config.get("token"))
 config["guild_id"] = os.getenv("guild_id", config.get("guild_id"))
-
 if not config.get("token"):
-    raise RuntimeError("❌ DISCORD TOKEN MISSING - Set Railway var 'token'")
+    raise RuntimeError("❌ DISCORD TOKEN missing – set Railway var `token`")
 
-TOKEN = config["token"]
+TOKEN    = config["token"]
 GUILD_ID = int(config.get("guild_id", "0"))
-PREFIX = "/"
+PREFIX   = "/"
 
-intents = discord.Intents.default()
+# ── Discord bot setup ────────────────────────────────────────────────────────
+intents               = discord.Intents.default()
 intents.message_content = True
-intents.guilds = True
-intents.members = True
+intents.guilds          = True
+intents.members         = True
 
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
-bot.config = config  # ✅ Attach config for access in cogs
+bot.config = config                          # cogs can access self.bot.config
+guild_obj = discord.Object(id=GUILD_ID)      # reuse reference
 
-# === Auto-load cogs from /cogs ===
+# ── Auto-load cogs *then* sync commands ──────────────────────────────────────
 @bot.event
 async def on_ready():
-    print("✅ Bot connected and ready.")
-    
-    print("🧩 Loading cogs from /cogs...")
-    for filename in os.listdir("./cogs"):
-        if filename.endswith(".py") and filename != "__init__.py":
-            cog_path = f"cogs.{filename[:-3]}"
+    print("✅ Bot connected.")
+    print("🧩 Loading cogs from /cogs…")
+
+    # 1️⃣  Load every cog first
+    for fn in os.listdir("./cogs"):
+        if fn.endswith(".py") and fn != "__init__.py":
+            path = f"cogs.{fn[:-3]}"
             try:
-                await bot.load_extension(cog_path)
-                print(f"✅ Loaded cog: {cog_path}")
-            except Exception as e:
-                print(f"❌ Failed to load {cog_path}: {e}")
+                await bot.load_extension(path)
+                print(f"   ✔️  {path}")
+            except Exception as exc:
+                print(f"   ❌ {path} -> {exc}")
 
+    # 2️⃣  Copy all global commands into the test guild
+    bot.tree.copy_global_to(guild=guild_obj)
+
+    # 3️⃣  Sync to guild
     try:
-        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
+        synced = await bot.tree.sync(guild=guild_obj)
         print(f"✅ Synced {len(synced)} slash commands to guild {GUILD_ID}")
-    except Exception as e:
-        print(f"❌ Slash sync failed: {e}")
+    except Exception as exc:
+        print(f"❌ Slash-sync error: {exc}")
 
-# === Log Slash Command Usage ===
+# ── Log every slash invocation ───────────────────────────────────────────────
 @bot.listen("on_interaction")
-async def log_interaction(interaction: discord.Interaction):
-    if interaction.type == discord.InteractionType.application_command:
-        name = interaction.data.get("name")
-        user = interaction.user
-        print(f"🟢 /{name} by {user.display_name} ({user.id})")
+async def _log(inter):
+    if inter.type == discord.InteractionType.application_command:
+        print(f"🟢 /{inter.data.get('name')} by {inter.user} ({inter.user.id})")
 
-# === Run Bot ===
+# ── Run bot ──────────────────────────────────────────────────────────────────
 async def main():
-    print("🚀 Starting bot...")
-    try:
-        async with bot:
-            await bot.start(TOKEN)
-    except Exception as e:
-        print(f"❌ Exception in bot.start: {e}")
-    finally:
-        print("🛑 Bot shutdown")
+    print("🚀 Starting bot…")
+    async with bot:
+        await bot.start(TOKEN)
 
 if __name__ == "__main__":
-    print("🚦 Launching main()")
     try:
         asyncio.run(main())
-    except Exception as e:
-        print(f"❌ CRASH in main(): {e}")
+    except Exception as err:
+        print(f"💥 Fatal crash: {err}")
