@@ -3,13 +3,15 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from collections import Counter      # 🔸 NEW: safe counting
+from collections import Counter
 from utils.fileIO import load_file, save_file
 from utils.inventory import has_required_parts, remove_parts
 from utils.prestigeBonusHandler import can_craft_tactical, can_craft_explosives
 
-USER_DATA   = "data/user_profiles.json"
-RECIPE_DATA = "data/item_recipes.json"
+USER_DATA        = "data/user_profiles.json"
+RECIPE_DATA      = "data/item_recipes.json"
+ARMOR_DATA       = "data/armor_blueprints.json"
+EXPLOSIVE_DATA   = "data/explosive_blueprints.json"
 
 class Craft(commands.Cog):
     def __init__(self, bot):
@@ -21,7 +23,6 @@ class Craft(commands.Cog):
         recipes  = await load_file(RECIPE_DATA) or {}
         user     = profiles.get(user_id, {})
         owned    = user.get("blueprints", [])
-        # keep only blueprints that still exist in recipes
         return [bp for bp in owned if bp.replace(" Blueprint", "").lower() in recipes]
 
     # ──────────────────────────────────────────────────────────────────
@@ -36,6 +37,8 @@ class Craft(commands.Cog):
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         recipes  = await load_file(RECIPE_DATA) or {}
+        armor_blueprints = await load_file(ARMOR_DATA) or {}
+        explosive_blueprints = await load_file(EXPLOSIVE_DATA) or {}
 
         user = profiles.get(user_id, {
             "stash"        : [],
@@ -64,15 +67,15 @@ class Craft(commands.Cog):
             )
             return
 
-        # 🧠 Prestige checks
+        # 🧠 Prestige checks using actual blueprint files
         prestige = user.get("prestige", 0)
-        if "tactical" in item_key and not can_craft_tactical(prestige):
+        if item_key in armor_blueprints and not can_craft_tactical(prestige):
             await interaction.followup.send(
                 "🔒 Requires Prestige II to craft tactical gear.",
                 ephemeral=True
             )
             return
-        if "explosive" in item_key and not can_craft_explosives(prestige):
+        if item_key in explosive_blueprints and not can_craft_explosives(prestige):
             await interaction.followup.send(
                 "🔒 Requires Prestige III to craft explosives or special items.",
                 ephemeral=True
