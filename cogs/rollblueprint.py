@@ -38,7 +38,7 @@ class RollBlueprint(commands.Cog):
 
         prestige = user_data.get(user_id, {}).get("prestige", 0)
         if prestige < 1:
-            await interaction.followup.send("❌ You must reach Prestige 1 to roll for blueprints.", ephemeral=True)
+            await interaction.followup.send("🔒 You must reach Prestige 1 to roll for blueprints.", ephemeral=True)
             return
 
         # Check if user already rolled at this prestige
