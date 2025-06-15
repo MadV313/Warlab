@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed Command Sync)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed UI Crash)
 
 import discord
 from discord.ext import commands
@@ -27,15 +27,18 @@ REINFORCEMENT_COSTS = {
 }
 
 class ReinforceButton(discord.ui.Button):
-    def __init__(self, label, profile):
+    def __init__(self, label):
         super().__init__(label=label, style=discord.ButtonStyle.blurple)
         self.rtype = label
-        self.profile = profile
 
     async def callback(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
+
+        if not profile:
+            await interaction.response.send_message("❌ Profile not found.", ephemeral=True)
+            return
 
         rtype = self.rtype
         cost = REINFORCEMENT_COSTS[rtype]
@@ -103,11 +106,10 @@ class ReinforceButton(discord.ui.Button):
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
-        for rtype, cost in REINFORCEMENT_COSTS.items():
+        for rtype in REINFORCEMENT_COSTS:
             current = profile["reinforcements"].get(rtype, 0)
-            max_allowed = MAX_REINFORCEMENTS[rtype]
-            if current < max_allowed:
-                self.add_item(ReinforceButton(label=rtype, profile=profile))
+            if current < MAX_REINFORCEMENTS[rtype]:
+                self.add_item(ReinforceButton(label=rtype))
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
