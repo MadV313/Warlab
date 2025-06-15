@@ -37,7 +37,7 @@ class Craft(commands.Cog):
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         recipes  = await load_file(RECIPE_DATA) or {}
-        armor_blueprints = await load_file(ARMOR_DATA) or {}
+        armor_blueprints     = await load_file(ARMOR_DATA) or {}
         explosive_blueprints = await load_file(EXPLOSIVE_DATA) or {}
 
         user = profiles.get(user_id, {
@@ -49,13 +49,19 @@ class Craft(commands.Cog):
             "equipped_skin": "default",
         })
 
+        # 🔒 Check if they even have any blueprints at all
+        if not user.get("blueprints"):
+            await interaction.followup.send(
+                "🔒 You don’t own any blueprints yet.\nUse `/blackmarket` to purchase your first blueprint.",
+                ephemeral=True
+            )
+            return
+
+        # 🔍 Validate item
         item_key = item.replace(" Blueprint", "").lower()
         recipe   = recipes.get(item_key)
         if not recipe:
-            await interaction.followup.send(
-                "❌ Unknown item or invalid blueprint selected.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ Unknown item or invalid blueprint selected.", ephemeral=True)
             return
 
         # 🔒 Blueprint ownership check
@@ -67,22 +73,16 @@ class Craft(commands.Cog):
             )
             return
 
-        # 🧠 Prestige checks using actual blueprint files
+        # 🧠 Prestige gating
         prestige = user.get("prestige", 0)
         if item_key in armor_blueprints and not can_craft_tactical(prestige):
-            await interaction.followup.send(
-                "🔒 Requires Prestige II to craft tactical gear.",
-                ephemeral=True
-            )
+            await interaction.followup.send("🔒 Requires Prestige II to craft tactical gear.", ephemeral=True)
             return
         if item_key in explosive_blueprints and not can_craft_explosives(prestige):
-            await interaction.followup.send(
-                "🔒 Requires Prestige III to craft explosives or special items.",
-                ephemeral=True
-            )
+            await interaction.followup.send("🔒 Requires Prestige III to craft explosives or special items.", ephemeral=True)
             return
 
-        # 🔧 Parts check (safe with Counter)
+        # 🔧 Part check
         stash_counter = Counter(user["stash"])
         if not has_required_parts(stash_counter, recipe["requirements"]):
             missing_parts = [
@@ -104,7 +104,7 @@ class Craft(commands.Cog):
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
 
-        # 🎉 Success feedback
+        # 🎉 Feedback
         embed = discord.Embed(
             title="✅ Crafting Successful",
             description=f"You crafted **{crafted_item}**!",
