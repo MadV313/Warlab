@@ -42,7 +42,7 @@
   },
   "Dark Ops": {
     "emoji": "🏰",
-    "description": "Black and red stealth design awarded only to Raid masters.",
+    "description": "An inpenatrable fortress only awarded only to Raid Masters.",
     "color": 12541613,
     "unlock": {
       "raids_successful": 25
@@ -50,10 +50,18 @@
   },
   "Architect's Vault": {
     "emoji": "🏛️",
-    "description": "A pristine high-tech lab awarded only to blueprint masters.",
+    "description": "A pristine high-tech lab awarded only to Blueprint Masters.",
     "color": 3447003,
     "unlock": {
       "blueprints_unlocked": "all"
+    }
+  },
+  "Scavenger's Haven": {
+    "emoji": "🛖",
+    "description": "Makeshift but well-organized survivor lab awarded only to Scavenge Masters.",
+    "color": 15844367,
+    "unlock": {
+      "scavenges_completed": 100
     }
   }
 }
