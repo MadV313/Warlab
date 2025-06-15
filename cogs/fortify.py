@@ -123,14 +123,45 @@ class ReinforcementView(discord.ui.View):
         self.add_item(CloseButton())
 
 def render_stash_visual(reinforcements):
-    def check(rtype): return "✅" if reinforcements.get(rtype, 0) > 0 else "🔲"
+    def fill(i, total): return "✅" if reinforcements.get(total, 0) >= i else "🔲"
 
-    return (
-        f"{check('Barbed Fence')}     {check('Barbed Fence')}\n"
-        f"{check('Locked Container')}  🔧  {check('Locked Container')}\n"
-        f"     📦\n"
-        f"{check('Guard Dog')}     {check('Claymore Trap')}"
-    )
+    bf = reinforcements.get("Barbed Fence", 0)
+    lc = reinforcements.get("Locked Container", 0)
+    rg = reinforcements.get("Reinforced Gate", 0)
+    gd = reinforcements.get("Guard Dog", 0)
+    cm = reinforcements.get("Claymore Trap", 0)
+
+    # Barbed Fence (limit now treated as 9 — 5 top, 2 left, 2 right)
+    bf_top = "".join([fill(i + 1, "Barbed Fence") for i in range(5)])
+    bf_l1 = fill(6, "Barbed Fence")
+    bf_l2 = fill(8, "Barbed Fence")
+    bf_r1 = fill(7, "Barbed Fence")
+    bf_r2 = fill(9, "Barbed Fence")
+
+    # Locked Containers (5 inside the box)
+    lc_count = lc
+
+    def lc_slot():
+        nonlocal lc_count
+        if lc_count > 0:
+            lc_count -= 1
+            return "✅"
+        return "🔲"
+
+    # Reinforced Gates
+    rg_row = " ".join([fill(i + 1, "Reinforced Gate") for i in range(5)])
+
+    # Guard Dog / Claymore
+    dog = "✅" if gd else "🔲"
+    clay = "✅" if cm else "🔲"
+
+    row1 = f"{bf_top}"
+    row2 = f"{bf_l1} {lc_slot()} {lc_slot()} {lc_slot()} {bf_r1}"
+    row3 = f"{bf_l2} {lc_slot()} 📦 {lc_slot()} {bf_r2}"
+    row4 = f"{rg_row}"
+    row5 = f"  {dog}     {clay}"
+
+    return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
