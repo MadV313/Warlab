@@ -1,13 +1,16 @@
-# cogs/fortify.py — WARLAB stash fortification system
+# cogs/fortify.py — WARLAB stash fortification system + UI Preview
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json
+from urllib.parse import quote
 
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
+FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="  # 🔁 Your hosted fortify UI endpoint
+
 MAX_REINFORCEMENTS = {
     "Barbed Fence": 10,
     "Locked Container": 5,
@@ -47,7 +50,7 @@ class Fortify(commands.Cog):
             await interaction.followup.send("❌ Invalid reinforcement type.", ephemeral=True)
             return
 
-        # Check limits
+        # Check limit
         current_count = profile["reinforcements"].get(type, 0)
         max_allowed = MAX_REINFORCEMENTS[type]
         if current_count >= max_allowed:
@@ -62,7 +65,7 @@ class Fortify(commands.Cog):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
 
-        # Check tools
+        # Check tools (validates durability)
         for tool in cost["tools"]:
             has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
             if not has_tool:
@@ -96,7 +99,25 @@ class Fortify(commands.Cog):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        await interaction.followup.send(f"✅ {type} installed successfully!", ephemeral=True)
+        # 🔍 Prepare visual preview link
+        preview_data = {
+            "stash_hp": profile["stash_hp"],
+            "reinforcements": profile["reinforcements"]
+        }
+        json_encoded = quote(json.dumps(preview_data))
+        visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
+
+        # ✅ Final response with UI
+        embed = discord.Embed(
+            title=f"✅ {type} installed!",
+            description=f"Your stash has been fortified.",
+            color=0x3498db
+        )
+        embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
+        embed.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
+        embed.set_footer(text="WARLAB | SV13 Bot")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Fortify(bot))
