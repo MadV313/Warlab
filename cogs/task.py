@@ -13,18 +13,14 @@ BLACKMARKET_FILE = "data/blackmarket_items_master.json"
 
 DAILY_TASKS = [
     "Cleared an infected nest outside Topolin.",
-    "Scavenged rare parts from a downed chopper.",
     "Assisted a wounded survivor near Sobotka Trader.",
     "Eliminated a roaming bandit squad near Sitnik Airfield.",
-    "Recovered a hidden weapons cache west of Nadbor.",
     "Neutralized a rogue marksman spotted near Polana treeline.",
-    "Secured medical supplies from an overrun clinic in Tarnow.",
     "Intercepted a smuggler convoy north of the Zalesie checkpoint.",
     "Helped reinforce survivor barricades outside Brena village.",
     "Salvaged black market tech hidden beneath a barn near Kolin.",
     "Braved a toxic gas pocket near Kamensk Quarry to extract intel.",
     "Navigated a thunderstorm sweep across the Livonia river delta to tag airdrop wreckage.",
-    "Harvested mutated crops from a contaminated greenhouse in Branzow.",
     "Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> operatives during a covert exchange near Gieraltów fields.",
     "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> agents hiding near the abandoned Roslavl factory."
 ]
