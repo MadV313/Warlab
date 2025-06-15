@@ -71,12 +71,19 @@ class PartManager(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="part", description="Admin: Give or remove parts from a player")
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(
-        user="Target player",
         action="Give or remove parts",
+        user="Target player",
         quantity="How many to give or remove"
     )
-    async def part(self, interaction: discord.Interaction, user: discord.Member, action: Literal["give", "remove"], quantity: int = 1):
+    async def part(
+        self,
+        interaction: discord.Interaction,
+        action: Literal["give", "remove"],
+        user: discord.Member,
+        quantity: int = 1
+    ):
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
             return
@@ -104,6 +111,18 @@ class PartManager(commands.Cog):
         view = discord.ui.View()
         view.add_item(ItemDropdown(item_parts_map, action, user, quantity))
         await interaction.response.send_message("Select a base item to begin:", view=view, ephemeral=True)
+
+    @part.autocomplete("action")
+    async def autocomplete_action(self, interaction: discord.Interaction, current: str):
+        return [
+            app_commands.Choice(name="give", value="give"),
+            app_commands.Choice(name="remove", value="remove")
+        ]
+
+    @commands.Cog.listener()
+    async def on_app_command_completion(self, interaction: discord.Interaction, command: app_commands.Command):
+        # Optional: hide command visibility from non-admins by restricting in UI (if using sync logic)
+        pass
 
 async def setup(bot):
     await bot.add_cog(PartManager(bot))
