@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed Crash on Missing Reinforcements Key)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fortify Visuals + Close Button)
 
 import discord
 from discord.ext import commands
@@ -102,6 +102,14 @@ class ReinforceButton(discord.ui.Button):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.message.edit(content="❌ Fortify UI closed.", view=None)
+        await interaction.response.defer()
+
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
@@ -112,6 +120,17 @@ class ReinforcementView(discord.ui.View):
                     self.add_item(ReinforceButton(rtype))
             except Exception as e:
                 print(f"❌ ReinforcementView error for {rtype}: {e}")
+        self.add_item(CloseButton())
+
+def render_stash_visual(reinforcements):
+    def check(rtype): return "✅" if reinforcements.get(rtype, 0) > 0 else "🔲"
+
+    return (
+        f"{check('Barbed Fence')}     {check('Barbed Fence')}\n"
+        f"{check('Locked Container')}  🔧  {check('Locked Container')}\n"
+        f"     📦\n"
+        f"{check('Guard Dog')}     {check('Claymore Trap')}"
+    )
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
@@ -127,7 +146,6 @@ class Fortify(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             profile = profiles.get(user_id) or {}
 
-            # Ensure profile has all required keys
             profile.setdefault("inventory", [])
             profile.setdefault("tools", [])
             profile.setdefault("reinforcements", {})
@@ -138,6 +156,17 @@ class Fortify(commands.Cog):
 
             print(f"✅ Profile loaded. Reinforcements: {profile.get('reinforcements', {})}")
 
+            # 📦 Dynamic Visual Embed
+            visual_text = render_stash_visual(profile["reinforcements"])
+            visual_embed = discord.Embed(
+                title="🏚️ Stash Layout",
+                description=f"```\n{visual_text}\n```",
+                color=0x8e44ad
+            )
+            visual_embed.set_footer(text="Visual representation of your fortified stash.")
+            await interaction.followup.send(embed=visual_embed, ephemeral=True)
+
+            # 🧱 Button UI
             view = ReinforcementView(profile)
             print(f"🧱 ReinforcementView loaded with {len(view.children)} buttons")
 
