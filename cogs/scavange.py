@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from utils.fileIO import load_file, save_file
 from utils.inventory import weighted_choice
+from utils.boosts import is_weekend_boost_active  # ✅ Boost helper
 
 USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
@@ -95,7 +96,7 @@ class Scavenge(commands.Cog):
             user["coins"] += coins_found
 
             # Weekend bonus
-            if now.weekday() in [5, 6]:
+            if is_weekend_boost_active():  # ✅ Refactored here
                 print("🎉 Weekend bonus triggered")
                 bonus = weighted_choice(loot_pool, rarity_weights)
                 if bonus:
