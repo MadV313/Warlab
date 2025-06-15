@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 
 USER_DATA_FILE = "data/user_profiles.json"
+WARLAB_CHANNEL_ID = 1382187883590455296  # 🔒 Hardcoded Warlab channel
 
 RANK_TITLES = {
     0: "Unranked Survivor",
@@ -62,6 +63,23 @@ class RankView(discord.ui.View):
         self.update_callback(self.user_id, self.user_data)
 
         await interaction.response.send_message("🌟 Prestige successful! Your stash and rank were reset. Cosmetic perks unlocked.", ephemeral=True)
+
+        # 🔔 Prestige announcement in Warlab channel
+        prestige_level = self.user_data["prestige"]
+        reward_text = f"Unlocked new prestige level: **{prestige_level}**"
+
+        if prestige_level == 4:
+            reward_text += " — Lab Skins unlocked!"
+        elif prestige_level == 5:
+            reward_text += " — Warlab Blacksite + Elite perks unlocked!"
+
+        warlab_channel = interaction.client.get_channel(WARLAB_CHANNEL_ID)
+        if warlab_channel:
+            await warlab_channel.send(
+                f"🧬 {interaction.user.mention} has prestiged to **Level {prestige_level}**!\n"
+                f"{reward_text}\n"
+                f"🎲 Use `/rollblueprint` to try for a new schematic!"
+            )
 
     @discord.ui.button(label="⚡ Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
     async def buy_boost_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -164,11 +182,9 @@ class Rank(commands.Cog):
         turnins = user.get("turnins", 0)
         boosts = user.get("boosts", {})
 
-        # Default embed color
         embed_color = 0x88e0ef
         special_title = None
 
-        # Special role injection based on prestige
         if prestige >= 10:
             special_title = SPECIAL_REWARDS[3]
         elif prestige >= 5:
