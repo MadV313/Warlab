@@ -15,10 +15,10 @@ EXPLOSIVES = "data/explosive_blueprints.json"
 MARKET_FILE = "data/blackmarket_rotation.json"
 
 ITEM_COSTS = {
-    "Common": 30,
-    "Uncommon": 75,
-    "Rare": 150,
-    "Legendary": 300
+    "Common": 75,
+    "Uncommon": 150,
+    "Rare": 300,
+    "Legendary": 500
 }
 
 RARITY_EMOJIS = {
