@@ -14,6 +14,20 @@ USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
 ITEMS_MASTER = "data/items_master.json"
 
+SCAVENGE_MISSIONS = [
+    "Scavenged rare parts from a downed chopper.",
+    "Recovered a hidden weapons cache west of Nadbor.",
+    "Secured medical supplies from an overrun clinic in Tarnow.",
+    "Harvested mutated crops from a contaminated greenhouse in Branzow.",
+    "Picked through a derailed supply train south of Gieraltów.",
+    "Raided a looted survivor camp deep at Gliniska Airfield.",
+    "Salvaged electronics from a rusted comms tower in Sitnik Hills.",
+    "Uncovered buried gear beneath a scorched Humvee wreck near Topolin Ridge.",
+    "Broke open a sealed weapons crate inside a flooded bunker west of Lukow.",
+    "Snuck past gas pockets to grab loot near Kamensk Quarry's blast zone.",
+    "Searched beneath a collapsed checkpoint gate near the Zalesie crossing."
+]
+
 class Scavenge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -82,20 +96,27 @@ class Scavenge(commands.Cog):
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
+            mission_text = random.choice(SCAVENGE_MISSIONS)
+
             if found:
                 print(f"📦 Items found: {found} + 💰 {coins_found} coins")
                 await interaction.followup.send(
+                    f"📋 {mission_text}\n\n"
                     f"🔎 You scavenged and found: **{', '.join(found)}**\n"
                     f"💰 You also found **{coins_found} coins!**",
                     ephemeral=True
                 )
             else:
                 print("📭 No items found, but coins granted")
-                await interaction.followup.send(f"🔎 You didn’t find any items, but gained 💰 **{coins_found} coins!**", ephemeral=True)
+                await interaction.followup.send(
+                    f"📋 {mission_text}\n\n"
+                    f"🔎 You didn’t find any items, but gained 💰 **{coins_found} coins!**",
+                    ephemeral=True
+                )
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
             await interaction.followup.send("⚠️ Something went wrong during scavenging.", ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(Scavenge(bot))
+    await bot.add_cog(Scave_
