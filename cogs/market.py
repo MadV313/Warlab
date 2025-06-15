@@ -58,6 +58,14 @@ class BuyButton(discord.ui.Button):
         )
 
 # ─────────────────────────────────────────────────────────────────────
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.message.delete()
+
+# ─────────────────────────────────────────────────────────────────────
 class Market(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -68,7 +76,15 @@ class Market(commands.Cog):
 
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        user     = profiles.get(user_id, {"coins": 0})
+        user     = profiles.get(user_id)
+
+        # 🔒 Require profile
+        if not user:
+            await interaction.followup.send(
+                "❌ You don’t have a profile yet. Please use `/register` first.",
+                ephemeral=True
+            )
+            return
 
         # Load or refresh rotation (3-hour window)
         market = await load_file(MARKET_FILE)
@@ -98,13 +114,13 @@ class Market(commands.Cog):
             )
             view.add_item(BuyButton(name, cost, name, category))
 
+        view.add_item(CloseButton())
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     # ─────────────────────────────────────────────────────────────────
     async def generate_market(self):
         full_pool = await load_file(ROTATION_FILE) or {}
 
-        # Build type pools
         tools = [name for name, data in full_pool.items() if data.get("type") == "tool"]
         parts = [name for name, data in full_pool.items() if data.get("type") != "tool"]
 
