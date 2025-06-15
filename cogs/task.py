@@ -6,6 +6,8 @@ from discord import app_commands
 import json, random
 from datetime import datetime
 
+from utils.boosts import is_weekend_boost_active  # ✅ NEW boost helper
+
 USER_DATA_FILE       = "data/user_profiles.json"
 ITEMS_MASTER_FILE    = "data/items_master.json"
 BLACKMARKET_FILE     = "data/blackmarket_items_master.json"
@@ -90,6 +92,9 @@ class Task(commands.Cog):
         if boosts.get("daily_loot_boost") and user.get("daily_task_loot_used") != today_str:
             bonus_rolls += 1
             user["daily_task_loot_used"] = today_str  # stamp usage
+
+        if is_weekend_boost_active():
+            bonus_rolls += 1
 
         # always 1 extra roll by default
         total_rolls = 1 + bonus_rolls
