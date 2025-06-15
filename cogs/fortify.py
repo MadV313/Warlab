@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Preview
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Preview (no type input)
 
 import discord
 from discord.ext import commands
@@ -31,9 +31,8 @@ class Fortify(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="fortify", description="Reinforce your stash with tools and materials")
-    @app_commands.describe(type="Choose a reinforcement to install")
-    async def fortify(self, interaction: discord.Interaction, type: str):
+    @app_commands.command(name="fortify", description="Open your stash fortification UI")
+    async def fortify(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
@@ -45,67 +44,6 @@ class Fortify(commands.Cog):
             "stash_hp": 0
         })
 
-        type = type.title()
-        if type not in REINFORCEMENT_COSTS:
-            await interaction.followup.send("❌ Invalid reinforcement type.", ephemeral=True)
-            return
-
-        # Check limit
-        current_count = profile["reinforcements"].get(type, 0)
-        max_allowed = MAX_REINFORCEMENTS[type]
-        if current_count >= max_allowed:
-            await interaction.followup.send(f"⚠️ You’ve already reached the max of {max_allowed} {type}s.", ephemeral=True)
-            return
-
-        cost = REINFORCEMENT_COSTS[type]
-        missing = []
-
-        # Check materials
-        for item in cost.get("materials", []):
-            if profile["inventory"].count(item) < 1:
-                missing.append(item)
-
-        # Check special (like Guard Dog)
-        for item in cost.get("special", []):
-            if profile["inventory"].count(item) < 1:
-                missing.append(item)
-
-        # Check tools (must have uses left)
-        for tool in cost.get("tools", []):
-            has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
-            if not has_tool:
-                missing.append(tool)
-
-        if missing:
-            await interaction.followup.send(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
-            return
-
-        # Deduct materials
-        for item in cost.get("materials", []):
-            profile["inventory"].remove(item)
-        for item in cost.get("special", []):
-            profile["inventory"].remove(item)
-
-        # Reduce tool durability
-        for tool in cost.get("tools", []):
-            for i, t in enumerate(profile["tools"]):
-                if t.startswith(tool):
-                    uses = int(t.split("(")[1].split()[0])
-                    uses -= 1
-                    if uses <= 0:
-                        profile["tools"].pop(i)
-                    else:
-                        profile["tools"][i] = f"{tool} ({uses} uses left)"
-                    break
-
-        # Apply reinforcement
-        profile["reinforcements"][type] = current_count + 1
-        if "stash_hp" in cost:
-            profile["stash_hp"] += cost["stash_hp"]
-
-        profiles[user_id] = profile
-        await save_file(USER_DATA, profiles)
-
         # 🔍 Prepare Visual UI link
         preview_data = {
             "stash_hp": profile["stash_hp"],
@@ -116,8 +54,8 @@ class Fortify(commands.Cog):
 
         # ✅ Final embed with open UI button
         embed = discord.Embed(
-            title=f"✅ {type} installed!",
-            description="Your stash has been fortified.",
+            title="🛡️ Fortify Your Stash",
+            description="Visualize and reinforce your stash below.",
             color=0x3498db
         )
         embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
