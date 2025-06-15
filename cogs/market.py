@@ -10,22 +10,21 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA      = "data/user_profiles.json"
 MARKET_FILE    = "data/market_rotation.json"
+ROTATION_FILE  = "data/blackmarket_rotation.json"
 
-# Hard-coded pools  ▸ expand / load from JSON later if desired
-TOOL_POOL  = ["Hammer", "Pliers", "Saw", "Wrench", "Screwdriver", "Drill"]
-PART_POOL  = ["Gun Barrel", "Gun Stock", "Trigger Assembly",
-              "Kevlar Plate", "Ballistic Fabric", "Ceramic Insert"]
-
-# Cost table (simple flat pricing)
+# Flat pricing by simplified type/category
 ITEM_COSTS = {
-    "Tool" : 50,
-    "Part" : 40
+    "tool"       : 50,
+    "gun_part"   : 100,
+    "armor_part" : 100,
+    "mod"        : 150
 }
 
-# Simple emoji tags
 ITEM_EMOJIS = {
-    "Tool" : "🛠️",
-    "Part" : "🔩"
+    "tool"       : "🛠️",
+    "gun_part"   : "🔩",
+    "armor_part" : "🛡️",
+    "mod"        : "🎯"
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -51,15 +50,19 @@ class BuyButton(discord.ui.Button):
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
-        await interaction.response.send_message(f"✅ You purchased **{self.item_name}**!", ephemeral=True)
+
+        await interaction.response.send_message(
+            f"✅ You purchased **{self.item_name}**!\n"
+            f"💰 New Balance: **{user['coins']} coins**",
+            ephemeral=True
+        )
 
 # ─────────────────────────────────────────────────────────────────────
 class Market(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # Main command (no argument)
-    @app_commands.command(name="market", description="Browse today's Tools & Parts market")
+    @app_commands.command(name="market", description="Browse today's rotating market")
     async def market(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
@@ -83,14 +86,14 @@ class Market(commands.Cog):
 
         view = discord.ui.View()
         for item in offers:
-            name      = item["name"]
-            category  = item["category"]
-            cost      = ITEM_COSTS[category]
-            emoji     = ITEM_EMOJIS[category]
+            name     = item["name"]
+            category = item["category"]
+            cost     = ITEM_COSTS.get(category, 999)
+            emoji    = ITEM_EMOJIS.get(category, "❔")
 
             embed.add_field(
                 name=f"{emoji} {name}",
-                value=f"Category: **{category}**\nCost: **{cost} coins**",
+                value=f"Type: **{category.title()}**\nCost: **{cost} coins**",
                 inline=False
             )
             view.add_item(BuyButton(name, cost, name, category))
@@ -99,19 +102,27 @@ class Market(commands.Cog):
 
     # ─────────────────────────────────────────────────────────────────
     async def generate_market(self):
-        # Always 2 tools
-        tools = random.sample(TOOL_POOL, k=2)
-        # And 3 parts
-        parts = random.sample(PART_POOL, k=3)
+        full_pool = await load_file(ROTATION_FILE) or {}
 
-        rotation = (
-            [{"name": t, "category": "Tool"} for t in tools] +
-            [{"name": p, "category": "Part"} for p in parts]
-        )
-        random.shuffle(rotation)
+        # Build type pools
+        tools = [name for name, data in full_pool.items() if data.get("type") == "tool"]
+        parts = [name for name, data in full_pool.items() if data.get("type") != "tool"]
+
+        selected_tools = random.sample(tools, k=2) if len(tools) >= 2 else tools
+        selected_parts = random.sample(parts, k=3) if len(parts) >= 3 else parts
+
+        offers = []
+        for name in selected_tools + selected_parts:
+            item_data = full_pool[name]
+            offers.append({
+                "name": name,
+                "category": item_data["type"]
+            })
+
+        random.shuffle(offers)
 
         return {
-            "offers" : rotation,
+            "offers" : offers,
             "expires": (datetime.utcnow() + timedelta(hours=3)).isoformat()
         }
 
