@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed UI Crash + Durability + Preview)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (with Debug + Safe View)
 
 import discord
 from discord.ext import commands
@@ -112,9 +112,12 @@ class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
         for rtype in REINFORCEMENT_COSTS:
-            current = profile["reinforcements"].get(rtype, 0)
-            if current < MAX_REINFORCEMENTS[rtype]:
-                self.add_item(ReinforceButton(rtype))
+            try:
+                current = profile.get("reinforcements", {}).get(rtype, 0)
+                if current < MAX_REINFORCEMENTS.get(rtype, 0):
+                    self.add_item(ReinforceButton(rtype))
+            except Exception as e:
+                print(f"❌ ReinforcementView error for {rtype}: {e}")
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
@@ -122,25 +125,34 @@ class Fortify(commands.Cog):
 
     @app_commands.command(name="fortify", description="Open fortification UI and choose reinforcement")
     async def fortify(self, interaction: discord.Interaction):
+        print(f"📥 /fortify triggered by {interaction.user} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=True)
 
-        user_id = str(interaction.user.id)
-        profiles = await load_file(USER_DATA) or {}
-        profile = profiles.get(user_id, {
-            "inventory": [],
-            "tools": [],
-            "reinforcements": {},
-            "stash_hp": 0
-        })
-        profiles[user_id] = profile
-        await save_file(USER_DATA, profiles)
+        try:
+            user_id = str(interaction.user.id)
+            profiles = await load_file(USER_DATA) or {}
+            profile = profiles.get(user_id, {
+                "inventory": [],
+                "tools": [],
+                "reinforcements": {},
+                "stash_hp": 0
+            })
+            profiles[user_id] = profile
+            await save_file(USER_DATA, profiles)
+            print(f"✅ Profile loaded. Reinforcements: {profile['reinforcements']}")
 
-        view = ReinforcementView(profile)
-        if not view.children:
-            await interaction.followup.send("✅ All stash reinforcements are fully installed.", ephemeral=True)
-            return
+            view = ReinforcementView(profile)
+            print(f"🧱 ReinforcementView loaded with {len(view.children)} buttons")
 
-        await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+            if not view.children:
+                await interaction.followup.send("✅ All stash reinforcements are fully installed.", ephemeral=True)
+                return
+
+            await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+
+        except Exception as e:
+            print(f"❌ /fortify crashed: {e}")
+            await interaction.followup.send("❌ Something went wrong while opening the fortification menu.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Fortify(bot))
