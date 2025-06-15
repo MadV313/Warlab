@@ -42,7 +42,7 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 # ✅ Inject config into bot instance for cog access
 bot.config = config
 
-# === Auto-load cogs from /cogs ===
+# === Auto-load cogs from /cogs and sync commands ===
 @bot.event
 async def setup_hook():
     print("🧩 Loading cogs from /cogs...")
@@ -55,23 +55,25 @@ async def setup_hook():
             except Exception as e:
                 print(f"❌ Failed to load {cog_path}: {e}")
 
-# === Sync Slash Commands on Ready ===
-@bot.event
-async def on_ready():
-    print("✅ Bot connected and ready.")
+    # ✅ Sync slash commands on startup (GUILD ONLY for fast updates)
     try:
         synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"✅ Synced {len(synced)} slash commands to guild {GUILD_ID}")
     except Exception as e:
-        print(f"❌ Slash sync failed: {e}")
+        print(f"❌ Slash sync failed in setup_hook: {e}")
 
-# === Log Slash Command Usage ===
+# === Log command usage ===
 @bot.listen("on_interaction")
 async def log_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.application_command:
         name = interaction.data.get("name")
         user = interaction.user
         print(f"🟢 /{name} by {user.display_name} ({user.id})")
+
+# === On Ready ===
+@bot.event
+async def on_ready():
+    print("✅ Bot connected and ready.")
 
 # === Run Bot ===
 async def main():
