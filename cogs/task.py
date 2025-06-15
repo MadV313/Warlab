@@ -53,13 +53,15 @@ class Task(commands.Cog):
         profiles  = self._load(USER_DATA_FILE)
         today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
-        user = profiles.get(uid)
-        if not user:
+        # ❌ Registration check
+        if uid not in profiles:
             await interaction.response.send_message(
                 "❌ You don’t have a profile yet. Please use `/register` first.",
                 ephemeral=True
             )
             return
+
+        user = profiles.get(uid)
 
         if user.get("last_task") == today_str:
             await interaction.response.send_message(
