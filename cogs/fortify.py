@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fortify Visuals + Close Button)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Live Refresh + Close + Disable Maxed Buttons)
 
 import discord
 from discord.ext import commands
@@ -26,6 +26,27 @@ REINFORCEMENT_COSTS = {
     "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
 
+def render_stash_visual(reinforcements):
+    bf = reinforcements.get("Barbed Fence", 0)
+    lc = reinforcements.get("Locked Container", 0)
+    rg = reinforcements.get("Reinforced Gate", 0)
+    gd = reinforcements.get("Guard Dog", 0)
+    cm = reinforcements.get("Claymore Trap", 0)
+
+    lc_slots = ["🔐" if i < lc else "🔲" for i in range(5)]
+    rg_row = " ".join(["🚪" if i < rg else "🔲" for i in range(5)])
+    bf_emojis = ["🧱" if i < bf else "🔲" for i in range(9)]
+    dog = "🐶" if gd else "🔲"
+    clay = "💣" if cm else "🔲"
+
+    row1 = f"{bf_emojis[0]} {bf_emojis[1]} {bf_emojis[2]} {bf_emojis[3]} {bf_emojis[4]}"
+    row2 = f"{bf_emojis[5]} {lc_slots[0]} {lc_slots[1]} {lc_slots[2]} {bf_emojis[6]}"
+    row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
+    row4 = rg_row
+    row5 = f"  {dog}      {clay}"
+
+    return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
+
 class ReinforceButton(discord.ui.Button):
     def __init__(self, rtype):
         super().__init__(label=rtype, style=discord.ButtonStyle.blurple)
@@ -47,7 +68,6 @@ class ReinforceButton(discord.ui.Button):
             has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
             if not has_tool:
                 missing.append(tool)
-
         for item in cost.get("materials", []):
             if profile["inventory"].count(item) < 1:
                 missing.append(item)
@@ -63,7 +83,6 @@ class ReinforceButton(discord.ui.Button):
             profile["inventory"].remove(item)
         for item in cost.get("special", []):
             profile["inventory"].remove(item)
-
         for tool in cost.get("tools", []):
             for i, t in enumerate(profile["tools"]):
                 if t.startswith(tool):
@@ -82,6 +101,21 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
+        # 🔄 Live update the visual embed
+        visual_embed = discord.Embed(
+            title="🏚️ Stash Layout",
+            description=f"```\n{render_stash_visual(profile['reinforcements'])}\n```",
+            color=0x8e44ad
+        )
+        visual_embed.set_footer(text="Visual representation of your fortified stash.")
+        await self.view.stored_messages[0].edit(embed=visual_embed)
+
+        # 🔁 Refresh the buttons to disable any maxed-out options
+        new_view = ReinforcementView(profile)
+        new_view.stored_messages = self.view.stored_messages
+        await self.view.stored_messages[1].edit(view=new_view)
+
+        # ✅ Feedback embed
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": profile["reinforcements"],
@@ -90,77 +124,38 @@ class ReinforceButton(discord.ui.Button):
         json_encoded = quote(json.dumps(preview_data))
         visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
 
-        embed = discord.Embed(
+        confirm = discord.Embed(
             title=f"✅ {self.rtype} installed!",
             description="Your stash has been fortified.",
             color=0x3498db
         )
-        embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
-        embed.add_field(name="Tools Remaining", value="\n".join(profile["tools"]) or "None", inline=False)
-        embed.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
-        embed.set_footer(text="WARLAB | SV13 Bot")
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
+        confirm.add_field(name="Tools Remaining", value="\n".join(profile["tools"]) or "None", inline=False)
+        confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
+        confirm.set_footer(text="WARLAB | SV13 Bot")
+        await interaction.response.send_message(embed=confirm, ephemeral=True)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.edit(content="❌ Fortify UI closed.", view=None)
+        try:
+            for msg in getattr(self.view, "stored_messages", []):
+                await msg.delete()
+        except Exception as e:
+            print(f"❌ Failed to delete ephemeral messages: {e}")
         await interaction.response.defer()
 
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
+        self.stored_messages = []
         for rtype in REINFORCEMENT_COSTS:
-            try:
-                current = profile.get("reinforcements", {}).get(rtype, 0)
-                if current < MAX_REINFORCEMENTS.get(rtype, 0):
-                    self.add_item(ReinforceButton(rtype))
-            except Exception as e:
-                print(f"❌ ReinforcementView error for {rtype}: {e}")
+            current = profile.get("reinforcements", {}).get(rtype, 0)
+            if current < MAX_REINFORCEMENTS.get(rtype, 0):
+                self.add_item(ReinforceButton(rtype))
         self.add_item(CloseButton())
-
-def render_stash_visual(reinforcements):
-    # Counts
-    bf = reinforcements.get("Barbed Fence", 0)
-    lc = reinforcements.get("Locked Container", 0)
-    rg = reinforcements.get("Reinforced Gate", 0)
-    gd = reinforcements.get("Guard Dog", 0)
-    cm = reinforcements.get("Claymore Trap", 0)
-
-    # 🔐 Locked Containers (5 positions)
-    lc_slots = ["🔐" if i < lc else "🔲" for i in range(5)]
-
-    # 🚪 Reinforced Gates (5)
-    rg_row = " ".join(["🚪" if i < rg else "🔲" for i in range(5)])
-
-    # 🧱 Barbed Fence (9 fixed: 5 top, 2 left, 2 right)
-    bf_emojis = ["🧱" if i < bf else "🔲" for i in range(9)]
-
-    # 🐶 Guard Dog and 💣 Claymore
-    dog = "🐶" if gd else "🔲"
-    clay = "💣" if cm else "🔲"
-
-    # === Row Layout ===
-
-    # Row 1 (Top Barbed Fence)
-    row1 = f"{bf_emojis[0]} {bf_emojis[1]} {bf_emojis[2]} {bf_emojis[3]} {bf_emojis[4]}"
-
-    # Row 2 (Side fences + 3 Locked Containers)
-    row2 = f"{bf_emojis[5]} {lc_slots[0]} {lc_slots[1]} {lc_slots[2]} {bf_emojis[6]}"
-
-    # Row 3 (Side fences + 2 Locked Containers + Stash center)
-    row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
-
-    # Row 4 (Reinforced Gates)
-    row4 = rg_row
-
-    # Row 5 (Centered Dog & Claymore)
-    row5 = f"  {dog}      {clay}"
-
-    return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
 class Fortify(commands.Cog):
     def __init__(self, bot):
@@ -188,9 +183,6 @@ class Fortify(commands.Cog):
             profiles[user_id] = profile
             await save_file(USER_DATA, profiles)
 
-            print(f"✅ Profile loaded. Reinforcements: {profile.get('reinforcements', {})}")
-
-            # 📦 Dynamic Visual Embed
             visual_text = render_stash_visual(profile["reinforcements"])
             visual_embed = discord.Embed(
                 title="🏚️ Stash Layout",
@@ -198,17 +190,11 @@ class Fortify(commands.Cog):
                 color=0x8e44ad
             )
             visual_embed.set_footer(text="Visual representation of your fortified stash.")
-            await interaction.followup.send(embed=visual_embed, ephemeral=True)
+            visual_msg = await interaction.followup.send(embed=visual_embed, ephemeral=True)
 
-            # 🧱 Button UI
             view = ReinforcementView(profile)
-            print(f"🧱 ReinforcementView loaded with {len(view.children)} buttons")
-
-            if not view.children:
-                await interaction.followup.send("✅ All stash reinforcements are fully installed.", ephemeral=True)
-                return
-
-            await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+            button_msg = await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+            view.stored_messages = [visual_msg, button_msg]
 
         except Exception as e:
             print(f"❌ /fortify crashed: {e}")
