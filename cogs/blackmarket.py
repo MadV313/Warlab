@@ -68,6 +68,14 @@ class BuyButton(discord.ui.Button):
         )
 
 # ─────────────────────────────────────────────────────────────────────
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.red)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.message.delete()
+
+# ─────────────────────────────────────────────────────────────────────
 class BlackMarket(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -115,6 +123,8 @@ class BlackMarket(commands.Cog):
                 inline=False
             )
             view.add_item(BuyButton(name, cost, name, rarity))
+
+        view.add_item(CloseButton())  # ← Add Close button at bottom
 
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
