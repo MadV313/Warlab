@@ -216,7 +216,7 @@ class Rank(commands.Cog):
         user     = profiles.get(uid)
 
         if not user:
-            await itx.response.send_message("❌ You don't have a profile data yet, please use /register first.",
+            await itx.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.",
                                             ephemeral=True)
             return
 
