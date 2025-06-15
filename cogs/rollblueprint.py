@@ -36,6 +36,11 @@ class RollBlueprint(commands.Cog):
         user_data = await load_file(USER_DATA)
         roll_tracker = await load_file(PRESTIGE_USAGE_TRACKER) or {}
 
+        # ❌ Not registered check
+        if user_id not in user_data:
+            await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+            return
+
         prestige = user_data.get(user_id, {}).get("prestige", 0)
         if prestige < 1:
             await interaction.followup.send("🔒 You must reach Prestige 1 to roll for blueprints.", ephemeral=True)
