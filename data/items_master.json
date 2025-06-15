@@ -17,8 +17,15 @@
     "type": "tool",
     "rarity": "Common",
     "tags": [
-      "trap",
-      "wire"
+      "build"
+    ]
+  },
+  },
+  "Hammer": {
+    "type": "tool",
+    "rarity": "Common",
+    "tags": [
+      "build"
     ]
   },
   "Slide": {
