@@ -1,4 +1,4 @@
-# cogs/raid.py — Updated Warlab Raid System with Visuals, Retaliation, and Broadcasts
+# cogs/raid.py — Updated Warlab Raid System with Visuals, Coin Theft, Retaliation, and Broadcasts
 
 import discord
 from discord.ext import commands
@@ -7,6 +7,7 @@ import random
 import json
 from datetime import datetime, timedelta
 from urllib.parse import quote
+import asyncio
 
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
@@ -70,10 +71,7 @@ class Raid(commands.Cog):
         stash_hp = defender.get("stash_hp", 0)
         visual_embed = discord.Embed(
             title=f"🔐 {target.display_name}'s Fortified Stash",
-            description=f"""
-```
-{self.render_stash(reinforcements)}
-```""",
+            description=f"```\n{self.render_stash(reinforcements)}\n```",
             color=0x95a5a6
         )
         await interaction.response.send_message(embed=visual_embed, ephemeral=True)
@@ -92,31 +90,44 @@ class Raid(commands.Cog):
                     break
             if blocked:
                 break
-            # Refresh updated visual per attempt
-            visual_embed.description = f"""
-```
-{self.render_stash(reinforcements)}
-```"""
+            visual_embed.description = f"```\n{self.render_stash(reinforcements)}\n```"
             await interaction.edit_original_response(embed=visual_embed)
-            await discord.utils.sleep_until(datetime.utcnow() + timedelta(seconds=1))
+            await asyncio.sleep(1)
 
-        stolen = []
+        stolen_items = []
+        stolen_coins = 0
         result_summary = []
 
         if blocked:
             result = f"❌ Raid repelled by {', '.join(triggered)}!"
         else:
             result = "✅ Raid successful!"
+
             inv = defender.get("inventory", [])
             steal_count = min(len(inv), random.randint(1, 3))
-            stolen = random.sample(inv, steal_count) if inv else []
-            for item in stolen:
+            stolen_items = random.sample(inv, steal_count) if inv else []
+            for item in stolen_items:
                 inv.remove(item)
                 attacker.setdefault("inventory", []).append(item)
             defender["inventory"] = inv
+
+            def_coins = defender.get("coins", 0)
+            if def_coins > 0:
+                steal_percent = random.randint(10, 50)
+                stolen_coins = max(1, int(def_coins * (steal_percent / 100)))
+                defender["coins"] -= stolen_coins
+                attacker["coins"] = attacker.get("coins", 0) + stolen_coins
+
             attacker["successful_raids"] = attacker.get("successful_raids", 0) + 1
-            result_summary.append(f"🎒 Items stolen: `{', '.join(stolen)}`" if stolen else "⚠️ No items found.")
             defender.setdefault("retaliation_rights", {})[attacker_id] = now.isoformat()
+
+            if stolen_items:
+                result_summary.append(f"🎒 Items stolen: `{', '.join(stolen_items)}`")
+            else:
+                result_summary.append("⚠️ No items found.")
+
+            if stolen_coins:
+                result_summary.append(f"💰 Coins stolen: `{stolen_coins}`")
 
         users[attacker_id] = attacker
         users[defender_id] = defender
@@ -129,7 +140,8 @@ class Raid(commands.Cog):
             "attacker": attacker_id,
             "defender": defender_id,
             "blocked": blocked,
-            "items": stolen,
+            "items": stolen_items,
+            "coins": stolen_coins,
             "defenses_triggered": triggered
         })
 
@@ -138,7 +150,8 @@ class Raid(commands.Cog):
             await channel.send(f"📣 **{interaction.user.display_name} raided {target.display_name}!**\n{result}")
 
         await interaction.followup.send(
-            f"⚔️ **Raid on {target.display_name}**\n{result}\n\n" + "\n".join(result_summary), ephemeral=True
+            f"⚔️ **Raid on {target.display_name}**\n{result}\n\n" + "\n".join(result_summary),
+            ephemeral=True
         )
 
         try:
