@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Live Refresh + Close + Disable Maxed Buttons)
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Now with Lab Skin effects)
 
 import discord
 from discord.ext import commands
@@ -8,6 +8,7 @@ from urllib.parse import quote
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
+CATALOG_PATH = "data/labskin_catalog.json"
 FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="
 
 MAX_REINFORCEMENTS = {
@@ -47,6 +48,14 @@ def render_stash_visual(reinforcements):
 
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
+def get_skin_visuals(profile, catalog):
+    skin = profile.get("activeSkin", "default")
+    skin_data = catalog.get(skin, {})
+    return {
+        "emoji": skin_data.get("emoji", "🏚️"),
+        "color": skin_data.get("color", 0x8e44ad)
+    }
+
 class ReinforceButton(discord.ui.Button):
     def __init__(self, rtype):
         super().__init__(label=rtype, style=discord.ButtonStyle.blurple)
@@ -56,6 +65,7 @@ class ReinforceButton(discord.ui.Button):
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
+        catalog = await load_file(CATALOG_PATH) or {}
 
         if not profile:
             await interaction.response.send_message("❌ Profile not found.", ephemeral=True)
@@ -101,28 +111,25 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        # 🔄 Live update the visual embed
+        visuals = get_skin_visuals(profile, catalog)
         visual_embed = discord.Embed(
-            title="🏚️ Stash Layout",
+            title=f"{visuals['emoji']} Stash Layout",
             description=f"```\n{render_stash_visual(profile['reinforcements'])}\n```",
-            color=0x8e44ad
+            color=visuals['color']
         )
         visual_embed.set_footer(text="Visual representation of your fortified stash.")
         await self.view.stored_messages[0].edit(embed=visual_embed)
 
-        # 🔁 Refresh the buttons to disable any maxed-out options
         new_view = ReinforcementView(profile)
         new_view.stored_messages = self.view.stored_messages
         await self.view.stored_messages[1].edit(view=new_view)
 
-        # ✅ Feedback embed
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": profile["reinforcements"],
             "tools": profile["tools"]
         }
-        json_encoded = quote(json.dumps(preview_data))
-        visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
+        visual_link = f"{FORTIFY_UI_URL}{quote(json.dumps(preview_data))}"
 
         confirm = discord.Embed(
             title=f"✅ {self.rtype} installed!",
@@ -170,6 +177,7 @@ class Fortify(commands.Cog):
             user_id = str(interaction.user.id)
             profiles = await load_file(USER_DATA) or {}
             profile = profiles.get(user_id)
+            catalog = await load_file(CATALOG_PATH) or {}
 
             if profile is None:
                 await interaction.followup.send("❌ You must use `/register` before accessing your stash.", ephemeral=True)
@@ -179,15 +187,15 @@ class Fortify(commands.Cog):
             profile.setdefault("tools", [])
             profile.setdefault("reinforcements", {})
             profile.setdefault("stash_hp", 0)
-
             profiles[user_id] = profile
             await save_file(USER_DATA, profiles)
 
+            visuals = get_skin_visuals(profile, catalog)
             visual_text = render_stash_visual(profile["reinforcements"])
             visual_embed = discord.Embed(
-                title="🏚️ Stash Layout",
+                title=f"{visuals['emoji']} Stash Layout",
                 description=f"```\n{visual_text}\n```",
-                color=0x8e44ad
+                color=visuals["color"]
             )
             visual_embed.set_footer(text="Visual representation of your fortified stash.")
             visual_msg = await interaction.followup.send(embed=visual_embed, ephemeral=True)
