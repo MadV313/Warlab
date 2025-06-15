@@ -63,20 +63,19 @@ class TurnIn(commands.Cog):
 
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
+
+        # ❌ Registration check
+        if user_id not in profiles:
+            await interaction.followup.send(
+                "❌ You don’t have a profile yet. Please use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        user_data = profiles[user_id]
         logs = await load_file(TURNIN_LOG) or {}
 
-        user_data = profiles.get(user_id, {
-            "username": interaction.user.name,
-            "coins": 0,
-            "prestige": 0,
-            "tools": [],
-            "parts": {},
-            "blueprints": [],
-            "crafted": [],
-            "crafted_log": [],
-            "lastScavenge": None
-        })
-
+        # ❌ No crafted builds check
         crafted_items = user_data.get("crafted", [])
         if not crafted_items:
             await interaction.followup.send("❌ You have no crafted items to turn in. Try using `/craft` first.", ephemeral=True)
