@@ -2,4 +2,5 @@ discord.py
 requests
 aiohttp
 aiofiles
+pytz
 python-dotenv
