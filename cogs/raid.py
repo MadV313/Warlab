@@ -56,8 +56,12 @@ class Raid(commands.Cog):
         attacker = users.get(attacker_id)
         defender = users.get(defender_id)
 
-        if not attacker or not defender:
-            await interaction.response.send_message("❌ One of the players has no profile.", ephemeral=True)
+        if not attacker:
+            await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+            return
+
+        if not defender:
+            await interaction.response.send_message("❌ That player doesn’t have a profile yet.", ephemeral=True)
             return
 
         last_attacks = cooldowns.get(attacker_id, {})
