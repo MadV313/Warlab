@@ -158,7 +158,7 @@ def render_stash_visual(reinforcements):
     row4 = rg_row
 
     # Row 5 (Centered Dog & Claymore)
-    row5 = f"  {dog}     {clay}"
+    row5 = f"  {dog}      {clay}"
 
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
