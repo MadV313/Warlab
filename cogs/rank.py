@@ -1,9 +1,8 @@
-# cogs/rank.py
-
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json
+import random
 from datetime import datetime
 
 USER_DATA_FILE = "data/user_profiles.json"
@@ -11,30 +10,25 @@ WARLAB_CHANNEL_ID = 1382187883590455296  # 🔒 Hardcoded Warlab channel
 
 RANK_TITLES = {
     0: "Unranked Survivor",
-    1: "Tier 1 Builder",
-    2: "Field Engineer",
-    3: "Weapon Tech",
-    4: "Raider Elite",
-    5: "Master Craftsman",
-    6: "Architect Prime",
-    7: "Shadow Engineer",
-    8: "Warlab Veteran",
-    9: "Legendary Craftsman"
+    1: "Field Engineer",
+    2: "Weapon Tech",
+    3: "Shadow Engineer",
+    4: "Warlab Veteran",
+    5: "Legendary Craftsman"
 }
 
 SPECIAL_REWARDS = {
-    1: {"title": "💉 Technician", "color": 0x3cb4fc},
+    1: {"title": "💉 Weaponsmith Elite", "color": 0x3cb4fc},
     2: {"title": "🔬 Scavenger Elite", "color": 0x88e0a0},
-    3: {"title": "☣️ Black Lab Agent", "color": 0x880808}
+    3: {"title": "☣️ Raider Elite", "color": 0x880808}
 }
 
-# Prestige role mapping (fill with real role IDs from your server)
 PRESTIGE_ROLES = {
-    1: 1200000000000000001,
-    2: 1200000000000000002,
-    3: 1200000000000000003,
-    4: 1200000000000000004,
-    5: 1200000000000000005
+    1: 1184964035863650395,
+    2: 1184963951746879638,
+    3: 1184964276776091741,
+    4: 1184964646055190558,
+    5: 1184964764313583657
 }
 
 BOOST_CATALOG = {
@@ -64,6 +58,10 @@ class RankView(discord.ui.View):
             await interaction.response.send_message("🔒 You need at least 5 full builds to prestige.", ephemeral=True)
             return
 
+        # Prestige roll logic
+        rolled_id = random.choice(list(SPECIAL_REWARDS.keys()))
+        self.user_data["special_class"] = rolled_id
+
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
@@ -71,25 +69,23 @@ class RankView(discord.ui.View):
         self.user_data["boosts"] = {}
         self.update_callback(self.user_id, self.user_data)
 
-        await interaction.response.send_message("🌟 Prestige successful! Your stash and rank were reset. Cosmetic perks unlocked.", ephemeral=True)
+        reward = SPECIAL_REWARDS[rolled_id]
+        await interaction.response.send_message(
+            f"🌟 Prestige successful! You rolled: **{reward['title']}**. Cosmetic perks unlocked.",
+            ephemeral=True
+        )
 
-        # 🔔 Prestige Shoutout
         prestige_level = self.user_data["prestige"]
-        reward_text = f"Unlocked prestige level: **{prestige_level}**"
-        if prestige_level == 4:
-            reward_text += " — Lab Skins unlocked!"
-        elif prestige_level == 5:
-            reward_text += " — Warlab Blacksite + Elite perks unlocked!"
-
         warlab_channel = interaction.client.get_channel(WARLAB_CHANNEL_ID)
         if warlab_channel:
             embed = discord.Embed(
                 title=f"🧬 Prestige Unlocked!",
                 description=(
                     f"{interaction.user.mention} has reached **Prestige Level {prestige_level}**!\n"
-                    f"{reward_text}\n\n🎲 Use `/rollblueprint` to try for a new schematic!"
+                    f"🎖 Prestige Class: **{reward['title']}**\n\n"
+                    f"🎲 Use `/rollblueprint` to try for a new schematic!"
                 ),
-                color=0x9b59b6,
+                color=reward["color"],
                 timestamp=datetime.utcnow()
             )
             embed.set_thumbnail(url=interaction.user.display_avatar.url)
@@ -97,17 +93,15 @@ class RankView(discord.ui.View):
 
             await warlab_channel.send(embed=embed)
 
-        # 🎖 Auto-role assignment (if mapped)
+        # Prestige role cleanup and assignment
         guild = interaction.guild
         role_id = PRESTIGE_ROLES.get(prestige_level)
         if guild and role_id:
-            # Remove all previous prestige roles
             roles_to_remove = [guild.get_role(rid) for lvl, rid in PRESTIGE_ROLES.items() if lvl != prestige_level]
             for r in roles_to_remove:
                 if r and r in interaction.user.roles:
                     await interaction.user.remove_roles(r, reason="Old prestige role removed")
-        
-            # Add new prestige role
+
             new_role = guild.get_role(role_id)
             if new_role:
                 await interaction.user.add_roles(new_role, reason="Prestige reward role")
@@ -212,16 +206,10 @@ class Rank(commands.Cog):
         builds = user.get("builds_completed", 0)
         turnins = user.get("turnins", 0)
         boosts = user.get("boosts", {})
+        class_id = user.get("special_class")
 
         embed_color = 0x88e0ef
-        special_title = None
-
-        if prestige >= 10:
-            special_title = SPECIAL_REWARDS[3]
-        elif prestige >= 5:
-            special_title = SPECIAL_REWARDS[2]
-        elif prestige >= 2:
-            special_title = SPECIAL_REWARDS[1]
+        special_title = SPECIAL_REWARDS.get(class_id)
 
         if special_title:
             embed_color = special_title["color"]
