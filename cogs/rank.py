@@ -90,10 +90,8 @@ class RankView(discord.ui.View):
             )
             embed.set_thumbnail(url=interaction.user.display_avatar.url)
             embed.set_footer(text="Warlab Protocol: Prestige Activated")
-
             await warlab_channel.send(embed=embed)
 
-        # Prestige role cleanup and assignment
         guild = interaction.guild
         role_id = PRESTIGE_ROLES.get(prestige_level)
         if guild and role_id:
@@ -101,7 +99,6 @@ class RankView(discord.ui.View):
             for r in roles_to_remove:
                 if r and r in interaction.user.roles:
                     await interaction.user.remove_roles(r, reason="Old prestige role removed")
-
             new_role = guild.get_role(role_id)
             if new_role:
                 await interaction.user.add_roles(new_role, reason="Prestige reward role")
@@ -190,6 +187,19 @@ class Rank(commands.Cog):
         all_data[uid] = data
         self.save_profiles(all_data)
 
+    def determine_special_reward(self, user_data):
+        all_blueprints = user_data.get("blueprints", {})
+        scavenges = user_data.get("scavenges", 0)
+        raids = user_data.get("successful_raids", 0)
+
+        if all_blueprints and all(all_blueprints.values()):
+            return SPECIAL_REWARDS[1]
+        elif scavenges >= 100:
+            return SPECIAL_REWARDS[2]
+        elif raids >= 25:
+            return SPECIAL_REWARDS[3]
+        return None
+
     @app_commands.command(name="rank", description="View your current rank, prestige, and buy upgrades.")
     async def rank(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
@@ -206,18 +216,20 @@ class Rank(commands.Cog):
         builds = user.get("builds_completed", 0)
         turnins = user.get("turnins", 0)
         boosts = user.get("boosts", {})
-        class_id = user.get("special_class")
+        rolled_class_id = user.get("special_class")
 
-        embed_color = 0x88e0ef
-        special_title = SPECIAL_REWARDS.get(class_id)
-
-        if special_title:
-            embed_color = special_title["color"]
+        # Determine true reward if player qualifies
+        special_reward = self.determine_special_reward(user)
+        if special_reward:
+            embed_color = special_reward["color"]
+        else:
+            special_reward = SPECIAL_REWARDS.get(rolled_class_id)
+            embed_color = special_reward["color"] if special_reward else 0x88e0ef
 
         embed = discord.Embed(title=f"🏅 {interaction.user.display_name}'s Rank", color=embed_color)
         embed.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(level, "???"), inline=False)
-        if special_title:
-            embed.add_field(name="🧬 Prestige Class", value=special_title["title"], inline=False)
+        if special_reward:
+            embed.add_field(name="🧬 Prestige Class", value=special_reward["title"], inline=False)
         embed.add_field(name="🧬 Prestige", value=str(prestige), inline=True)
         embed.add_field(name="💰 Coins", value=str(coins), inline=True)
         embed.add_field(name="📦 Turn-ins", value=str(turnins), inline=True)
