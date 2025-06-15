@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Damage Tracking + Tool Durability Display
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed Interaction Response)
 
 import discord
 from discord.ext import commands
@@ -32,12 +32,14 @@ class ReinforceButton(discord.ui.Button):
         self.rtype = label
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
 
         if not profile:
-            await interaction.response.send_message("❌ Profile not found.", ephemeral=True)
+            await interaction.followup.send("❌ Profile not found.", ephemeral=True)
             return
 
         rtype = self.rtype
@@ -58,8 +60,7 @@ class ReinforceButton(discord.ui.Button):
                 missing.append(item)
 
         if missing:
-            await interaction.response.send_message(
-                f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
+            await interaction.followup.send(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
         for item in cost.get("materials", []):
@@ -67,29 +68,18 @@ class ReinforceButton(discord.ui.Button):
         for item in cost.get("special", []):
             profile["inventory"].remove(item)
 
-        # Update tools and reduce durability
-        updated_tools = []
-        for tool in profile["tools"]:
-            base = tool.split(" (")[0]
-            if base in cost.get("tools", []) and "(0" not in tool:
-                uses = int(tool.split("(")[1].split()[0])
-                uses -= 1
-                if uses > 0:
-                    updated_tools.append(f"{base} ({uses} uses left)")
-                # If uses drop to 0, do not re-add
-                cost["tools"].remove(base)  # avoid double use
-            else:
-                updated_tools.append(tool)
-        profile["tools"] = updated_tools
+        for tool in cost.get("tools", []):
+            for i, t in enumerate(profile["tools"]):
+                if t.startswith(tool):
+                    uses = int(t.split("(")[1].split()[0])
+                    uses -= 1
+                    if uses <= 0:
+                        profile["tools"].pop(i)
+                    else:
+                        profile["tools"][i] = f"{tool} ({uses} uses left)"
+                    break
 
-        # Initialize or update reinforcement
-        reinf = profile.get("reinforcements", {})
-        if rtype not in reinf or isinstance(reinf[rtype], int):
-            reinf[rtype] = {"count": 1, "damage": 0}
-        else:
-            reinf[rtype]["count"] += 1
-        profile["reinforcements"] = reinf
-
+        profile["reinforcements"][rtype] = profile["reinforcements"].get(rtype, 0) + 1
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
 
@@ -98,7 +88,7 @@ class ReinforceButton(discord.ui.Button):
 
         preview_data = {
             "stash_hp": profile["stash_hp"],
-            "reinforcements": reinf
+            "reinforcements": profile["reinforcements"]
         }
         json_encoded = quote(json.dumps(preview_data))
         visual_link = f"{FORTIFY_UI_URL}{json_encoded}"
@@ -110,19 +100,15 @@ class ReinforceButton(discord.ui.Button):
         )
         embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
         embed.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
-
-        if profile["tools"]:
-            embed.add_field(name="🧰 Tools Remaining", value="\n".join(profile["tools"]), inline=False)
-
         embed.set_footer(text="WARLAB | SV13 Bot")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
         for rtype in REINFORCEMENT_COSTS:
-            current_data = profile["reinforcements"].get(rtype, {})
-            current = current_data["count"] if isinstance(current_data, dict) else current_data
+            current = profile["reinforcements"].get(rtype, 0)
             if current < MAX_REINFORCEMENTS[rtype]:
                 self.add_item(ReinforceButton(label=rtype))
 
@@ -133,7 +119,7 @@ class Fortify(commands.Cog):
     @app_commands.command(name="fortify", description="Open fortification UI and choose reinforcement")
     async def fortify(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-    
+
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id, {
@@ -142,30 +128,16 @@ class Fortify(commands.Cog):
             "reinforcements": {},
             "stash_hp": 0
         })
-    
-        # Upgrade old reinforcements
-        for k, v in profile.get("reinforcements", {}).items():
-            if isinstance(v, int):
-                profile["reinforcements"][k] = {"count": v, "damage": 0}
-    
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
-    
+
         view = ReinforcementView(profile)
-    
+
         if not view.children:
-            await interaction.followup.send(
-                content="✅ All stash reinforcements are fully installed. No more fortifications available.",
-                ephemeral=True
-            )
+            await interaction.followup.send("✅ All stash reinforcements are fully installed. No more fortifications available.", ephemeral=True)
             return
-    
-        # FINAL SAFE UI SEND (no embed, safe with all clients):
-        await interaction.followup.send(
-            content="🔧 Select a reinforcement to install:",
-            view=view,
-            ephemeral=True
-        )
+
+        await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Fortify(bot))
