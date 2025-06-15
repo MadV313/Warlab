@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons
+# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Fixed Command Sync)
 
 import discord
 from discord.ext import commands
@@ -114,7 +114,7 @@ class Fortify(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="fortify", description="Open fortification UI and choose reinforcement")
-    async def fortify_command(self, interaction: discord.Interaction):
+    async def fortify(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
@@ -136,12 +136,5 @@ class Fortify(commands.Cog):
 
         await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
 
-    # Required for syncing slash command
-    def get_app_commands(self):
-        return [self.fortify_command]
-
 async def setup(bot):
-    cog = Fortify(bot)
-    await bot.add_cog(cog)
-    for cmd in cog.get_app_commands():
-        bot.tree.add_command(cmd, guild=None)  # Ensure command gets registered
+    await bot.add_cog(Fortify(bot))
