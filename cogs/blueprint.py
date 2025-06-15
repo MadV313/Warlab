@@ -1,33 +1,44 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (dynamic dropdowns)
 
 import discord
 from discord.ext import commands
 from discord import app_commands
+from typing import Literal
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-KNOWN_BLUEPRINTS = [
-    "M4 Blueprint", "AK-74 Blueprint", "Ghillie Suit Blueprint",
-    "Field Backpack Blueprint", "Improvised Vest Blueprint",
-    "Pox Explosive Blueprint", "Claymore Blueprint"
+RECIPE_FILES = [
+    "data/item_recipes.json",
+    "data/armor_blueprints.json",
+    "data/explosive_blueprints.json"
 ]
 
 class BlueprintManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def get_all_blueprints(self):
+        blueprints = set()
+        for path in RECIPE_FILES:
+            data = await load_file(path) or {}
+            for entry in data.values():
+                produced = entry.get("produces")
+                if produced:
+                    blueprints.add(f"{produced} Blueprint")
+        return sorted(blueprints)
+
     @app_commands.command(name="blueprint", description="Admin: Give or remove blueprints from a player")
     @app_commands.describe(
         user="Target player",
         action="Give or remove blueprint",
-        item="Blueprint name (must match list)",
-        quantity="How many copies to add (ignored on removal)"
+        item="Blueprint name from game data",
+        quantity="Quantity to give (ignored when removing)"
     )
     async def blueprint(
         self,
         interaction: discord.Interaction,
         user: discord.Member,
-        action: str,
+        action: Literal["give", "remove"],
         item: str,
         quantity: int = 1
     ):
@@ -35,11 +46,10 @@ class BlueprintManager(commands.Cog):
             await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
             return
 
-        action = action.lower()
         item = item.strip()
-
-        if item not in KNOWN_BLUEPRINTS:
-            await interaction.response.send_message(f"❌ Invalid blueprint. Choose from: {', '.join(KNOWN_BLUEPRINTS)}", ephemeral=True)
+        valid_blueprints = await self.get_all_blueprints()
+        if item not in valid_blueprints:
+            await interaction.response.send_message(f"❌ Invalid blueprint.\nChoose from: {', '.join(valid_blueprints)}", ephemeral=True)
             return
 
         profiles = await load_file(USER_DATA) or {}
@@ -59,13 +69,18 @@ class BlueprintManager(commands.Cog):
             else:
                 await interaction.response.send_message(f"⚠️ {user.mention} does not have that blueprint.", ephemeral=True)
                 return
-        else:
-            await interaction.response.send_message("❌ Invalid action. Use `give` or `remove`.", ephemeral=True)
-            return
 
         profile["blueprints"] = blueprints
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
+
+    @blueprint.autocomplete("item")
+    async def autocomplete_item(self, interaction: discord.Interaction, current: str):
+        all_items = await self.get_all_blueprints()
+        return [
+            app_commands.Choice(name=bp, value=bp)
+            for bp in all_items if current.lower() in bp.lower()
+        ][:25]
 
 async def setup(bot):
     await bot.add_cog(BlueprintManager(bot))
