@@ -83,8 +83,8 @@ class LabSkins(commands.Cog):
             "activeSkin": "default"
         })
 
-        if profile.get("prestige", 0) < 4:
-            await interaction.followup.send("🔒 Prestige IV required to use lab skins.", ephemeral=True)
+        if profile.get("prestige", 0) < 1:
+            await interaction.followup.send("🔒 Prestige I required to use lab skins.", ephemeral=True)
             return
 
         unlocked_skins = profile.get("labskins", [])
