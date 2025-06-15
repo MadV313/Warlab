@@ -12,12 +12,24 @@ ITEMS_MASTER_FILE = "data/items_master.json"
 BLACKMARKET_FILE = "data/blackmarket_items_master.json"
 
 DAILY_TASKS = [
-    "Clear an infected nest outside Elektrozavodsk.",
-    "Scavenge rare parts from a downed chopper.",
-    "Assist a wounded survivor near Black Forest.",
-    "Eliminate a roaming bandit squad near the coast.",
-    "Recover a hidden weapons cache west of Novy Sobor."
+    "Cleared an infected nest outside Topolin.",
+    "Scavenged rare parts from a downed chopper.",
+    "Assisted a wounded survivor near Sobotka Trader.",
+    "Eliminated a roaming bandit squad near Sitnik Airfield.",
+    "Recovered a hidden weapons cache west of Nadbor.",
+    "Neutralized a rogue marksman spotted near Polana treeline.",
+    "Secured medical supplies from an overrun clinic in Tarnow.",
+    "Intercepted a smuggler convoy north of the Zalesie checkpoint.",
+    "Helped reinforce survivor barricades outside Brena village.",
+    "Salvaged black market tech hidden beneath a barn near Kolin.",
+    "Braved a toxic gas pocket near Kamensk Quarry to extract intel.",
+    "Navigated a thunderstorm sweep across the Livonia river delta to tag airdrop wreckage.",
+    "Harvested mutated crops from a contaminated greenhouse in Branzow.",
+    "Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> operatives during a covert exchange near Gieraltów fields.",
+    "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> agents hiding near the abandoned Roslavl factory."
 ]
+
+TOOL_POOL = ["Pliers", "Saw", "Nails", "Hammer"]
 
 class Task(commands.Cog):
     def __init__(self, bot):
@@ -52,7 +64,7 @@ class Task(commands.Cog):
         items_master = self.load_json(ITEMS_MASTER_FILE)
         blackmarket_items = self.load_json(BLACKMARKET_FILE)
 
-        # Flatten item names
+        # Pools
         items_pool = list(items_master.keys())
         rare_pool = list(blackmarket_items.keys())
 
@@ -74,6 +86,13 @@ class Task(commands.Cog):
                 item_count = 2
 
         item_rewards = []
+
+        # 🔧 Always give one guaranteed tool
+        guaranteed_tool = random.choice(TOOL_POOL)
+        item_rewards.append(guaranteed_tool)
+        user.setdefault("stash", []).append(guaranteed_tool)
+
+        # 🎲 Add item rolls (on top of guaranteed tool)
         for _ in range(item_count):
             is_rare = random.randint(1, 100) <= 5
             if is_rare and rare_pool:
@@ -83,6 +102,7 @@ class Task(commands.Cog):
             item_rewards.append(item)
             user.setdefault("stash", []).append(item)
 
+        # 🎁 Chance to re-unlock Coin Doubler
         bonus_msgs = []
         if user.get("boosts", {}).get("coin_doubler") and random.randint(1, 100) == 69:
             user["boosts"]["coin_doubler"] = True
