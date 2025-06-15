@@ -1,4 +1,4 @@
-# cogs/scavenge.py — WARLAB daily gathering logic (with rarity weighting + debug)
+# cogs/scavenge.py — WARLAB daily gathering logic (dynamic loot + coins + debug)
 
 import discord
 from discord.ext import commands
@@ -12,22 +12,13 @@ from utils.inventory import weighted_choice
 
 USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
-
-SCAVENGE_LOOT = [
-    {"item": "Nails", "rarity": "Common"},
-    {"item": "Wood Plank", "rarity": "Common"},
-    {"item": "Scrap Metal", "rarity": "Uncommon"},
-    {"item": "Duct Tape", "rarity": "Uncommon"},
-    {"item": "Screwdriver", "rarity": "Rare"},
-    {"item": "Wrench", "rarity": "Rare"},
-    {"item": "Suppressor", "rarity": "Legendary"}
-]
+ITEMS_MASTER = "data/items_master.json"
 
 class Scavenge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="scavenge", description="Scavenge for random materials (1x per day)")
+    @app_commands.command(name="scavenge", description="Scavenge for random materials (cooldown: 3 hours)")
     async def scavenge(self, interaction: discord.Interaction):
         print(f"🟢 /scavenge triggered by {interaction.user.display_name} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=True)
@@ -40,12 +31,11 @@ class Scavenge(commands.Cog):
             print(f"📁 Loaded user_profiles.json: {list(profiles.keys())}")
             user = profiles.get(user_id, {})
             user.setdefault("inventory", [])
+            user.setdefault("coins", 0)
             user.setdefault("last_scavenge", None)
 
-            # ✅ FIX: Access config from bot instance
-            cooldown_min = 1440  # Default
-            if hasattr(self.bot, "config") and isinstance(self.bot.config, dict):
-                cooldown_min = self.bot.config.get("scavenge_cooldown_minutes", 1440)
+            # Cooldown: 3 hours = 180 minutes
+            cooldown_min = 180
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
@@ -55,29 +45,35 @@ class Scavenge(commands.Cog):
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
+            # Load master item pool and rarity weights
+            item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
-            print(f"📊 Rarity weights loaded: {rarity_weights}")
+            print(f"📦 Item catalog size: {len(item_catalog)}")
+            print(f"📊 Rarity weights: {rarity_weights}")
+
+            # Prepare weighted pool
+            loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if "rarity" in v]
 
             found = []
-
-            # Main pulls
-            for i in range(2):
-                item = weighted_choice(SCAVENGE_LOOT, rarity_weights)
-                if isinstance(item, dict):
-                    item_name = item.get("item")
-                else:
-                    item_name = item
-                print(f"🎯 Pull {i+1}: {item_name}")
-                if item_name:
+            pulls = random.randint(2, 5)
+            for i in range(pulls):
+                item = weighted_choice(loot_pool, rarity_weights)
+                if item:
+                    item_name = item["item"] if isinstance(item, dict) else item
+                    print(f"🎯 Pull {i+1}: {item_name}")
                     found.append(item_name)
+
+            # Roll coin bonus
+            coins_found = random.randint(5, 25)
+            user["coins"] += coins_found
 
             # Weekend bonus
             if now.weekday() in [5, 6]:
-                print("🎉 Weekend bonus roll triggered")
-                bonus = weighted_choice(SCAVENGE_LOOT, rarity_weights)
-                bonus_name = bonus.get("item") if isinstance(bonus, dict) else bonus
-                print(f"🎁 Bonus: {bonus_name}")
-                if bonus_name:
+                print("🎉 Weekend bonus triggered")
+                bonus = weighted_choice(loot_pool, rarity_weights)
+                if bonus:
+                    bonus_name = bonus["item"] if isinstance(bonus, dict) else bonus
+                    print(f"🎁 Weekend Bonus: {bonus_name}")
                     found.append(bonus_name)
 
             # Update profile
@@ -87,11 +83,15 @@ class Scavenge(commands.Cog):
             await save_file(USER_DATA, profiles)
 
             if found:
-                print(f"📦 Items found: {found}")
-                await interaction.followup.send(f"🔎 You scavenged and found: **{', '.join(found)}**", ephemeral=True)
+                print(f"📦 Items found: {found} + 💰 {coins_found} coins")
+                await interaction.followup.send(
+                    f"🔎 You scavenged and found: **{', '.join(found)}**\n"
+                    f"💰 You also found **{coins_found} coins!**",
+                    ephemeral=True
+                )
             else:
-                print("📭 Nothing found")
-                await interaction.followup.send("🔎 You searched but found nothing this time.", ephemeral=True)
+                print("📭 No items found, but coins granted")
+                await interaction.followup.send(f"🔎 You didn’t find any items, but gained 💰 **{coins_found} coins!**", ephemeral=True)
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
