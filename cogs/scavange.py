@@ -30,7 +30,7 @@ class Scavenge(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             print(f"📁 Loaded user_profiles.json: {list(profiles.keys())}")
             user = profiles.get(user_id, {})
-            user.setdefault("inventory", [])
+            user.setdefault("stash", [])
             user.setdefault("coins", 0)
             user.setdefault("last_scavenge", None)
 
@@ -77,7 +77,7 @@ class Scavenge(commands.Cog):
                     found.append(bonus_name)
 
             # Update profile
-            user["inventory"].extend(found)
+            user["stash"].extend(found)
             user["last_scavenge"] = now.isoformat()
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
