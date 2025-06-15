@@ -15,7 +15,7 @@ class RegisterCog(commands.Cog):
         existing = get_profile(uid)
         if existing:
             await interaction.response.send_message(
-                "✅ You already have a profile — try /rank or /stash!",
+                "✅ You already have a profile — you can now try all other /warlab comands!",
                 ephemeral=True
             )
             return
