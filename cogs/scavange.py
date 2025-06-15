@@ -39,7 +39,8 @@ class Scavenge(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             user = profiles.get(user_id, {"inventory": [], "last_scavenge": None})
 
-            cooldown_min = interaction.client.config.get("scavenge_cooldown_minutes", 1440)
+            # ✅ FIX: Access config from bot instance
+            cooldown_min = self.bot.config.get("scavenge_cooldown_minutes", 1440)
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
@@ -57,23 +58,26 @@ class Scavenge(commands.Cog):
                 item = weighted_choice(SCAVENGE_LOOT, rarity_weights)
                 print(f"🎯 Pull {i+1}: {item}")
                 if item:
-                    found.append(item["item"])
+                    found.append(item)
 
             if now.weekday() in [5, 6]:
                 print("🎉 Weekend bonus roll triggered")
                 bonus = weighted_choice(SCAVENGE_LOOT, rarity_weights)
                 print(f"🎁 Bonus: {bonus}")
                 if bonus:
-                    found.append(bonus["item"])
+                    found.append(bonus)
 
-            user["inventory"].extend(found)
+            # Extract item names only
+            item_names = [entry["item"] for entry in found]
+
+            user["inventory"].extend(item_names)
             user["last_scavenge"] = now.isoformat()
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
-            if found:
-                print(f"📦 Items found: {found}")
-                await interaction.followup.send(f"🔎 You scavenged and found: **{', '.join(found)}**", ephemeral=True)
+            if item_names:
+                print(f"📦 Items found: {item_names}")
+                await interaction.followup.send(f"🔎 You scavenged and found: **{', '.join(item_names)}**", ephemeral=True)
             else:
                 print("📭 Nothing found")
                 await interaction.followup.send("🔎 You searched but found nothing this time.", ephemeral=True)
