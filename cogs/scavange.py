@@ -44,6 +44,12 @@ class Scavenge(commands.Cog):
 
             profiles = await load_file(USER_DATA) or {}
             print(f"📁 Loaded user_profiles.json: {list(profiles.keys())}")
+
+            # ❌ Registration check
+            if user_id not in profiles:
+                await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+                return
+
             user = profiles.get(user_id, {})
             user.setdefault("stash", [])
             user.setdefault("coins", 0)
