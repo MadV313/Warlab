@@ -21,8 +21,10 @@ class Craft(commands.Cog):
     async def get_owned_blueprints(self, user_id):
         profiles = await load_file(USER_DATA) or {}
         recipes  = await load_file(RECIPE_DATA) or {}
-        user     = profiles.get(user_id, {})
-        owned    = user.get("blueprints", [])
+        user     = profiles.get(user_id)
+        if not user:
+            return []
+        owned = user.get("blueprints", [])
         return [bp for bp in owned if bp.replace(" Blueprint", "").lower() in recipes]
 
     # ──────────────────────────────────────────────────────────────────
@@ -36,20 +38,17 @@ class Craft(commands.Cog):
 
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        recipes  = await load_file(RECIPE_DATA) or {}
-        armor_blueprints     = await load_file(ARMOR_DATA) or {}
-        explosive_blueprints = await load_file(EXPLOSIVE_DATA) or {}
+        user     = profiles.get(user_id)
 
-        user = profiles.get(user_id, {
-            "stash"        : [],
-            "blueprints"   : [],
-            "prestige"     : 0,
-            "crafted"      : [],
-            "labskins"     : [],
-            "equipped_skin": "default",
-        })
+        # 🔒 Must be registered
+        if not user:
+            await interaction.followup.send(
+                "❌ You don’t have a profile yet. Please use `/register` first.",
+                ephemeral=True
+            )
+            return
 
-        # 🔒 Check if they even have any blueprints at all
+        # 🔒 Must own at least one blueprint
         if not user.get("blueprints"):
             await interaction.followup.send(
                 "🔒 You don’t own any blueprints yet.\nUse `/blackmarket` to purchase your first blueprint.",
@@ -57,7 +56,10 @@ class Craft(commands.Cog):
             )
             return
 
-        # 🔍 Validate item
+        recipes  = await load_file(RECIPE_DATA) or {}
+        armor_blueprints     = await load_file(ARMOR_DATA) or {}
+        explosive_blueprints = await load_file(EXPLOSIVE_DATA) or {}
+
         item_key = item.replace(" Blueprint", "").lower()
         recipe   = recipes.get(item_key)
         if not recipe:
@@ -83,7 +85,7 @@ class Craft(commands.Cog):
             return
 
         # 🔧 Part check
-        stash_counter = Counter(user["stash"])
+        stash_counter = Counter(user.get("stash", []))
         if not has_required_parts(stash_counter, recipe["requirements"]):
             missing_parts = [
                 f"{qty - stash_counter.get(part, 0)}x {part}"
@@ -120,11 +122,11 @@ class Craft(commands.Cog):
     @craft.autocomplete("item")
     async def craft_autocomplete(self, interaction: discord.Interaction, current: str):
         user_id = str(interaction.user.id)
-        choices = await self.get_owned_blueprints(user_id)
+        owned   = await self.get_owned_blueprints(user_id)
         return [
             app_commands.Choice(name=bp, value=bp)
-            for bp in choices if current.lower() in bp.lower()
-        ][:25]
+            for bp in owned
+        ][:25]  # strict dropdown, no free-type options
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
