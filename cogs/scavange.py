@@ -37,7 +37,9 @@ class Scavenge(commands.Cog):
             now = datetime.utcnow()
 
             profiles = await load_file(USER_DATA) or {}
-            user = profiles.get(user_id, {"inventory": [], "last_scavenge": None})
+            user = profiles.get(user_id, {})
+            user.setdefault("inventory", [])
+            user.setdefault("last_scavenge", None)
 
             # ✅ FIX: Access config from bot instance
             cooldown_min = getattr(self.bot, "config", {}).get("scavenge_cooldown_minutes", 1440)
