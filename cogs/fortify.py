@@ -11,7 +11,7 @@ USER_DATA = "data/user_profiles.json"
 FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="
 
 MAX_REINFORCEMENTS = {
-    "Barbed Fence": 10,
+    "Barbed Fence": 9,
     "Locked Container": 5,
     "Reinforced Gate": 5,
     "Claymore Trap": 1,
@@ -123,42 +123,41 @@ class ReinforcementView(discord.ui.View):
         self.add_item(CloseButton())
 
 def render_stash_visual(reinforcements):
-    def fill(i, total): return "✅" if reinforcements.get(total, 0) >= i else "🔲"
-
+    # Counts
     bf = reinforcements.get("Barbed Fence", 0)
     lc = reinforcements.get("Locked Container", 0)
     rg = reinforcements.get("Reinforced Gate", 0)
     gd = reinforcements.get("Guard Dog", 0)
     cm = reinforcements.get("Claymore Trap", 0)
 
-    # Barbed Fence (limit now treated as 9 — 5 top, 2 left, 2 right)
-    bf_top = "".join([fill(i + 1, "Barbed Fence") for i in range(5)])
-    bf_l1 = fill(6, "Barbed Fence")
-    bf_l2 = fill(8, "Barbed Fence")
-    bf_r1 = fill(7, "Barbed Fence")
-    bf_r2 = fill(9, "Barbed Fence")
+    # 🔐 Locked Containers (5 positions)
+    lc_slots = ["🔐" if i < lc else "🔲" for i in range(5)]
 
-    # Locked Containers (5 inside the box)
-    lc_count = lc
+    # 🚪 Reinforced Gates (5)
+    rg_row = " ".join(["🚪" if i < rg else "🔲" for i in range(5)])
 
-    def lc_slot():
-        nonlocal lc_count
-        if lc_count > 0:
-            lc_count -= 1
-            return "✅"
-        return "🔲"
+    # 🧱 Barbed Fence (9 fixed: 5 top, 2 left, 2 right)
+    bf_emojis = ["🧱" if i < bf else "🔲" for i in range(9)]
 
-    # Reinforced Gates
-    rg_row = " ".join([fill(i + 1, "Reinforced Gate") for i in range(5)])
+    # 🐶 Guard Dog and 💣 Claymore
+    dog = "🐶" if gd else "🔲"
+    clay = "💣" if cm else "🔲"
 
-    # Guard Dog / Claymore
-    dog = "✅" if gd else "🔲"
-    clay = "✅" if cm else "🔲"
+    # === Row Layout ===
 
-    row1 = f"{bf_top}"
-    row2 = f"{bf_l1} {lc_slot()} {lc_slot()} {lc_slot()} {bf_r1}"
-    row3 = f"{bf_l2} {lc_slot()} 📦 {lc_slot()} {bf_r2}"
-    row4 = f"{rg_row}"
+    # Row 1 (Top Barbed Fence)
+    row1 = f"{bf_emojis[0]} {bf_emojis[1]} {bf_emojis[2]} {bf_emojis[3]} {bf_emojis[4]}"
+
+    # Row 2 (Side fences + 3 Locked Containers)
+    row2 = f"{bf_emojis[5]} {lc_slots[0]} {lc_slots[1]} {lc_slots[2]} {bf_emojis[6]}"
+
+    # Row 3 (Side fences + 2 Locked Containers + Stash center)
+    row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
+
+    # Row 4 (Reinforced Gates)
+    row4 = rg_row
+
+    # Row 5 (Centered Dog & Claymore)
     row5 = f"  {dog}     {clay}"
 
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
