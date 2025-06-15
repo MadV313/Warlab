@@ -1,4 +1,4 @@
-# bot.py — WARLAB Cog Loader + Full Sync + Debug Logging
+# bot.py — WARLAB Cog Loader + Full Sync + Slash Registration Fix
 
 print("🟡 Booting WARLAB Bot...")
 
@@ -38,14 +38,16 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
-
-# ✅ Inject config into bot instance for cog access
 bot.config = config
 
-# === Auto-load cogs from /cogs and sync commands ===
+# === Auto-load cogs from /cogs and register commands ===
 @bot.event
 async def setup_hook():
     print("🧩 Loading cogs from /cogs...")
+
+    # 🧠 Automatically inject GUILD scope into all app commands
+    bot.tree.copy_global_to(guild=discord.Object(id=GUILD_ID))
+
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py") and filename != "__init__.py":
             cog_path = f"cogs.{filename[:-3]}"
@@ -55,14 +57,16 @@ async def setup_hook():
             except Exception as e:
                 print(f"❌ Failed to load {cog_path}: {e}")
 
-    # ✅ Sync slash commands on startup (GUILD ONLY for fast updates)
     try:
         synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"✅ Synced {len(synced)} slash commands to guild {GUILD_ID}")
     except Exception as e:
         print(f"❌ Slash sync failed in setup_hook: {e}")
 
-# === Log command usage ===
+@bot.event
+async def on_ready():
+    print("✅ Bot connected and ready.")
+
 @bot.listen("on_interaction")
 async def log_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.application_command:
@@ -70,12 +74,6 @@ async def log_interaction(interaction: discord.Interaction):
         user = interaction.user
         print(f"🟢 /{name} by {user.display_name} ({user.id})")
 
-# === On Ready ===
-@bot.event
-async def on_ready():
-    print("✅ Bot connected and ready.")
-
-# === Run Bot ===
 async def main():
     print("🚀 Starting bot...")
     try:
