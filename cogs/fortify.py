@@ -142,9 +142,9 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         try:
             for msg in getattr(self.view, "stored_messages", []):
-                await msg.delete()
+                await msg.edit(content="❌ Fortification UI closed.", embed=None, view=None)
         except Exception as e:
-            print(f"❌ Failed to delete ephemeral messages: {e}")
+            print(f"❌ Failed to close fortify UI: {e}")
         await interaction.response.defer()
 
 class ReinforcementView(discord.ui.View):
