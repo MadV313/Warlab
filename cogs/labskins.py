@@ -28,7 +28,13 @@ class LabSkinSelect(discord.ui.Select):
                 )
             )
 
-        super().__init__(placeholder="Choose your Lab Skin", min_values=1, max_values=1, options=options)
+        super().__init__(
+            placeholder="Choose your Lab Skin",
+            min_values=1,
+            max_values=1,
+            options=options,
+            disabled=False
+        )
 
     def meets_unlock_conditions(self, skin: str) -> bool:
         requirements = self.catalog.get(skin, {}).get("unlock", {})
@@ -69,24 +75,25 @@ class LabSkins(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige IV required)")
+    @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige I required)")
     async def labskins(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        profile = profiles.get(user_id, {
-            "prestige": 0,
-            "lab_builds": 0,
-            "raids_successful": 0,
-            "labskins": [],
-            "activeSkin": "default"
-        })
+        profile = profiles.get(user_id)
 
+        # 🔒 Not registered
+        if not profile:
+            await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+            return
+
+        # 🔒 Prestige requirement
         if profile.get("prestige", 0) < 1:
             await interaction.followup.send("🔒 Prestige I required to use lab skins.", ephemeral=True)
             return
 
+        # 🔒 No skins unlocked
         unlocked_skins = profile.get("labskins", [])
         if not unlocked_skins:
             await interaction.followup.send("⚠️ You have not unlocked any lab skins yet.", ephemeral=True)
