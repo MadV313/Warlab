@@ -56,7 +56,7 @@ class Task(commands.Cog):
         user = profiles.get(uid)
         if not user:
             await interaction.response.send_message(
-                "❌ You don’t have a profile yet. Use `/rank` or `/turnin` to get started.",
+                "❌ You don’t have a profile yet. Please use `/register` first.",
                 ephemeral=True
             )
             return
