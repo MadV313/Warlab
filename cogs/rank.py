@@ -28,6 +28,15 @@ SPECIAL_REWARDS = {
     3: {"title": "☣️ Black Lab Agent", "color": 0x880808}
 }
 
+# Prestige role mapping (fill with real role IDs from your server)
+PRESTIGE_ROLES = {
+    1: 1200000000000000001,
+    2: 1200000000000000002,
+    3: 1200000000000000003,
+    4: 1200000000000000004,
+    5: 1200000000000000005
+}
+
 BOOST_CATALOG = {
     "special_class": {"label": "Special Class", "cost": 1000},
     "loot_boost": {"label": "Daily Loot Boost", "cost": 500},
@@ -64,10 +73,9 @@ class RankView(discord.ui.View):
 
         await interaction.response.send_message("🌟 Prestige successful! Your stash and rank were reset. Cosmetic perks unlocked.", ephemeral=True)
 
-        # 🔔 Prestige announcement in Warlab channel
+        # 🔔 Prestige Shoutout
         prestige_level = self.user_data["prestige"]
-        reward_text = f"Unlocked new prestige level: **{prestige_level}**"
-
+        reward_text = f"Unlocked prestige level: **{prestige_level}**"
         if prestige_level == 4:
             reward_text += " — Lab Skins unlocked!"
         elif prestige_level == 5:
@@ -75,11 +83,27 @@ class RankView(discord.ui.View):
 
         warlab_channel = interaction.client.get_channel(WARLAB_CHANNEL_ID)
         if warlab_channel:
-            await warlab_channel.send(
-                f"🧬 {interaction.user.mention} has prestiged to **Level {prestige_level}**!\n"
-                f"{reward_text}\n"
-                f"🎲 Use `/rollblueprint` to try for a new schematic!"
+            embed = discord.Embed(
+                title=f"🧬 Prestige Unlocked!",
+                description=(
+                    f"{interaction.user.mention} has reached **Prestige Level {prestige_level}**!\n"
+                    f"{reward_text}\n\n🎲 Use `/rollblueprint` to try for a new schematic!"
+                ),
+                color=0x9b59b6,
+                timestamp=datetime.utcnow()
             )
+            embed.set_thumbnail(url=interaction.user.display_avatar.url)
+            embed.set_footer(text="Warlab Protocol: Prestige Activated")
+
+            await warlab_channel.send(embed=embed)
+
+        # 🎖 Auto-role assignment (if mapped)
+        guild = interaction.guild
+        role_id = PRESTIGE_ROLES.get(prestige_level)
+        if guild and role_id:
+            role = guild.get_role(role_id)
+            if role:
+                await interaction.user.add_roles(role, reason="Prestige reward role")
 
     @discord.ui.button(label="⚡ Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
     async def buy_boost_button(self, interaction: discord.Interaction, button: discord.ui.Button):
