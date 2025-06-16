@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (stash dict format enforced)
+# cogs/tool.py — Admin: Give or remove tools from a player (stash-count logic)
 
 import discord
 from discord.ext import commands
@@ -8,12 +8,6 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 TOOLS = ["Saw", "Nails", "Pliers", "Hammer"]
-
-TOOL_TEMPLATE = {
-    "type": "tool",
-    "rarity": "Common",
-    "tags": ["build"]
-}
 
 class ToolManager(commands.Cog):
     def __init__(self, bot):
@@ -49,26 +43,27 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
+            stash = profile.get("stash", {})
 
-            # Fix legacy data: force stash to be a dict
-            if not isinstance(profile.get("stash"), dict):
-                print(f"🔧 Fixing invalid stash for user {uid}")
-                profile["stash"] = {}
-
-            stash = profile["stash"]
+            # Ensure stash is a dictionary with int quantities
+            if not isinstance(stash, dict):
+                stash = {}
+            stash.setdefault(item, 0)
 
             # ── Give ───────────────────────
             if action == "give":
-                stash[item] = TOOL_TEMPLATE.copy()
+                stash[item] += quantity
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
             # ── Remove ─────────────────────
             else:
-                if item in stash:
-                    del stash[item]
-                    msg = f"🗑 Removed **{item}** from {user.mention}."
+                if stash.get(item, 0) >= quantity:
+                    stash[item] -= quantity
+                    if stash[item] == 0:
+                        del stash[item]
+                    msg = f"🗑 Removed **{quantity} × {item}** from {user.mention}."
                 else:
-                    msg = f"⚠️ {user.mention} doesn't have **{item}** in their stash."
+                    msg = f"⚠️ {user.mention} doesn't have that many **{item}**."
 
             profile["stash"] = stash
             profiles[uid] = profile
