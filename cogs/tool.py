@@ -70,18 +70,16 @@ class ToolManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(
         name="tool",
-        description="Admin: Give or remove tools from a player.",
-        default_permissions=discord.Permissions(administrator=True)
+        description="Admin: Give or remove tools from a player."
     )
     @app_commands.describe(
         action="Choose to give or remove a tool",
-        item="Tool name from the dropdown list",
-        quantity="How many to give or remove",
-        user="Target player"
+        user="Target player",
+        quantity="How many to give or remove"
     )
-    @app_commands.checks.has_permissions(administrator=True)
     async def tool(
         self,
         interaction: discord.Interaction,
@@ -93,7 +91,6 @@ class ToolManager(commands.Cog):
             await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        # Fetch valid tools
         items_db  = await load_file(TOOLS_FILE) or {}
         tool_list = [name for name, meta in items_db.items() if meta.get("type") == "tool"]
 
@@ -101,7 +98,6 @@ class ToolManager(commands.Cog):
             await interaction.response.send_message("❌ No tools found in the database.", ephemeral=True)
             return
 
-        # Open dropdown
         view = ToolSelectView(user, action.lower(), quantity, sorted(tool_list))
         await interaction.response.send_message(
             f"🧰 Select a tool to **{action.lower()}** for {user.mention}:",
