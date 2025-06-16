@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (grouped stash format safe)
+# cogs/tool.py — Admin: Give or remove tools from a player (safe with legacy stash conversion)
 
 import discord
 from discord.ext import commands
@@ -44,17 +44,32 @@ class ToolManager(commands.Cog):
             uid = str(user.id)
             profile = profiles.get(uid, {})
 
-            # Safe init for nested stash
+            # ── Handle legacy stash format ──
             stash = profile.get("stash", {})
+            if isinstance(stash, list):
+                # Convert list stash to proper categorized dict
+                print("🔧 Converting legacy stash format to dict...")
+                new_stash = {"Misc": {}}
+                for entry in stash:
+                    if isinstance(entry, str):
+                        new_stash["Misc"][entry] = new_stash["Misc"].get(entry, 0) + 1
+                stash = new_stash
+
+            if not isinstance(stash, dict):
+                stash = {}
+
             tools_section = stash.get("Tools", {})
+            if not isinstance(tools_section, dict):
+                tools_section = {}
+
             current_qty = tools_section.get(item, 0)
 
-            # ── GIVE ───────────────────────
+            # ── Give ───────────────────────
             if action == "give":
                 tools_section[item] = current_qty + quantity
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
-            # ── REMOVE ─────────────────────
+            # ── Remove ─────────────────────
             else:
                 if current_qty >= quantity:
                     tools_section[item] = current_qty - quantity
@@ -64,12 +79,10 @@ class ToolManager(commands.Cog):
                 else:
                     msg = f"⚠️ {user.mention} doesn't have that many **{item}**."
 
-            # Save back updated tools section
             stash["Tools"] = tools_section
             profile["stash"] = stash
             profiles[uid] = profile
             await save_file(USER_DATA, profiles)
-
             await interaction.followup.send(msg, ephemeral=True)
 
         except Exception as e:
