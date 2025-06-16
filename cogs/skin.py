@@ -17,17 +17,16 @@ class LabSkinManager(commands.Cog):
         catalog = await load_file(CATALOG_PATH) or {}
         return list(catalog.keys())
 
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(
         name="skin",
-        description="Admin: Give or remove lab skins from a player.",
-        default_permissions=discord.Permissions(administrator=True)
+        description="Admin: Give or remove lab skins from a player."
     )
     @app_commands.describe(
         action="Give or remove a lab skin",
         user="Target player",
         skin="Name of the lab skin"
     )
-    @app_commands.checks.has_permissions(administrator=True)
     async def skin(
         self,
         interaction: discord.Interaction,
