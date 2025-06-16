@@ -52,7 +52,7 @@ class BuyButton(discord.ui.Button):
 
         # 📦 Deliver item
         if self.item_name == "Guard Dog":
-            user.setdefault("inventory", []).append("Guard Dog")
+            user.setdefault("stash", []).append("Guard Dog")
         else:
             user.setdefault("blueprints", [])
             if self.item_name not in user["blueprints"]:
