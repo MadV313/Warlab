@@ -9,8 +9,13 @@ from datetime import datetime, timedelta
 from utils.fileIO import load_file, save_file
 
 USER_DATA      = "data/user_profiles.json"
-MARKET_FILE    = "data/market_items_master.json"
-ROTATION_FILE  = "data/market_rotation.json"
+
+# ── Corrected: daily cache / rotation file =========
+MARKET_FILE    = "data/market_rotation.json"          # holds today’s offers + expires
+
+# ── Corrected: master item pool =====================
+ITEM_POOL_FILE = "data/market_items_master.json"      # full catalog used to generate offers
+# (renamed from ROTATION_FILE → ITEM_POOL_FILE for clarity)
 
 # Flat pricing by simplified type/category
 ITEM_COSTS = {
@@ -126,13 +131,15 @@ class Market(commands.Cog):
 
     # ─────────────────────────────────────────────────────────────────
     async def generate_market(self):
-        full_pool = await load_file(ROTATION_FILE) or {}
+        full_pool = await load_file(ITEM_POOL_FILE) or {}
 
         if not isinstance(full_pool, dict):
-            raise ValueError("Rotation file is invalid or not structured correctly.")
+            raise ValueError("Item pool file is invalid or not structured correctly.")
 
-        tools = [name for name, data in full_pool.items() if isinstance(data, dict) and data.get("type") == "tool"]
-        parts = [name for name, data in full_pool.items() if isinstance(data, dict) and data.get("type") != "tool"]
+        tools = [name for name, data in full_pool.items()
+                 if isinstance(data, dict) and data.get("type") == "tool"]
+        parts = [name for name, data in full_pool.items()
+                 if isinstance(data, dict) and data.get("type") != "tool"]
 
         selected_tools = random.sample(tools, k=2) if len(tools) >= 2 else tools
         selected_parts = random.sample(parts, k=3) if len(parts) >= 3 else parts
@@ -148,7 +155,7 @@ class Market(commands.Cog):
         random.shuffle(offers)
 
         return {
-            "offers" : offers,
+            "offers": offers,
             "expires": (datetime.utcnow() + timedelta(hours=3)).isoformat()
         }
 
