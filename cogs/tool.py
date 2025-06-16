@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (hard-coded dropdown list)
+# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, no hangs)
 
 import discord
 from discord.ext import commands
@@ -7,15 +7,12 @@ from typing import Literal
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-
-# Hard-coded tool catalogue (keeps the command fast & avoids DB look-ups)
 TOOLS = ["Saw", "Nails", "Pliers", "Hammer"]
 
 class ToolManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # ─────────────────────────────────────────────────────────────
     @app_commands.command(
         name="tool",
         description="Admin-only: Give or remove tools from a player."
@@ -35,46 +32,48 @@ class ToolManager(commands.Cog):
         item: Literal["Saw", "Nails", "Pliers", "Hammer"],
         quantity: int
     ):
-        print(f"📥 /tool command triggered by {interaction.user.display_name} — {action} {quantity} × {item} to {user.display_name}")
-        await interaction.response.defer(ephemeral=True)
+        try:
+            await interaction.response.defer(ephemeral=True)
+            print(f"📥 /tool called: {interaction.user.display_name} {action} {quantity}×{item} → {user.display_name}")
 
-        if quantity <= 0:
-            await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
-            return
+            if quantity <= 0:
+                await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
+                return
 
-        profiles = await load_file(USER_DATA) or {}
-        uid = str(user.id)
-        profile = profiles.get(uid, {"inventory": []})
+            profiles = await load_file(USER_DATA) or {}
+            uid = str(user.id)
+            profile = profiles.get(uid, {"inventory": []})
 
-        # ── GIVE ───────────────────────────────────────────────
-        if action == "give":
-            for _ in range(quantity):
-                profile["inventory"].append({"item": item, "rarity": "Admin"})
-            await interaction.followup.send(
-                f"✅ Gave **{quantity} × {item}** to {user.mention}.",
-                ephemeral=True
-            )
+            if action == "give":
+                for _ in range(quantity):
+                    profile["inventory"].append({"item": item, "rarity": "Admin"})
+                msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
-        # ── REMOVE ─────────────────────────────────────────────
-        else:  # action == "remove"
-            removed, new_inv = 0, []
-            for entry in profile["inventory"]:
-                if entry.get("item") == item and removed < quantity:
-                    removed += 1
-                    continue
-                new_inv.append(entry)
+            else:  # remove
+                removed = 0
+                new_inv = []
+                for entry in profile["inventory"]:
+                    if entry.get("item") == item and removed < quantity:
+                        removed += 1
+                        continue
+                    new_inv.append(entry)
+                profile["inventory"] = new_inv
+                msg = (
+                    f"🗑 Removed **{removed} × {item}** from {user.mention}."
+                    if removed else
+                    f"⚠️ {user.mention} doesn't have that many **{item}**."
+                )
 
-            profile["inventory"] = new_inv
-            msg = (
-                f"🗑 Removed **{removed} × {item}** from {user.mention}."
-                if removed
-                else f"⚠️ {user.mention} doesn’t have that many **{item}**."
-            )
+            profiles[uid] = profile
+            await save_file(USER_DATA, profiles)
             await interaction.followup.send(msg, ephemeral=True)
 
-        # ── persist changes ────────────────────────────────────
-        profiles[uid] = profile
-        await save_file(USER_DATA, profiles)
+        except Exception as e:
+            print(f"❌ Error in /tool command: {type(e).__name__}: {e}")
+            try:
+                await interaction.followup.send(f"❌ Unexpected error: {e}", ephemeral=True)
+            except:
+                pass  # interaction might already be closed
 
 async def setup(bot):
     await bot.add_cog(ToolManager(bot))
