@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, safe handling)
+# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, stash format)
 
 import discord
 from discord.ext import commands
@@ -8,6 +8,12 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 TOOLS = ["Saw", "Nails", "Pliers", "Hammer"]
+
+TOOL_TEMPLATE = {
+    "type": "tool",
+    "rarity": "Common",
+    "tags": ["build"]
+}
 
 class ToolManager(commands.Cog):
     def __init__(self, bot):
@@ -43,30 +49,23 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
-            profile.setdefault("inventory", [])
+            profile.setdefault("stash", {})
+            stash = profile["stash"]
 
             # ── Give ───────────────────────
             if action == "give":
-                for _ in range(quantity):
-                    profile["inventory"].append({"item": item, "rarity": "Admin"})
+                stash[item] = TOOL_TEMPLATE.copy()
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
             # ── Remove ─────────────────────
             else:
-                removed = 0
-                new_inv = []
-                for entry in profile["inventory"]:
-                    if entry.get("item") == item and removed < quantity:
-                        removed += 1
-                        continue
-                    new_inv.append(entry)
-                profile["inventory"] = new_inv
-                msg = (
-                    f"🗑 Removed **{removed} × {item}** from {user.mention}."
-                    if removed else
-                    f"⚠️ {user.mention} doesn't have that many **{item}**."
-                )
+                if item in stash:
+                    del stash[item]
+                    msg = f"🗑 Removed **{item}** from {user.mention}."
+                else:
+                    msg = f"⚠️ {user.mention} doesn't have **{item}** in their stash."
 
+            profile["stash"] = stash
             profiles[uid] = profile
             await save_file(USER_DATA, profiles)
             await interaction.followup.send(msg, ephemeral=True)
