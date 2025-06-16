@@ -27,10 +27,10 @@ class BlueprintManager(commands.Cog):
                     blueprints.add(f"{produced} Blueprint")
         return sorted(blueprints)
 
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.command(
         name="blueprint",
-        description="Admin: Give or remove blueprints from a player",
-        default_permissions=discord.Permissions(administrator=True)
+        description="Admin: Give or remove blueprints from a player"
     )
     @app_commands.describe(
         action="Give or remove blueprint",
@@ -38,7 +38,6 @@ class BlueprintManager(commands.Cog):
         item="Blueprint name from game data",
         quantity="Quantity to give (ignored when removing)"
     )
-    @app_commands.checks.has_permissions(administrator=True)
     async def blueprint(
         self,
         interaction: discord.Interaction,
@@ -66,9 +65,8 @@ class BlueprintManager(commands.Cog):
         blueprints = profile.get("blueprints", [])
 
         if action == "give":
-            for _ in range(quantity):
-                if item not in blueprints:
-                    blueprints.append(item)
+            if item not in blueprints:
+                blueprints.append(item)
             await interaction.response.send_message(
                 f"✅ Blueprint **{item}** unlocked for {user.mention}.",
                 ephemeral=True
