@@ -79,10 +79,13 @@ class Scavenge(commands.Cog):
                     return
 
             # Load item pool and weights
-            item_catalog = await load_file(ITEMS_MASTER)
-            rarity_weights = await load_file(RARITY_WEIGHTS)
-            if not item_catalog or not rarity_weights:
-                raise ValueError("Missing or invalid loot tables or weights.")
+            try:
+                item_catalog = await load_file(ITEMS_MASTER)
+                rarity_weights = await load_file(RARITY_WEIGHTS)
+                if not isinstance(rarity_weights, dict):
+                    raise ValueError("rarity_weights.json must be a JSON object with string keys and numeric values.")
+            except Exception as e:
+                raise ValueError(f"Error loading loot files: {e}")
 
             print(f"📦 Item catalog size: {len(item_catalog)}")
             print(f"📊 Rarity weights: {rarity_weights}")
@@ -95,7 +98,7 @@ class Scavenge(commands.Cog):
             for i in range(pulls):
                 item = weighted_choice(loot_pool, rarity_weights)
                 if item:
-                    item_name = item["item"] if isinstance(item, dict) else item
+                    item_name = item["item"]
                     print(f"🎯 Pull {i+1}: {item_name}")
                     found.append(item_name)
 
@@ -111,7 +114,7 @@ class Scavenge(commands.Cog):
                 print("🎉 Weekend bonus triggered")
                 bonus = weighted_choice(loot_pool, rarity_weights)
                 if bonus:
-                    bonus_name = bonus["item"] if isinstance(bonus, dict) else bonus
+                    bonus_name = bonus["item"]
                     print(f"🎁 Weekend Bonus: {bonus_name}")
                     found.append(bonus_name)
 
@@ -142,7 +145,7 @@ class Scavenge(commands.Cog):
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
-            await interaction.followup.send("⚠️ Something went wrong during scavenging.", ephemeral=True)
+            await interaction.followup.send("⚠️ Something went wrong during scavenging. Please contact staff if this persists.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Scavenge(bot))
