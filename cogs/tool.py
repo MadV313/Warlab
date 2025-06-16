@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, no hangs)
+# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, safe handling)
 
 import discord
 from discord.ext import commands
@@ -34,7 +34,7 @@ class ToolManager(commands.Cog):
     ):
         try:
             await interaction.response.defer(ephemeral=True)
-            print(f"📥 /tool called: {interaction.user.display_name} {action} {quantity}×{item} → {user.display_name}")
+            print(f"📥 /tool: {interaction.user.display_name} {action} {quantity}×{item} → {user.display_name}")
 
             if quantity <= 0:
                 await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
@@ -42,14 +42,17 @@ class ToolManager(commands.Cog):
 
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
-            profile = profiles.get(uid, {"inventory": []})
+            profile = profiles.get(uid, {})
+            profile.setdefault("inventory", [])
 
+            # ── Give ───────────────────────
             if action == "give":
                 for _ in range(quantity):
                     profile["inventory"].append({"item": item, "rarity": "Admin"})
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
-            else:  # remove
+            # ── Remove ─────────────────────
+            else:
                 removed = 0
                 new_inv = []
                 for entry in profile["inventory"]:
@@ -73,7 +76,7 @@ class ToolManager(commands.Cog):
             try:
                 await interaction.followup.send(f"❌ Unexpected error: {e}", ephemeral=True)
             except:
-                pass  # interaction might already be closed
+                pass
 
 async def setup(bot):
     await bot.add_cog(ToolManager(bot))
