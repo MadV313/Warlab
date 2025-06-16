@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (Hardcoded Tool List)
+# cogs/tool.py — Admin: Give or remove tools from a player (Hardcoded Tool List + Inline Dropdown)
 
 import discord
 from typing import Literal
@@ -19,7 +19,7 @@ HARDCODED_TOOLS = [
 class ToolDropdown(discord.ui.Select):
     def __init__(self, target: discord.Member, action: str, quantity: int):
         options = [discord.SelectOption(label=t, value=t) for t in HARDCODED_TOOLS]
-        super().__init__(placeholder="Select a tool", options=options, min_values=1, max_values=1)
+        super().__init__(placeholder="🔧 Choose a tool", options=options, min_values=1, max_values=1)
         self.target = target
         self.action = action  # "give" | "remove"
         self.quantity = quantity
@@ -35,9 +35,9 @@ class ToolDropdown(discord.ui.Select):
         if self.action == "give":
             for _ in range(self.quantity):
                 profile["inventory"].append({"item": selected_tool, "rarity": "Admin"})
-            await interaction.response.send_message(
-                f"✅ Gave **{self.quantity}× {selected_tool}** to {self.target.mention}.",
-                ephemeral=True
+            await interaction.response.edit_message(
+                content=f"✅ Gave **{self.quantity}× {selected_tool}** to {self.target.mention}.",
+                view=None
             )
 
         # ── Remove ──────────────────────────────────────────────
@@ -52,14 +52,14 @@ class ToolDropdown(discord.ui.Select):
 
             profile["inventory"] = new_inv
             if removed > 0:
-                await interaction.response.send_message(
-                    f"🗑 Removed **{removed}× {selected_tool}** from {self.target.mention}.",
-                    ephemeral=True
+                await interaction.response.edit_message(
+                    content=f"🗑 Removed **{removed}× {selected_tool}** from {self.target.mention}.",
+                    view=None
                 )
             else:
-                await interaction.response.send_message(
-                    f"⚠️ {self.target.mention} does not have that tool or not enough to remove.",
-                    ephemeral=True
+                await interaction.response.edit_message(
+                    content=f"⚠️ {self.target.mention} does not have that tool or not enough to remove.",
+                    view=None
                 )
 
         profiles[uid] = profile
@@ -96,7 +96,7 @@ class ToolManager(commands.Cog):
 
         view = ToolSelectView(user, action.lower(), quantity)
         await interaction.response.send_message(
-            f"🧰 Select a tool to **{action.lower()}** for {user.mention}:",
+            f"🧰 **{action.title()} Tool** — Select which tool to {action.lower()} for {user.mention}:",
             view=view,
             ephemeral=True
         )
