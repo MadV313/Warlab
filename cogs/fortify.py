@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool filtering)
+# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool + special filtering)
 
 import discord
 from discord.ext import commands
@@ -22,12 +22,13 @@ MAX_REINFORCEMENTS = {
 REINFORCEMENT_COSTS = {
     "Barbed Fence": {"tools": ["Pliers", "Nails"], "stash_hp": 1},
     "Locked Container": {"tools": ["Hammer", "Nails"], "stash_hp": 2},
-    "Claymore Trap": {"tools": ["Pliers", "Nails"], "raid_block": 0.25},
+    "Claymore Trap": {"special": ["Claymore Trap"], "raid_block": 0.25},
     "Guard Dog": {"special": ["Guard Dog"], "raid_block": 0.5},
     "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
 
 TOOL_NAMES = ["Hammer", "Saw", "Nails", "Pliers"]
+SPECIAL_NAMES = ["Guard Dog", "Claymore Trap"]
 
 def render_stash_visual(reinforcements):
     bf = reinforcements.get("Barbed Fence", 0)
@@ -107,7 +108,9 @@ class ReinforceButton(discord.ui.Button):
         visuals = get_skin_visuals(profile, catalog)
         visual_embed = discord.Embed(
             title=f"{visuals['emoji']} Stash Layout",
-            description=f"```\n{render_stash_visual(reinforcements)}\n```",
+            description=f"```
+{render_stash_visual(reinforcements)}
+```",
             color=visuals['color']
         )
         visual_embed.set_footer(text="Visual representation of your fortified stash.")
@@ -117,9 +120,13 @@ class ReinforceButton(discord.ui.Button):
         new_view.stored_messages = self.view.stored_messages
         await self.view.stored_messages[1].edit(view=new_view)
 
-        # Count remaining tools only
+        # Count remaining tools
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
         tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
+
+        # Count remaining specials
+        remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
+        specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
         preview_data = {
             "stash_hp": profile["stash_hp"],
@@ -135,6 +142,7 @@ class ReinforceButton(discord.ui.Button):
         )
         confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
         confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
+        confirm.add_field(name="Special Items Remaining", value=specials_string, inline=False)
         confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
         confirm.set_footer(text="WARLAB | SV13 Bot")
         await interaction.response.send_message(embed=confirm, ephemeral=True)
@@ -190,7 +198,9 @@ class Fortify(commands.Cog):
             visual_text = render_stash_visual(profile["reinforcements"])
             visual_embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```\n{visual_text}\n```",
+                description=f"```
+{visual_text}
+```",
                 color=visuals["color"]
             )
             visual_embed.set_footer(text="Visual representation of your fortified stash.")
