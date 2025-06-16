@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool + special filtering)
+# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool & special split)
 
 import discord
 from discord.ext import commands
@@ -108,9 +108,7 @@ class ReinforceButton(discord.ui.Button):
         visuals = get_skin_visuals(profile, catalog)
         visual_embed = discord.Embed(
             title=f"{visuals['emoji']} Stash Layout",
-            description=f"```
-{render_stash_visual(reinforcements)}
-```",
+            description=f"```\n{render_stash_visual(reinforcements)}\n```",
             color=visuals['color']
         )
         visual_embed.set_footer(text="Visual representation of your fortified stash.")
@@ -122,10 +120,9 @@ class ReinforceButton(discord.ui.Button):
 
         # Count remaining tools
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
-        tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
-
-        # Count remaining specials
         remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
+
+        tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
         preview_data = {
@@ -142,7 +139,7 @@ class ReinforceButton(discord.ui.Button):
         )
         confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
         confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
-        confirm.add_field(name="Special Items Remaining", value=specials_string, inline=False)
+        confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
         confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
         confirm.set_footer(text="WARLAB | SV13 Bot")
         await interaction.response.send_message(embed=confirm, ephemeral=True)
@@ -198,21 +195,11 @@ class Fortify(commands.Cog):
             visual_text = render_stash_visual(profile["reinforcements"])
             visual_embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```
-{visual_text}
-```",
+                description=f"```\n{visual_text}\n```",
                 color=visuals["color"]
             )
             visual_embed.set_footer(text="Visual representation of your fortified stash.")
             visual_msg = await interaction.followup.send(embed=visual_embed, ephemeral=True)
 
             view = ReinforcementView(profile)
-            button_msg = await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
-            view.stored_messages = [visual_msg, button_msg]
-
-        except Exception as e:
-            print(f"❌ /fortify crashed: {e}")
-            await interaction.followup.send("❌ Something went wrong while opening the fortification menu.", ephemeral=True)
-
-async def setup(bot):
-    await bot.add_cog(Fortify(bot))
+            button_msg =
