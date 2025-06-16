@@ -10,6 +10,15 @@ from utils.fileIO import load_file, save_file
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # ✅ WARLAB broadcast channel
 
+RANK_TITLES = {
+    0: "Unranked Survivor",
+    1: "Field Engineer",
+    2: "Weapon Tech",
+    3: "Shadow Engineer",
+    4: "Warlab Veteran",
+    5: "Legendary Craftsman"
+}
+
 SPECIAL_REWARDS = {
     1: {"title": "💉 Weaponsmith Elite", "color": 0x3cb4fc},
     2: {"title": "🔬 Scavenger Elite",    "color": 0x88e0a0},
@@ -54,21 +63,25 @@ class AdjustPrestige(commands.Cog):
                     ephemeral=True)
                 return
             profile["prestige"] = current_prestige - amount
+            new_rank = profile["prestige"]
             result = f"🗑 Removed **{amount} prestige** from {user.mention}."
 
         elif action == "give":
             profile["prestige"] = current_prestige + amount
+            new_rank = profile["prestige"]
             result = f"✅ Gave **{amount} prestige** to {user.mention}."
 
             # Send broadcast embed to WARLAB
             rolled_id = profile.get("special_class") or 1
             reward = SPECIAL_REWARDS.get(rolled_id, SPECIAL_REWARDS[1])
+            rank_title = RANK_TITLES.get(new_rank, "Prestige Specialist")
 
             emb = discord.Embed(
                 title="🧬 Prestige Unlocked!",
                 description=(
-                    f"{user.mention} reached **Prestige {profile['prestige']}**\n"
-                    f"🎖 Prestige Class: **{reward['title']}**\n\n"
+                    f"{user.mention} reached **Prestige {new_rank}**\n"
+                    f"🎖 Rank Title: **{rank_title}**\n"
+                    f"📛 Prestige Class: **{reward['title']}**\n\n"
                     "🎲 Use /rollblueprint to try for a new schematic!"
                 ),
                 color=reward["color"],
@@ -82,8 +95,12 @@ class AdjustPrestige(commands.Cog):
 
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
+
+        rank_title = RANK_TITLES.get(profile["prestige"], "Prestige Specialist")
         await interaction.response.send_message(
-            f"{result}\n🏆 New Prestige Rank: **{profile['prestige']}**", ephemeral=True)
+            f"{result}\n🏆 New Prestige Rank: **{profile['prestige']}** — *{rank_title}*",
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(AdjustPrestige(bot))
