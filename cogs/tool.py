@@ -43,9 +43,9 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
-            stash = profile.get("stash", [])
 
-            # Handle legacy formats
+            # Ensure stash is a flat list
+            stash = profile.get("stash", [])
             if not isinstance(stash, list):
                 stash = []
 
