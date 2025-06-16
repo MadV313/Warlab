@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (Dropdown Flow)
+# cogs/tool.py — Admin: Give or remove tools from a player (Hardcoded Tool List)
 
 import discord
 from typing import Literal
@@ -6,24 +6,30 @@ from discord.ext import commands
 from discord import app_commands
 from utils.fileIO import load_file, save_file
 
-USER_DATA   = "data/user_profiles.json"
-TOOLS_FILE  = "data/blackmarket_items_master.json"
+USER_DATA = "data/user_profiles.json"
 
+# ✅ Hardcoded valid tool names
+HARDCODED_TOOLS = [
+    "Saw",
+    "Nails",
+    "Pliers",
+    "Hammer"
+]
 
 class ToolDropdown(discord.ui.Select):
-    def __init__(self, target: discord.Member, action: str, quantity: int, tool_list: list[str]):
-        options = [discord.SelectOption(label=t, value=t) for t in tool_list]
+    def __init__(self, target: discord.Member, action: str, quantity: int):
+        options = [discord.SelectOption(label=t, value=t) for t in HARDCODED_TOOLS]
         super().__init__(placeholder="Select a tool", options=options, min_values=1, max_values=1)
-        self.target   = target
-        self.action   = action  # "give" | "remove"
+        self.target = target
+        self.action = action  # "give" | "remove"
         self.quantity = quantity
 
     async def callback(self, interaction: discord.Interaction):
         selected_tool = self.values[0]
 
         profiles = await load_file(USER_DATA) or {}
-        uid      = str(self.target.id)
-        profile  = profiles.get(uid, {"inventory": []})
+        uid = str(self.target.id)
+        profile = profiles.get(uid, {"inventory": []})
 
         # ── Give ────────────────────────────────────────────────
         if self.action == "give":
@@ -35,7 +41,7 @@ class ToolDropdown(discord.ui.Select):
             )
 
         # ── Remove ──────────────────────────────────────────────
-        else:  # remove
+        else:
             removed = 0
             new_inv = []
             for entry in profile["inventory"]:
@@ -61,25 +67,22 @@ class ToolDropdown(discord.ui.Select):
 
 
 class ToolSelectView(discord.ui.View):
-    def __init__(self, target: discord.Member, action: str, quantity: int, tool_list: list[str]):
+    def __init__(self, target: discord.Member, action: str, quantity: int):
         super().__init__(timeout=60)
-        self.add_item(ToolDropdown(target, action, quantity, tool_list))
+        self.add_item(ToolDropdown(target, action, quantity))
 
 
 class ToolManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.checks.has_permissions(administrator=True)
-    @app_commands.command(
-        name="tool",
-        description="Admin: Give or remove tools from a player."
-    )
+    @app_commands.command(name="tool", description="Admin: Give or remove tools from a player.")
     @app_commands.describe(
         action="Choose to give or remove a tool",
         user="Target player",
         quantity="How many to give or remove"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def tool(
         self,
         interaction: discord.Interaction,
@@ -91,14 +94,7 @@ class ToolManager(commands.Cog):
             await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        items_db  = await load_file(TOOLS_FILE) or {}
-        tool_list = [name for name, meta in items_db.items() if meta.get("type") == "tool"]
-
-        if not tool_list:
-            await interaction.response.send_message("❌ No tools found in the database.", ephemeral=True)
-            return
-
-        view = ToolSelectView(user, action.lower(), quantity, sorted(tool_list))
+        view = ToolSelectView(user, action.lower(), quantity)
         await interaction.response.send_message(
             f"🧰 Select a tool to **{action.lower()}** for {user.mention}:",
             view=view,
