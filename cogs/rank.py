@@ -226,8 +226,8 @@ class Rank(commands.Cog):
 
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank",
                             color=color)
-        emb.add_field(name="🎖️ Rank Title",
-                      value=RANK_TITLES.get(level, "???"), inline=False)
+        rank_title = RANK_TITLES.get(prestige, "Unknown Survivor")
+        emb.add_field(name="🎖️ Rank Title", value=rank_title, inline=False)
         if reward:
             emb.add_field(name="🧬 Prestige Class", value=reward["title"],
                           inline=False)
