@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system + Visual UI Buttons (Now with Lab Skin effects)
+# cogs/fortify.py — WARLAB stash fortification system (flat stash logic)
 
 import discord
 from discord.ext import commands
@@ -71,50 +71,43 @@ class ReinforceButton(discord.ui.Button):
             await interaction.response.send_message("❌ Profile not found.", ephemeral=True)
             return
 
+        stash = profile.get("stash", [])
+        reinforcements = profile.setdefault("reinforcements", {})
+        profile.setdefault("stash_hp", 0)
+
         cost = REINFORCEMENT_COSTS[self.rtype]
         missing = []
 
+        # Check tools and special items in flat stash
         for tool in cost.get("tools", []):
-            has_tool = any(t.startswith(tool) and "(0" not in t for t in profile.get("tools", []))
-            if not has_tool:
+            if stash.count(tool) < 1:
                 missing.append(tool)
-        for item in cost.get("materials", []):
-            if profile["inventory"].count(item) < 1:
-                missing.append(item)
         for item in cost.get("special", []):
-            if profile["inventory"].count(item) < 1:
+            if stash.count(item) < 1:
                 missing.append(item)
 
         if missing:
             await interaction.response.send_message(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
-        for item in cost.get("materials", []):
-            profile["inventory"].remove(item)
-        for item in cost.get("special", []):
-            profile["inventory"].remove(item)
+        # Remove tools and items
         for tool in cost.get("tools", []):
-            for i, t in enumerate(profile["tools"]):
-                if t.startswith(tool):
-                    uses = int(t.split("(")[1].split()[0])
-                    uses -= 1
-                    if uses <= 0:
-                        profile["tools"].pop(i)
-                    else:
-                        profile["tools"][i] = f"{tool} ({uses} uses left)"
-                    break
+            stash.remove(tool)
+        for item in cost.get("special", []):
+            stash.remove(item)
 
-        profile["reinforcements"][self.rtype] = profile["reinforcements"].get(self.rtype, 0) + 1
+        reinforcements[self.rtype] = reinforcements.get(self.rtype, 0) + 1
         if "stash_hp" in cost:
             profile["stash_hp"] += cost["stash_hp"]
 
+        profile["stash"] = stash
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
         visuals = get_skin_visuals(profile, catalog)
         visual_embed = discord.Embed(
             title=f"{visuals['emoji']} Stash Layout",
-            description=f"```\n{render_stash_visual(profile['reinforcements'])}\n```",
+            description=f"```\n{render_stash_visual(reinforcements)}\n```",
             color=visuals['color']
         )
         visual_embed.set_footer(text="Visual representation of your fortified stash.")
@@ -126,8 +119,8 @@ class ReinforceButton(discord.ui.Button):
 
         preview_data = {
             "stash_hp": profile["stash_hp"],
-            "reinforcements": profile["reinforcements"],
-            "tools": profile["tools"]
+            "reinforcements": reinforcements,
+            "tools": stash  # for legacy compatibility
         }
         visual_link = f"{FORTIFY_UI_URL}{quote(json.dumps(preview_data))}"
 
@@ -137,7 +130,7 @@ class ReinforceButton(discord.ui.Button):
             color=0x3498db
         )
         confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
-        confirm.add_field(name="Tools Remaining", value="\n".join(profile["tools"]) or "None", inline=False)
+        confirm.add_field(name="Tools Remaining", value="\n".join(stash) or "None", inline=False)
         confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
         confirm.set_footer(text="WARLAB | SV13 Bot")
         await interaction.response.send_message(embed=confirm, ephemeral=True)
@@ -183,8 +176,7 @@ class Fortify(commands.Cog):
                 await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
                 return
 
-            profile.setdefault("inventory", [])
-            profile.setdefault("tools", [])
+            profile.setdefault("stash", [])
             profile.setdefault("reinforcements", {})
             profile.setdefault("stash_hp", 0)
             profiles[user_id] = profile
