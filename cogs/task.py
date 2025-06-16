@@ -23,8 +23,8 @@ DAILY_TASKS = [
     "Salvaged black market tech hidden beneath a barn near Kolin.",
     "Braved a toxic gas pocket near Kamensk Quarry to extract intel.",
     "Navigated a thunderstorm sweep across the Livonia river delta to tag airdrop wreckage.",
-    "Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} operatives during a covert exchange near Gieraltów fields.",
-    "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} agents hiding near the abandoned Roslavl factory."
+    f"Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} operatives during a covert exchange near Gieraltów fields.",
+    f"Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} agents hiding near the abandoned Roslavl factory."
 ]
 
 TOOL_POOL = ["Pliers", "Saw", "Nails", "Hammer"]  # guaranteed-tool list
