@@ -142,7 +142,7 @@ class ReinforceButton(discord.ui.Button):
         confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
         confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
         confirm.set_footer(text="WARLAB | SV13 Bot")
-        await interaction.response.send_message(embed=confirm, ephemeral=True)
+        await interaction.followup.send(embed=confirm, ephemeral=True)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
