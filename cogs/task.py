@@ -11,6 +11,7 @@ from utils.boosts import is_weekend_boost_active  # ✅ NEW boost helper
 USER_DATA_FILE       = "data/user_profiles.json"
 ITEMS_MASTER_FILE    = "data/items_master.json"
 BLACKMARKET_FILE     = "data/blackmarket_items_master.json"
+EMOJI_35 = "<a:emoji_35:1372056026840305757>"
 
 DAILY_TASKS = [
     "Cleared an infected nest outside Topolin.",
@@ -22,8 +23,8 @@ DAILY_TASKS = [
     "Salvaged black market tech hidden beneath a barn near Kolin.",
     "Braved a toxic gas pocket near Kamensk Quarry to extract intel.",
     "Navigated a thunderstorm sweep across the Livonia river delta to tag airdrop wreckage.",
-    "Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> operatives during a covert exchange near Gieraltów fields.",
-    "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ <a:emoji_35:1372056026840305757> agents hiding near the abandoned Roslavl factory."
+    "Assisted ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} operatives during a covert exchange near Gieraltów fields.",
+    "Delivered encrypted cargo for ᑲ୧𐒐𝘤Ꚕ 🝃𝜕ᒋᗰ୧ᒋઽ {EMOJI_35} agents hiding near the abandoned Roslavl factory."
 ]
 
 TOOL_POOL = ["Pliers", "Saw", "Nails", "Hammer"]  # guaranteed-tool list
