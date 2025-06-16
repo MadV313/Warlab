@@ -1,4 +1,4 @@
-# cogs/blackmarket.py — WARLAB rotating black market shop (uses coins + buttons + fixed Guard Dog + working Close)
+# cogs/blackmarket.py — WARLAB rotating black market shop (uses coins + buttons + fixed Guard Dog + Claymore Trap + working Close)
 
 import discord
 from discord.ext import commands
@@ -27,7 +27,7 @@ RARITY_EMOJIS = {
     "Uncommon" : "🟢",
     "Rare"     : "🔵",
     "Legendary": "🟣",
-    "Special"  : "🐕"
+    "Special"  : "🪤"
 }
 
 class BuyButton(discord.ui.Button):
@@ -48,8 +48,8 @@ class BuyButton(discord.ui.Button):
 
         user["coins"] -= self.cost
 
-        if self.item_name == "Guard Dog":
-            user.setdefault("stash", []).append("Guard Dog")  # ✅ Save to stash
+        if self.item_name in ["Guard Dog", "Claymore Trap"]:
+            user.setdefault("stash", []).append(self.item_name)  # ✅ Save to stash
         else:
             user.setdefault("blueprints", [])
             if self.item_name not in user["blueprints"]:
@@ -145,10 +145,10 @@ class BlackMarket(commands.Cog):
                 })
 
         rotation = random.sample(all_items, k=5)
-        rotation.append({
-            "name": "Guard Dog",
-            "rarity": "Special"
-        })
+        rotation += [
+            {"name": "Guard Dog", "rarity": "Special"},
+            {"name": "Claymore Trap", "rarity": "Special"}
+        ]
 
         return {
             "offers": rotation,
