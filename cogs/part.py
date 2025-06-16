@@ -1,4 +1,4 @@
-# cogs/part.py — Admin: Give or remove parts/materials from a player (Blueprint-Style)
+# cogs/part.py — Admin: Give or remove parts from a player (flat stash format)
 
 import discord
 from discord.ext import commands
@@ -17,8 +17,8 @@ class PartManager(commands.Cog):
     async def get_all_parts(self):
         guns = await load_file(GUN_PARTS) or {}
         armors = await load_file(ARMOR_PARTS) or {}
-
         parts = set()
+
         for data in list(guns.values()) + list(armors.values()):
             for p in data.get("required_parts", []):
                 parts.add(p)
@@ -41,56 +41,64 @@ class PartManager(commands.Cog):
         item: str,
         quantity: int
     ):
-        if quantity <= 0 and action == "give":
-            await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
-            return
+        try:
+            await interaction.response.defer(ephemeral=True)
+            print(f"📥 /part: {interaction.user.display_name} {action} {quantity}×{item} → {user.display_name}")
 
-        item = item.strip()
-        valid_parts = await self.get_all_parts()
-        if item not in valid_parts:
-            await interaction.response.send_message(
-                f"❌ Invalid part.\nChoose from: {', '.join(valid_parts)}",
-                ephemeral=True
-            )
-            return
+            if quantity <= 0:
+                await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
+                return
 
-        profiles = await load_file(USER_DATA) or {}
-        user_id = str(user.id)
-        profile = profiles.get(user_id, {"inventory": []})
-
-        # ── Give ────────────────────────────────────────────────
-        if action == "give":
-            for _ in range(quantity):
-                profile["inventory"].append({"item": item, "rarity": "Admin"})
-            await interaction.response.send_message(
-                f"✅ Gave **{quantity}× {item}** to {user.mention}.",
-                ephemeral=True
-            )
-
-        # ── Remove ──────────────────────────────────────────────
-        elif action == "remove":
-            removed = 0
-            new_inv = []
-            for entry in profile["inventory"]:
-                if entry.get("item") == item and removed < quantity:
-                    removed += 1
-                    continue
-                new_inv.append(entry)
-
-            profile["inventory"] = new_inv
-            if removed > 0:
-                await interaction.response.send_message(
-                    f"🗑 Removed **{removed}× {item}** from {user.mention}.",
+            item = item.strip()
+            valid_parts = await self.get_all_parts()
+            if item not in valid_parts:
+                await interaction.followup.send(
+                    f"❌ Invalid part.\nChoose from: {', '.join(valid_parts)}",
                     ephemeral=True
                 )
+                return
+
+            profiles = await load_file(USER_DATA) or {}
+            uid = str(user.id)
+            profile = profiles.get(uid, {})
+            stash = profile.get("stash", [])
+
+            if not isinstance(stash, list):
+                stash = []
+
+            # ── Give ───────────────────────
+            if action == "give":
+                stash.extend([item] * quantity)
+                msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
+
+            # ── Remove ─────────────────────
             else:
-                await interaction.response.send_message(
-                    f"⚠️ {user.mention} does not have that part or not enough to remove.",
-                    ephemeral=True
+                removed = 0
+                new_stash = []
+                for s in stash:
+                    if s == item and removed < quantity:
+                        removed += 1
+                        continue
+                    new_stash.append(s)
+
+                stash = new_stash
+                msg = (
+                    f"🗑 Removed **{removed} × {item}** from {user.mention}."
+                    if removed else
+                    f"⚠️ {user.mention} doesn't have that many **{item}**."
                 )
 
-        profiles[user_id] = profile
-        await save_file(USER_DATA, profiles)
+            profile["stash"] = stash
+            profiles[uid] = profile
+            await save_file(USER_DATA, profiles)
+            await interaction.followup.send(msg, ephemeral=True)
+
+        except Exception as e:
+            print(f"❌ Error in /part command: {type(e).__name__}: {e}")
+            try:
+                await interaction.followup.send(f"❌ Unexpected error: {e}", ephemeral=True)
+            except:
+                pass
 
     @part.autocomplete("item")
     async def autocomplete_item(self, interaction: discord.Interaction, current: str):
