@@ -9,6 +9,8 @@ from collections import Counter
 USER_DATA_FILE = "data/user_profiles.json"
 ITEMS_MASTER_FILE = "data/items_master.json"
 ITEM_RECIPES_FILE = "data/item_recipes.json"
+ARMOR_RECIPES_FILE = "data/armor_blueprints.json"
+EXPLOSIVE_RECIPES_FILE = "data/explosive_blueprints.json"
 
 # 🔴 Close Button (copied from Black Market)
 class CloseButton(discord.ui.Button):
@@ -46,6 +48,13 @@ class Stash(commands.Cog):
         profiles = self.load_json(USER_DATA_FILE)
         items_master = self.load_json(ITEMS_MASTER_FILE)
         recipes = self.load_json(ITEM_RECIPES_FILE)
+        armor_recipes = self.load_json(ARMOR_RECIPES_FILE)
+        explosive_recipes = self.load_json(EXPLOSIVE_RECIPES_FILE)
+
+        all_recipes = {}
+        for source in (recipes, armor_recipes, explosive_recipes):
+            for key, data in source.items():
+                all_recipes[key.lower()] = data
 
         user = profiles.get(uid)
         if not user:
@@ -86,7 +95,7 @@ class Stash(commands.Cog):
 
         buildables = []
         for blueprint in blueprints:
-            recipe = recipes.get(blueprint.lower())
+            recipe = all_recipes.get(blueprint.lower())
             if not recipe:
                 continue
             requirements = recipe.get("requirements", {})
