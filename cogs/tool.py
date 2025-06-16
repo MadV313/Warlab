@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (dropdown version, stash format)
+# cogs/tool.py — Admin: Give or remove tools from a player (stash dict format enforced)
 
 import discord
 from discord.ext import commands
@@ -49,7 +49,12 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
-            profile.setdefault("stash", {})
+
+            # Fix legacy data: force stash to be a dict
+            if not isinstance(profile.get("stash"), dict):
+                print(f"🔧 Fixing invalid stash for user {uid}")
+                profile["stash"] = {}
+
             stash = profile["stash"]
 
             # ── Give ───────────────────────
