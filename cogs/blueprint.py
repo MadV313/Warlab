@@ -46,14 +46,16 @@ class BlueprintManager(commands.Cog):
         item: str,
         quantity: int
     ):
+        await interaction.response.defer(ephemeral=True)
+
         if quantity <= 0 and action == "give":
-            await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
+            await interaction.followup.send("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
         item = item.strip()
         valid_blueprints = await self.get_all_blueprints()
         if item not in valid_blueprints:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"❌ Invalid blueprint.\nChoose from: {', '.join(valid_blueprints)}",
                 ephemeral=True
             )
@@ -65,22 +67,31 @@ class BlueprintManager(commands.Cog):
         blueprints = profile.get("blueprints", [])
 
         if action == "give":
-            if item not in blueprints:
-                blueprints.append(item)
-            await interaction.response.send_message(
-                f"✅ Blueprint **{item}** unlocked for {user.mention}.",
-                ephemeral=True
-            )
+            added = False
+            for _ in range(quantity):
+                if item not in blueprints:
+                    blueprints.append(item)
+                    added = True
+            if added:
+                await interaction.followup.send(
+                    f"✅ Blueprint **{item}** unlocked for {user.mention}.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"⚠️ {user.mention} already has blueprint **{item}**.",
+                    ephemeral=True
+                )
 
         elif action == "remove":
             if item in blueprints:
                 blueprints.remove(item)
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"🗑 Blueprint **{item}** removed from {user.mention}.",
                     ephemeral=True
                 )
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"⚠️ {user.mention} does not have that blueprint.",
                     ephemeral=True
                 )
