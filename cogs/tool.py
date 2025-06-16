@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (safe with legacy stash conversion)
+# cogs/tool.py — Admin: Give or remove tools (flat list stash logic to match scavenge/task)
 
 import discord
 from discord.ext import commands
@@ -43,43 +43,34 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
+            stash = profile.get("stash", [])
 
-            # ── Handle legacy stash format ──
-            stash = profile.get("stash", {})
-            if isinstance(stash, list):
-                # Convert list stash to proper categorized dict
-                print("🔧 Converting legacy stash format to dict...")
-                new_stash = {"Misc": {}}
-                for entry in stash:
-                    if isinstance(entry, str):
-                        new_stash["Misc"][entry] = new_stash["Misc"].get(entry, 0) + 1
-                stash = new_stash
+            # Handle legacy formats
+            if not isinstance(stash, list):
+                stash = []
 
-            if not isinstance(stash, dict):
-                stash = {}
-
-            tools_section = stash.get("Tools", {})
-            if not isinstance(tools_section, dict):
-                tools_section = {}
-
-            current_qty = tools_section.get(item, 0)
-
-            # ── Give ───────────────────────
+            # ── GIVE ───────────────────────
             if action == "give":
-                tools_section[item] = current_qty + quantity
+                stash.extend([item] * quantity)
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
-            # ── Remove ─────────────────────
+            # ── REMOVE ─────────────────────
             else:
-                if current_qty >= quantity:
-                    tools_section[item] = current_qty - quantity
-                    if tools_section[item] == 0:
-                        del tools_section[item]
-                    msg = f"🗑 Removed **{quantity} × {item}** from {user.mention}."
-                else:
-                    msg = f"⚠️ {user.mention} doesn't have that many **{item}**."
+                removed = 0
+                new_stash = []
+                for s in stash:
+                    if s == item and removed < quantity:
+                        removed += 1
+                        continue
+                    new_stash.append(s)
 
-            stash["Tools"] = tools_section
+                stash = new_stash
+                msg = (
+                    f"🗑 Removed **{removed} × {item}** from {user.mention}."
+                    if removed else
+                    f"⚠️ {user.mention} doesn't have that many **{item}**."
+                )
+
             profile["stash"] = stash
             profiles[uid] = profile
             await save_file(USER_DATA, profiles)
