@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system (flat stash logic)
+# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool filtering)
 
 import discord
 from discord.ext import commands
@@ -26,6 +26,8 @@ REINFORCEMENT_COSTS = {
     "Guard Dog": {"special": ["Guard Dog"], "raid_block": 0.5},
     "Reinforced Gate": {"tools": ["Hammer", "Saw", "Pliers", "Nails"], "stash_hp": 3}
 }
+
+TOOL_NAMES = ["Hammer", "Saw", "Nails", "Pliers"]
 
 def render_stash_visual(reinforcements):
     bf = reinforcements.get("Barbed Fence", 0)
@@ -78,7 +80,6 @@ class ReinforceButton(discord.ui.Button):
         cost = REINFORCEMENT_COSTS[self.rtype]
         missing = []
 
-        # Check tools and special items in flat stash
         for tool in cost.get("tools", []):
             if stash.count(tool) < 1:
                 missing.append(tool)
@@ -90,7 +91,6 @@ class ReinforceButton(discord.ui.Button):
             await interaction.response.send_message(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
-        # Remove tools and items
         for tool in cost.get("tools", []):
             stash.remove(tool)
         for item in cost.get("special", []):
@@ -117,10 +117,14 @@ class ReinforceButton(discord.ui.Button):
         new_view.stored_messages = self.view.stored_messages
         await self.view.stored_messages[1].edit(view=new_view)
 
+        # Count remaining tools only
+        remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
+        tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
+
         preview_data = {
             "stash_hp": profile["stash_hp"],
             "reinforcements": reinforcements,
-            "tools": stash  # for legacy compatibility
+            "tools": stash
         }
         visual_link = f"{FORTIFY_UI_URL}{quote(json.dumps(preview_data))}"
 
@@ -130,7 +134,7 @@ class ReinforceButton(discord.ui.Button):
             color=0x3498db
         )
         confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
-        confirm.add_field(name="Tools Remaining", value="\n".join(stash) or "None", inline=False)
+        confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
         confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
         confirm.set_footer(text="WARLAB | SV13 Bot")
         await interaction.response.send_message(embed=confirm, ephemeral=True)
