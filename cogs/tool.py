@@ -1,14 +1,14 @@
-# cogs/tool.py — Admin: Give or remove tools from a player (Hardcoded Tool List + Inline Dropdown)
+# cogs/tool.py — Admin: Give or remove tools from a player (Blueprint-Style Format)
 
 import discord
-from typing import Literal
 from discord.ext import commands
 from discord import app_commands
+from typing import Literal
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 
-# ✅ Hardcoded valid tool names
+# ✅ Hardcoded tool list
 HARDCODED_TOOLS = [
     "Saw",
     "Nails",
@@ -16,70 +16,18 @@ HARDCODED_TOOLS = [
     "Hammer"
 ]
 
-class ToolDropdown(discord.ui.Select):
-    def __init__(self, target: discord.Member, action: str, quantity: int):
-        options = [discord.SelectOption(label=t, value=t) for t in HARDCODED_TOOLS]
-        super().__init__(placeholder="🔧 Choose a tool", options=options, min_values=1, max_values=1)
-        self.target = target
-        self.action = action  # "give" | "remove"
-        self.quantity = quantity
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_tool = self.values[0]
-
-        profiles = await load_file(USER_DATA) or {}
-        uid = str(self.target.id)
-        profile = profiles.get(uid, {"inventory": []})
-
-        # ── Give ────────────────────────────────────────────────
-        if self.action == "give":
-            for _ in range(self.quantity):
-                profile["inventory"].append({"item": selected_tool, "rarity": "Admin"})
-            await interaction.response.edit_message(
-                content=f"✅ Gave **{self.quantity}× {selected_tool}** to {self.target.mention}.",
-                view=None
-            )
-
-        # ── Remove ──────────────────────────────────────────────
-        else:
-            removed = 0
-            new_inv = []
-            for entry in profile["inventory"]:
-                if entry.get("item") == selected_tool and removed < self.quantity:
-                    removed += 1
-                    continue
-                new_inv.append(entry)
-
-            profile["inventory"] = new_inv
-            if removed > 0:
-                await interaction.response.edit_message(
-                    content=f"🗑 Removed **{removed}× {selected_tool}** from {self.target.mention}.",
-                    view=None
-                )
-            else:
-                await interaction.response.edit_message(
-                    content=f"⚠️ {self.target.mention} does not have that tool or not enough to remove.",
-                    view=None
-                )
-
-        profiles[uid] = profile
-        await save_file(USER_DATA, profiles)
-
-
-class ToolSelectView(discord.ui.View):
-    def __init__(self, target: discord.Member, action: str, quantity: int):
-        super().__init__(timeout=60)
-        self.add_item(ToolDropdown(target, action, quantity))
-
-
 class ToolManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="tool", description="Admin: Give or remove tools from a player.")
+    @app_commands.command(
+        name="tool",
+        description="Admin: Give or remove tools from a player."
+    )
     @app_commands.describe(
-        action="Choose to give or remove a tool",
+        action="Give or remove tool",
         user="Target player",
+        item="Tool name (Saw, Nails, etc)",
         quantity="How many to give or remove"
     )
     @app_commands.checks.has_permissions(administrator=True)
@@ -88,19 +36,65 @@ class ToolManager(commands.Cog):
         interaction: discord.Interaction,
         action: Literal["give", "remove"],
         user: discord.Member,
+        item: str,
         quantity: int
     ):
-        if quantity <= 0:
+        if quantity <= 0 and action == "give":
             await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        view = ToolSelectView(user, action.lower(), quantity)
-        await interaction.response.send_message(
-            f"🧰 **{action.title()} Tool** — Select which tool to {action.lower()} for {user.mention}:",
-            view=view,
-            ephemeral=True
-        )
+        item = item.strip()
+        if item not in HARDCODED_TOOLS:
+            await interaction.response.send_message(
+                f"❌ Invalid tool.\nChoose from: {', '.join(HARDCODED_TOOLS)}",
+                ephemeral=True
+            )
+            return
 
+        profiles = await load_file(USER_DATA) or {}
+        uid = str(user.id)
+        profile = profiles.get(uid, {"inventory": []})
+
+        # ── Give ────────────────────────────────────────────────
+        if action == "give":
+            for _ in range(quantity):
+                profile["inventory"].append({"item": item, "rarity": "Admin"})
+            await interaction.response.send_message(
+                f"✅ Gave **{quantity}× {item}** to {user.mention}.",
+                ephemeral=True
+            )
+
+        # ── Remove ──────────────────────────────────────────────
+        elif action == "remove":
+            removed = 0
+            new_inv = []
+            for entry in profile["inventory"]:
+                if entry.get("item") == item and removed < quantity:
+                    removed += 1
+                    continue
+                new_inv.append(entry)
+
+            profile["inventory"] = new_inv
+            if removed > 0:
+                await interaction.response.send_message(
+                    f"🗑 Removed **{removed}× {item}** from {user.mention}.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    f"⚠️ {user.mention} does not have that tool or not enough to remove.",
+                    ephemeral=True
+                )
+
+        profiles[uid] = profile
+        await save_file(USER_DATA, profiles)
+
+    @tool.autocomplete("item")
+    async def autocomplete_tool(self, interaction: discord.Interaction, current: str):
+        return [
+            app_commands.Choice(name=t, value=t)
+            for t in HARDCODED_TOOLS if current.lower() in t.lower()
+        ][:25]
 
 async def setup(bot):
     await bot.add_cog(ToolManager(bot))
