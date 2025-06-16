@@ -1,4 +1,4 @@
-# cogs/part.py — Admin: Give or remove parts/materials from a player (dropdowns)
+# cogs/part.py — Admin: Give or remove parts/materials from a player (Blueprint-Style)
 
 import discord
 from discord.ext import commands
@@ -10,71 +10,27 @@ USER_DATA = "data/user_profiles.json"
 GUN_PARTS = "data/item_recipes.json"
 ARMOR_PARTS = "data/armor_blueprints.json"
 
-class PartDropdown(discord.ui.Select):
-    def __init__(self, parts, item_name, action, user, quantity):
-        options = [
-            discord.SelectOption(label=part, value=part)
-            for part in parts
-        ]
-        super().__init__(placeholder="Select a part to give or remove...", min_values=1, max_values=1, options=options)
-        self.item_name = item_name
-        self.action = action
-        self.user = user
-        self.quantity = quantity
-
-    async def callback(self, interaction: discord.Interaction):
-        part = self.values[0]
-        profiles = await load_file(USER_DATA) or {}
-        user_id = str(self.user.id)
-        profile = profiles.get(user_id, {"inventory": []})
-
-        if self.action == "give":
-            for _ in range(self.quantity):
-                profile["inventory"].append({"item": part, "rarity": "Admin"})
-            await interaction.response.send_message(f"✅ Gave **{self.quantity}x {part}** to {self.user.mention}.", ephemeral=True)
-
-        elif self.action == "remove":
-            removed = 0
-            new_inventory = []
-            for entry in profile["inventory"]:
-                if entry.get("item") == part and removed < self.quantity:
-                    removed += 1
-                    continue
-                new_inventory.append(entry)
-            profile["inventory"] = new_inventory
-            await interaction.response.send_message(f"🗑 Removed **{removed}x {part}** from {self.user.mention}.", ephemeral=True)
-
-        profiles[user_id] = profile
-        await save_file(USER_DATA, profiles)
-
-class ItemDropdown(discord.ui.Select):
-    def __init__(self, item_parts_map, action, user, quantity):
-        options = [
-            discord.SelectOption(label=item, value=item)
-            for item in item_parts_map.keys()
-        ]
-        super().__init__(placeholder="Select a base item (gun/armor)...", min_values=1, max_values=1, options=options)
-        self.item_parts_map = item_parts_map
-        self.action = action
-        self.user = user
-        self.quantity = quantity
-
-    async def callback(self, interaction: discord.Interaction):
-        item = self.values[0]
-        parts = self.item_parts_map[item]
-        view = discord.ui.View()
-        view.add_item(PartDropdown(parts, item, self.action, self.user, self.quantity))
-        await interaction.response.send_message(f"Now select a part from **{item}**:", view=view, ephemeral=True)
-
 class PartManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="part", description="Admin: Give or remove parts from a player")
+    async def get_all_parts(self):
+        guns = await load_file(GUN_PARTS) or {}
+        armors = await load_file(ARMOR_PARTS) or {}
+
+        parts = set()
+        for data in list(guns.values()) + list(armors.values()):
+            for p in data.get("required_parts", []):
+                parts.add(p)
+
+        return sorted(parts)
+
+    @app_commands.command(name="part", description="Admin: Give or remove parts from a player.")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(
-        action="Give or remove parts",
+        action="Give or remove a part",
         user="Target player",
+        item="Name of the part/material",
         quantity="How many to give or remove"
     )
     async def part(
@@ -82,47 +38,67 @@ class PartManager(commands.Cog):
         interaction: discord.Interaction,
         action: Literal["give", "remove"],
         user: discord.Member,
-        quantity: int = 1
+        item: str,
+        quantity: int
     ):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
+        if quantity <= 0 and action == "give":
+            await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        guns = await load_file(GUN_PARTS) or {}
-        armors = await load_file(ARMOR_PARTS) or {}
-        item_parts_map = {}
-
-        for data in guns.values():
-            name = data.get("produces")
-            parts = data.get("required_parts", [])
-            if name and parts:
-                item_parts_map[name] = parts
-
-        for data in armors.values():
-            name = data.get("produces")
-            parts = data.get("required_parts", [])
-            if name and parts:
-                item_parts_map[name] = parts
-
-        if not item_parts_map:
-            await interaction.response.send_message("❌ No part data found.", ephemeral=True)
+        item = item.strip()
+        valid_parts = await self.get_all_parts()
+        if item not in valid_parts:
+            await interaction.response.send_message(
+                f"❌ Invalid part.\nChoose from: {', '.join(valid_parts)}",
+                ephemeral=True
+            )
             return
 
-        view = discord.ui.View()
-        view.add_item(ItemDropdown(item_parts_map, action, user, quantity))
-        await interaction.response.send_message("Select a base item to begin:", view=view, ephemeral=True)
+        profiles = await load_file(USER_DATA) or {}
+        user_id = str(user.id)
+        profile = profiles.get(user_id, {"inventory": []})
 
-    @part.autocomplete("action")
-    async def autocomplete_action(self, interaction: discord.Interaction, current: str):
+        # ── Give ────────────────────────────────────────────────
+        if action == "give":
+            for _ in range(quantity):
+                profile["inventory"].append({"item": item, "rarity": "Admin"})
+            await interaction.response.send_message(
+                f"✅ Gave **{quantity}× {item}** to {user.mention}.",
+                ephemeral=True
+            )
+
+        # ── Remove ──────────────────────────────────────────────
+        elif action == "remove":
+            removed = 0
+            new_inv = []
+            for entry in profile["inventory"]:
+                if entry.get("item") == item and removed < quantity:
+                    removed += 1
+                    continue
+                new_inv.append(entry)
+
+            profile["inventory"] = new_inv
+            if removed > 0:
+                await interaction.response.send_message(
+                    f"🗑 Removed **{removed}× {item}** from {user.mention}.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    f"⚠️ {user.mention} does not have that part or not enough to remove.",
+                    ephemeral=True
+                )
+
+        profiles[user_id] = profile
+        await save_file(USER_DATA, profiles)
+
+    @part.autocomplete("item")
+    async def autocomplete_item(self, interaction: discord.Interaction, current: str):
+        all_parts = await self.get_all_parts()
         return [
-            app_commands.Choice(name="give", value="give"),
-            app_commands.Choice(name="remove", value="remove")
-        ]
-
-    @commands.Cog.listener()
-    async def on_app_command_completion(self, interaction: discord.Interaction, command: app_commands.Command):
-        # Optional: hide command visibility from non-admins by restricting in UI (if using sync logic)
-        pass
+            app_commands.Choice(name=p, value=p)
+            for p in all_parts if current.lower() in p.lower()
+        ][:25]
 
 async def setup(bot):
     await bot.add_cog(PartManager(bot))
