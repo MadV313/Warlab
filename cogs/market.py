@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from utils.fileIO import load_file, save_file
 
 USER_DATA      = "data/user_profiles.json"
-MARKET_FILE    = "data/market_rotation.json"
+MARKET_FILE    = "data/market_items_master.json"
 ROTATION_FILE  = "data/market_rotation.json"
 
 # Flat pricing by simplified type/category
