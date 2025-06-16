@@ -48,15 +48,15 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send(f"⚠️ You've already used your blueprint roll for Prestige {prestige}.", ephemeral=True)
             return
 
-        stash = profile.get("stash", [])
+        current_blueprints = profile.get("blueprints", [])
 
         # Build list of blueprints the player doesn't already have
         all_items = []
         for pool in (weapon_pool, armor_pool, explosive_pool):
             for key, entry in pool.items():
                 produced = entry.get("produces")
-                blueprint_name = f"Blueprint: {produced}"
-                if produced and blueprint_name not in stash:
+                blueprint_name = f"{produced} Blueprint"
+                if produced and blueprint_name not in current_blueprints:
                     all_items.append({
                         "item": blueprint_name,
                         "source_key": key,
@@ -72,10 +72,10 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send("❌ Failed to roll a blueprint. Please try again later.", ephemeral=True)
             return
 
-        profile.setdefault("stash", []).append(selected["item"])
+        # Update user profile
+        profile.setdefault("blueprints", []).append(selected["item"])
         profile.setdefault("blueprint_rolls_used", []).append(prestige)
         user_data[user_id] = profile
-
         await save_file(USER_DATA, user_data)
 
         await interaction.followup.send(
