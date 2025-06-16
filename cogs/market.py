@@ -15,7 +15,6 @@ MARKET_FILE    = "data/market_rotation.json"          # holds today’s offers +
 
 # ── Corrected: master item pool =====================
 ITEM_POOL_FILE = "data/market_items_master.json"      # full catalog used to generate offers
-# (renamed from ROTATION_FILE → ITEM_POOL_FILE for clarity)
 
 # Flat pricing by simplified type/category
 ITEM_COSTS = {
@@ -43,15 +42,15 @@ class BuyButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         user_id  = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        user     = profiles.get(user_id, {"coins": 0, "inventory": []})
+        user     = profiles.get(user_id, {"coins": 0, "stash": []})
 
         if user.get("coins", 0) < self.cost:
             await interaction.response.send_message("❌ You don’t have enough coins.", ephemeral=True)
             return
 
-        # 💸 Deduct coins & deliver item
+        # 💸 Deduct coins & deliver item to stash
         user["coins"] -= self.cost
-        user.setdefault("inventory", []).append(self.item_name)
+        user.setdefault("stash", []).append(self.item_name)
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
@@ -68,7 +67,7 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.delete()
+        await interaction.response.edit_message(content="❌ Market closed.", embed=None, view=None)
 
 # ─────────────────────────────────────────────────────────────────────
 class Market(commands.Cog):
