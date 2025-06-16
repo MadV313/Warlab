@@ -202,4 +202,12 @@ class Fortify(commands.Cog):
             visual_msg = await interaction.followup.send(embed=visual_embed, ephemeral=True)
 
             view = ReinforcementView(profile)
-            button_msg =
+            button_msg = await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
+            view.stored_messages = [visual_msg, button_msg]
+
+        except Exception as e:
+            print(f"❌ /fortify crashed: {e}")
+            await interaction.followup.send("❌ Something went wrong while opening the fortification menu.", ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(Fortify(bot))
