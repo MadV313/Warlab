@@ -32,7 +32,6 @@ class RollBlueprint(commands.Cog):
         explosive_pool  = await load_file(EXPLOSIVE_PATH)
         user_data       = await load_file(USER_DATA)
 
-        # ❌ Not registered check
         if user_id not in user_data:
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
@@ -51,14 +50,15 @@ class RollBlueprint(commands.Cog):
 
         stash = profile.get("stash", [])
 
-        # Build a list of all available blueprints the player doesn't already have
+        # Build list of blueprints the player doesn't already have
         all_items = []
         for pool in (weapon_pool, armor_pool, explosive_pool):
             for key, entry in pool.items():
                 produced = entry.get("produces")
-                if produced and produced not in stash:
+                blueprint_name = f"Blueprint: {produced}"
+                if produced and blueprint_name not in stash:
                     all_items.append({
-                        "item": produced,
+                        "item": blueprint_name,
                         "source_key": key,
                         "rarity": entry.get("rarity", "Common")
                     })
@@ -67,18 +67,15 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send("✅ You’ve already unlocked all available blueprints!", ephemeral=True)
             return
 
-        # Roll one blueprint the player doesn't already own
         selected = weighted_choice(all_items, rarity_weights)
         if not selected:
             await interaction.followup.send("❌ Failed to roll a blueprint. Please try again later.", ephemeral=True)
             return
 
-        # Update stash and prestige tracker
         profile.setdefault("stash", []).append(selected["item"])
         profile.setdefault("blueprint_rolls_used", []).append(prestige)
         user_data[user_id] = profile
 
-        # Save everything
         await save_file(USER_DATA, user_data)
 
         await interaction.followup.send(
