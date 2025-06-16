@@ -52,14 +52,16 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send(f"⚠️ You've already used your blueprint roll for Prestige {prestige}.", ephemeral=True)
             return
 
-        # Build the full list of available blueprints
-        all_items = []
+        # Pull from user's stash for de-duplication
+        stash_items = user_data[user_id].get("stash", [])
         unlocked_items = unlocked.get(user_id, [])
 
+        # Build available blueprints not in stash
+        all_items = []
         for source in (weapon_pool, armor_pool, explosive_pool):
             for key, entry in source.items():
                 produced = entry["produces"]
-                if produced not in unlocked_items:
+                if produced not in stash_items and produced not in unlocked_items:
                     all_items.append({
                         "item": produced,
                         "source_key": key,
@@ -70,16 +72,19 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send("✅ You’ve already unlocked all available blueprints!", ephemeral=True)
             return
 
-        # Roll a blueprint using rarity weighting
+        # Roll a unique blueprint using rarity weighting
         selected = weighted_choice(all_items, rarity_weights)
         if not selected:
             await interaction.followup.send("❌ Failed to roll a blueprint. Please try again later.", ephemeral=True)
             return
 
-        # Update unlock and usage tracking
+        # Update user stash and tracking
+        user_data[user_id].setdefault("stash", []).append(selected["item"])
         unlocked.setdefault(user_id, []).append(selected["item"])
         roll_tracker.setdefault(user_id, []).append(prestige)
 
+        # Save all updated data
+        await save_file(USER_DATA, user_data)
         await save_file(UNLOCKED_BLUEPRINTS, unlocked)
         await save_file(PRESTIGE_USAGE_TRACKER, roll_tracker)
 
