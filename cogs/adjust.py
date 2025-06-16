@@ -4,9 +4,17 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from typing import Literal
+from datetime import datetime
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
+WARLAB_CHANNEL_ID = 1382187883590455296  # ✅ WARLAB broadcast channel
+
+SPECIAL_REWARDS = {
+    1: {"title": "💉 Weaponsmith Elite", "color": 0x3cb4fc},
+    2: {"title": "🔬 Scavenger Elite",    "color": 0x88e0a0},
+    3: {"title": "☣️ Raider Elite",       "color": 0x880808}
+}
 
 class AdjustPrestige(commands.Cog):
     def __init__(self, bot):
@@ -18,6 +26,7 @@ class AdjustPrestige(commands.Cog):
         user="Player to adjust",
         amount="Number of prestige ranks to adjust by"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def adjust(
         self,
         interaction: discord.Interaction,
@@ -25,10 +34,6 @@ class AdjustPrestige(commands.Cog):
         user: discord.Member,
         amount: int
     ):
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ You don’t have permission to use this.", ephemeral=True)
-            return
-
         if amount <= 0:
             await interaction.response.send_message("⚠️ Amount must be greater than 0.", ephemeral=True)
             return
@@ -40,10 +45,13 @@ class AdjustPrestige(commands.Cog):
 
         if action == "take":
             if current_prestige <= 0:
-                await interaction.response.send_message(f"⚠️ {user.mention} is already at **0 prestige**.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"⚠️ {user.mention} is already at **0 prestige**.", ephemeral=True)
                 return
             if amount > current_prestige:
-                await interaction.response.send_message(f"❌ Cannot remove **{amount} prestige** — {user.mention} only has **{current_prestige}**.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"❌ Cannot remove **{amount} prestige** — {user.mention} only has **{current_prestige}**.",
+                    ephemeral=True)
                 return
             profile["prestige"] = current_prestige - amount
             result = f"🗑 Removed **{amount} prestige** from {user.mention}."
@@ -52,10 +60,30 @@ class AdjustPrestige(commands.Cog):
             profile["prestige"] = current_prestige + amount
             result = f"✅ Gave **{amount} prestige** to {user.mention}."
 
+            # Send broadcast embed to WARLAB
+            rolled_id = profile.get("special_class") or 1
+            reward = SPECIAL_REWARDS.get(rolled_id, SPECIAL_REWARDS[1])
+
+            emb = discord.Embed(
+                title="🧬 Prestige Unlocked!",
+                description=(
+                    f"{user.mention} reached **Prestige {profile['prestige']}**\n"
+                    f"🎖 Prestige Class: **{reward['title']}**\n\n"
+                    "🎲 Use /rollblueprint to try for a new schematic!"
+                ),
+                color=reward["color"],
+                timestamp=datetime.utcnow()
+            )
+            emb.set_thumbnail(url=user.display_avatar.url)
+
+            ch = interaction.client.get_channel(WARLAB_CHANNEL_ID)
+            if ch:
+                await ch.send(embed=emb)
+
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
-
-        await interaction.response.send_message(f"{result}\n🏆 New Prestige Rank: **{profile['prestige']}**", ephemeral=True)
+        await interaction.response.send_message(
+            f"{result}\n🏆 New Prestige Rank: **{profile['prestige']}**", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(AdjustPrestige(bot))
