@@ -10,12 +10,10 @@ from utils.inventory import weighted_choice
 
 USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
-UNLOCKED_BLUEPRINTS = "data/unlocked_blueprints.json"
-PRESTIGE_USAGE_TRACKER = "data/blueprint_roll_tracker.json"
 
 # Pool paths
-WEAPON_PATH = "data/item_recipes.json"
-ARMOR_PATH = "data/armor_blueprints.json"
+WEAPON_PATH    = "data/item_recipes.json"
+ARMOR_PATH     = "data/armor_blueprints.json"
 EXPLOSIVE_PATH = "data/explosive_blueprints.json"
 
 class RollBlueprint(commands.Cog):
@@ -28,40 +26,37 @@ class RollBlueprint(commands.Cog):
         user_id = str(interaction.user.id)
 
         # Load files
-        rarity_weights = await load_file(RARITY_WEIGHTS)
-        weapon_pool = await load_file(WEAPON_PATH)
-        armor_pool = await load_file(ARMOR_PATH)
-        explosive_pool = await load_file(EXPLOSIVE_PATH)
-        unlocked = await load_file(UNLOCKED_BLUEPRINTS) or {}
-        user_data = await load_file(USER_DATA)
-        roll_tracker = await load_file(PRESTIGE_USAGE_TRACKER) or {}
+        rarity_weights  = await load_file(RARITY_WEIGHTS)
+        weapon_pool     = await load_file(WEAPON_PATH)
+        armor_pool      = await load_file(ARMOR_PATH)
+        explosive_pool  = await load_file(EXPLOSIVE_PATH)
+        user_data       = await load_file(USER_DATA)
 
         # ❌ Not registered check
         if user_id not in user_data:
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        prestige = user_data.get(user_id, {}).get("prestige", 0)
+        profile  = user_data[user_id]
+        prestige = profile.get("prestige", 0)
+
         if prestige < 1:
             await interaction.followup.send("🔒 You must reach Prestige 1 to roll for blueprints.", ephemeral=True)
             return
 
-        # Check if user already rolled at this prestige
-        used_levels = roll_tracker.get(user_id, [])
-        if prestige in used_levels:
+        used_rolls = profile.get("blueprint_rolls_used", [])
+        if prestige in used_rolls:
             await interaction.followup.send(f"⚠️ You've already used your blueprint roll for Prestige {prestige}.", ephemeral=True)
             return
 
-        # Pull from user's stash for de-duplication
-        stash_items = user_data[user_id].get("stash", [])
-        unlocked_items = unlocked.get(user_id, [])
+        stash = profile.get("stash", [])
 
-        # Build available blueprints not in stash
+        # Build a list of all available blueprints the player doesn't already have
         all_items = []
-        for source in (weapon_pool, armor_pool, explosive_pool):
-            for key, entry in source.items():
-                produced = entry["produces"]
-                if produced not in stash_items and produced not in unlocked_items:
+        for pool in (weapon_pool, armor_pool, explosive_pool):
+            for key, entry in pool.items():
+                produced = entry.get("produces")
+                if produced and produced not in stash:
                     all_items.append({
                         "item": produced,
                         "source_key": key,
@@ -72,21 +67,19 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send("✅ You’ve already unlocked all available blueprints!", ephemeral=True)
             return
 
-        # Roll a unique blueprint using rarity weighting
+        # Roll one blueprint the player doesn't already own
         selected = weighted_choice(all_items, rarity_weights)
         if not selected:
             await interaction.followup.send("❌ Failed to roll a blueprint. Please try again later.", ephemeral=True)
             return
 
-        # Update user stash and tracking
-        user_data[user_id].setdefault("stash", []).append(selected["item"])
-        unlocked.setdefault(user_id, []).append(selected["item"])
-        roll_tracker.setdefault(user_id, []).append(prestige)
+        # Update stash and prestige tracker
+        profile.setdefault("stash", []).append(selected["item"])
+        profile.setdefault("blueprint_rolls_used", []).append(prestige)
+        user_data[user_id] = profile
 
-        # Save all updated data
+        # Save everything
         await save_file(USER_DATA, user_data)
-        await save_file(UNLOCKED_BLUEPRINTS, unlocked)
-        await save_file(PRESTIGE_USAGE_TRACKER, roll_tracker)
 
         await interaction.followup.send(
             f"📜 **New Blueprint Unlocked:** `{selected['item']}` (Rarity: {selected['rarity']})",
