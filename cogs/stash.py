@@ -1,4 +1,4 @@
-# cogs/stash.py — Expanded stash viewer with parts, coins, lab skins using type field
+# cogs/stash.py — Expanded stash viewer with close button from Black Market
 
 import discord
 from discord.ext import commands
@@ -9,6 +9,25 @@ from collections import Counter
 USER_DATA_FILE = "data/user_profiles.json"
 ITEMS_MASTER_FILE = "data/items_master.json"
 ITEM_RECIPES_FILE = "data/item_recipes.json"
+
+# 🔴 Close Button (copied from Black Market)
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            for msg in getattr(self.view, "stored_messages", []):
+                await msg.edit(content="❌ Stash view closed.", embed=None, view=None)
+        except Exception as e:
+            print(f"❌ Failed to close stash UI: {e}")
+        await interaction.response.defer()
+
+class StashView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=90)
+        self.stored_messages = []
+        self.add_item(CloseButton())
 
 class Stash(commands.Cog):
     def __init__(self, bot):
@@ -38,7 +57,6 @@ class Stash(commands.Cog):
         equipped_skin = user.get("equipped_skin", "None")
         coins = user.get("coins", 0)
 
-        # Group stash by 'type' field
         grouped = {
             "🔫 Gun Parts": [],
             "🪖 Armor Parts": [],
@@ -66,7 +84,6 @@ class Stash(commands.Cog):
             else:
                 grouped["🎒 Misc"].append(label)
 
-        # Identify build-ready items
         buildables = []
         for blueprint in blueprints:
             recipe = recipes.get(blueprint.lower())
@@ -77,7 +94,6 @@ class Stash(commands.Cog):
             status = "✅ Build Ready" if can_build else "❌ Missing Parts"
             buildables.append(f"{recipe['produces']} — {status}")
 
-        # Embed output
         embed = discord.Embed(
             title=f"🎒 {interaction.user.display_name}'s Stash",
             color=0x74c1f2
@@ -104,7 +120,10 @@ class Stash(commands.Cog):
         embed.add_field(name="💰 Coins", value=str(coins), inline=True)
         embed.add_field(name="🏚️ Equipped Workshop Skin", value=equipped_skin, inline=True)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        view = StashView()
+        msg = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        sent = await interaction.original_response()
+        view.stored_messages = [sent]
 
 async def setup(bot):
     await bot.add_cog(Stash(bot))
