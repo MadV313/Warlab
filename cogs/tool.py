@@ -10,13 +10,13 @@ USER_DATA   = "data/user_profiles.json"
 TOOLS_FILE  = "data/blackmarket_items_master.json"
 
 
-# ──────────────────────────────────────────────────────────────────
 class ToolDropdown(discord.ui.Select):
-    def __init__(self, target: discord.Member, action: str, tool_list: list[str]):
+    def __init__(self, target: discord.Member, action: str, quantity: int, tool_list: list[str]):
         options = [discord.SelectOption(label=t, value=t) for t in tool_list]
         super().__init__(placeholder="Select a tool", options=options, min_values=1, max_values=1)
-        self.target  = target
-        self.action  = action   # "give" | "remove"
+        self.target   = target
+        self.action   = action  # "give" | "remove"
+        self.quantity = quantity
 
     async def callback(self, interaction: discord.Interaction):
         selected_tool = self.values[0]
@@ -27,31 +27,32 @@ class ToolDropdown(discord.ui.Select):
 
         # ── Give ────────────────────────────────────────────────
         if self.action == "give":
-            profile["inventory"].append({"item": selected_tool, "rarity": "Admin"})
+            for _ in range(self.quantity):
+                profile["inventory"].append({"item": selected_tool, "rarity": "Admin"})
             await interaction.response.send_message(
-                f"✅ Gave **1× {selected_tool}** to {self.target.mention}.",
+                f"✅ Gave **{self.quantity}× {selected_tool}** to {self.target.mention}.",
                 ephemeral=True
             )
 
         # ── Remove ──────────────────────────────────────────────
         else:  # remove
-            removed = False
+            removed = 0
             new_inv = []
             for entry in profile["inventory"]:
-                if entry.get("item") == selected_tool and not removed:
-                    removed = True
+                if entry.get("item") == selected_tool and removed < self.quantity:
+                    removed += 1
                     continue
                 new_inv.append(entry)
 
             profile["inventory"] = new_inv
-            if removed:
+            if removed > 0:
                 await interaction.response.send_message(
-                    f"🗑 Removed **1× {selected_tool}** from {self.target.mention}.",
+                    f"🗑 Removed **{removed}× {selected_tool}** from {self.target.mention}.",
                     ephemeral=True
                 )
             else:
                 await interaction.response.send_message(
-                    f"⚠️ {self.target.mention} does not have that tool.",
+                    f"⚠️ {self.target.mention} does not have that tool or not enough to remove.",
                     ephemeral=True
                 )
 
@@ -60,51 +61,48 @@ class ToolDropdown(discord.ui.Select):
 
 
 class ToolSelectView(discord.ui.View):
-    def __init__(self, target: discord.Member, action: str, tool_list: list[str]):
+    def __init__(self, target: discord.Member, action: str, quantity: int, tool_list: list[str]):
         super().__init__(timeout=60)
-        self.add_item(ToolDropdown(target, action, tool_list))
+        self.add_item(ToolDropdown(target, action, quantity, tool_list))
 
 
-# ──────────────────────────────────────────────────────────────────
 class ToolManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(
         name="tool",
-        description="Admin: Give or remove tools from a player."
+        description="Admin: Give or remove tools from a player.",
+        default_permissions=discord.Permissions(administrator=True)
     )
     @app_commands.describe(
-        user="Target player",
-        action="Choose to give or remove a tool"
+        action="Choose to give or remove a tool",
+        item="Tool name from the dropdown list",
+        quantity="How many to give or remove",
+        user="Target player"
     )
+    @app_commands.checks.has_permissions(administrator=True)
     async def tool(
         self,
         interaction: discord.Interaction,
+        action: Literal["give", "remove"],
         user: discord.Member,
-        action: Literal["give", "remove"]
+        quantity: int
     ):
-        # Permissions check ---------------------------------------------------
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(
-                "❌ You don’t have permission to use this.",
-                ephemeral=True
-            )
+        if quantity <= 0:
+            await interaction.response.send_message("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        # Fetch valid tools ----------------------------------------------------
+        # Fetch valid tools
         items_db  = await load_file(TOOLS_FILE) or {}
         tool_list = [name for name, meta in items_db.items() if meta.get("type") == "tool"]
 
         if not tool_list:
-            await interaction.response.send_message(
-                "❌ No tools found in the database.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("❌ No tools found in the database.", ephemeral=True)
             return
 
-        # Open dropdown UI -----------------------------------------------------
-        view = ToolSelectView(user, action.lower(), sorted(tool_list))
+        # Open dropdown
+        view = ToolSelectView(user, action.lower(), quantity, sorted(tool_list))
         await interaction.response.send_message(
             f"🧰 Select a tool to **{action.lower()}** for {user.mention}:",
             view=view,
