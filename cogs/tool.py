@@ -43,22 +43,23 @@ class ToolManager(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
             profile = profiles.get(uid, {})
-            stash = profile.get("stash", {})
+            stash = profile.get("stash")
 
-            # Ensure stash is a dictionary with int quantities
+            # Ensure stash is a dict
             if not isinstance(stash, dict):
                 stash = {}
-            stash.setdefault(item, 0)
 
-            # ── Give ───────────────────────
+            current = stash.get(item, 0)
+
+            # ── GIVE ───────────────────────
             if action == "give":
-                stash[item] += quantity
+                stash[item] = current + quantity
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
 
-            # ── Remove ─────────────────────
-            else:
-                if stash.get(item, 0) >= quantity:
-                    stash[item] -= quantity
+            # ── REMOVE ─────────────────────
+            elif action == "remove":
+                if current >= quantity:
+                    stash[item] = current - quantity
                     if stash[item] == 0:
                         del stash[item]
                     msg = f"🗑 Removed **{quantity} × {item}** from {user.mention}."
