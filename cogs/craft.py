@@ -42,12 +42,12 @@ class CraftDropdown(discord.ui.Select):
         user       = profiles.get(self.user_id)
 
         if not user:
-            await interaction.message.edit(content="❌ Profile not found.", view=None)
+            await interaction.response.edit_message(content="❌ Profile not found.", view=None)
             return
 
         # Blueprint ownership check
         if item_name not in user.get("blueprints", []):
-            await interaction.message.edit(
+            await interaction.response.edit_message(
                 content=f"🔒 You must unlock **{item_name} Blueprint** first.",
                 view=None
             )
@@ -56,16 +56,16 @@ class CraftDropdown(discord.ui.Select):
         item_key = item_name.lower()
         recipe   = recipes.get(item_key)
         if not recipe:
-            await interaction.message.edit(content="❌ Unknown / invalid blueprint.", view=None)
+            await interaction.response.edit_message(content="❌ Unknown / invalid blueprint.", view=None)
             return
 
         # Prestige gates
         prestige = user.get("prestige", 0)
         if item_key in armor and not can_craft_tactical(prestige):
-            await interaction.message.edit(content="🔒 Prestige II required for tactical gear.", view=None)
+            await interaction.response.edit_message(content="🔒 Prestige II required for tactical gear.", view=None)
             return
         if item_key in explosives and not can_craft_explosives(prestige):
-            await interaction.message.edit(content="🔒 Prestige III required for explosives.", view=None)
+            await interaction.response.edit_message(content="🔒 Prestige III required for explosives.", view=None)
             return
 
         # Parts check
@@ -76,7 +76,7 @@ class CraftDropdown(discord.ui.Select):
                 for p, qty in recipe["requirements"].items()
                 if stash_counter.get(p, 0) < qty
             ]
-            await interaction.message.edit(
+            await interaction.response.edit_message(
                 content="❌ Missing parts:\n• " + "\n• ".join(missing),
                 view=None
             )
@@ -99,7 +99,7 @@ class CraftDropdown(discord.ui.Select):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"),  inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        await interaction.message.edit(content="", embed=embed, view=None)
+        await interaction.response.edit_message(content="", embed=embed, view=None)
 
 # ────────────────────────────────────────────────────────────────
 class CraftView(discord.ui.View):
