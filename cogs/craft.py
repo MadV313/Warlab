@@ -27,9 +27,11 @@ class CraftButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        print(f"🔘 [CraftButton] Clicked for {self.blueprint} by {interaction.user.id}")
         await interaction.response.defer(ephemeral=True)
 
         if str(interaction.user.id) != self.user_id:
+            print("⚠️ [CraftButton] Wrong user.")
             await interaction.followup.send("⚠️ This isn’t your crafting menu.", ephemeral=True)
             return
 
@@ -40,60 +42,78 @@ class CraftButton(discord.ui.Button):
         all_recipes = {**recipes, **armor, **explosives}
         user       = profiles.get(self.user_id)
 
+        print(f"📦 [CraftButton] Loaded profiles and blueprints for {self.user_id}")
         if not user:
+            print("❌ [CraftButton] User profile not found.")
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
         blueprint_name = self.blueprint
         owned_blueprints = user.get("blueprints", [])
+        print(f"📘 [CraftButton] Owned blueprints: {owned_blueprints}")
 
         if blueprint_name not in owned_blueprints and f"{blueprint_name} Blueprint" not in owned_blueprints:
+            print(f"🔒 [CraftButton] Missing blueprint: {blueprint_name}")
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
         item_key = blueprint_name.lower()
         recipe = all_recipes.get(item_key)
+        print(f"📐 [CraftButton] Fetched recipe for {item_key}: {recipe}")
         if not recipe:
+            print(f"❌ [CraftButton] Recipe not found: {item_key}")
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
         prestige = user.get("prestige", 0)
+        print(f"🎖️ [CraftButton] User prestige: {prestige}")
         if item_key in armor and not can_craft_tactical(prestige):
+            print(f"🔒 [CraftButton] Insufficient prestige for tactical: {prestige}")
             await interaction.followup.send("🔒 Requires Prestige II for tactical gear.", ephemeral=True)
             return
         if item_key in explosives and not can_craft_explosives(prestige):
+            print(f"🔒 [CraftButton] Insufficient prestige for explosives: {prestige}")
             await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
         stash = Counter(user.get("stash", []))
+        print(f"🧰 [CraftButton] Current stash: {dict(stash)}")
         if not has_required_parts(stash, recipe["requirements"]):
+            print(f"❌ [CraftButton] Missing parts for {self.blueprint}")
             missing = [
                 f"{qty - stash.get(p, 0)}× {p}"
                 for p, qty in recipe["requirements"].items()
                 if stash.get(p, 0) < qty
             ]
+            print(f"🧾 [CraftButton] Missing parts: {missing}")
             await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
         # ✅ Perform crafting
-        remove_parts(user["stash"], recipe["requirements"])
-        crafted = recipe["produces"]
-        user["stash"].append(crafted)
-        user.setdefault("crafted", []).append(crafted)
-        profiles[self.user_id] = user
-        await save_file(USER_DATA, profiles)
-
-        embed = discord.Embed(
-            title="✅ Crafting Successful",
-            description=f"You crafted **{crafted}**!",
-            color=0x2ecc71
-        )
-        embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
-        embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
-        embed.set_footer(text="WARLAB | SV13 Bot")
-
+        print(f"✅ [CraftButton] Crafting {self.blueprint} now...")
         try:
+            print(f"🔧 [CraftButton] Removing parts: {recipe['requirements']}")
+            remove_parts(user["stash"], recipe["requirements"])
+            crafted = recipe["produces"]
+            print(f"🎁 [CraftButton] Crafted item: {crafted}")
+
+            user["stash"].append(crafted)
+            user.setdefault("crafted", []).append(crafted)
+            profiles[self.user_id] = user
+            await save_file(USER_DATA, profiles)
+            print(f"💾 [CraftButton] Profile updated and saved for user {self.user_id}")
+
+            embed = discord.Embed(
+                title="✅ Crafting Successful",
+                description=f"You crafted **{crafted}**!",
+                color=0x2ecc71
+            )
+            embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
+            embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
+            embed.set_footer(text="WARLAB | SV13 Bot")
+
             await interaction.followup.send(embed=embed, ephemeral=True)
+            print("📨 [CraftButton] Sent crafting confirmation embed.")
 
             # ✅ Refresh the CraftView after state change
             if hasattr(self.view, "stored_messages"):
@@ -101,13 +121,14 @@ class CraftButton(discord.ui.Button):
                 updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
                 updated_view.stored_messages = self.view.stored_messages
                 await self.view.stored_messages[0].edit(view=updated_view)
+                print("🔁 [CraftButton] Refreshed craft view.")
 
         except Exception as e:
-            print(f"❌ Failed to send crafting followup: {e}")
+            print(f"❌ [CraftButton] Exception occurred: {e}")
             try:
-                await interaction.user.send("✅ Crafting succeeded, but the confirmation message failed to display in Discord.")
+                await interaction.user.send("✅ Crafting succeeded, but view update failed.")
             except:
-                pass
+                print("❌ [CraftButton] Could not DM user after fail.")
 
 # ❌ Close button
 class CloseButton(discord.ui.Button):
