@@ -65,13 +65,15 @@ class ReinforceButton(discord.ui.Button):
         self.rtype = rtype
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)  # ✅ Fix to allow followup.send later
+
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
         catalog = await load_file(CATALOG_PATH) or {}
 
         if not profile:
-            await interaction.response.send_message("❌ Profile not found.", ephemeral=True)
+            await interaction.followup.send("❌ Profile not found.", ephemeral=True)
             return
 
         stash = profile.get("stash", [])
@@ -89,7 +91,7 @@ class ReinforceButton(discord.ui.Button):
                 missing.append(item)
 
         if missing:
-            await interaction.response.send_message(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
+            await interaction.followup.send(f"🔧 You’re missing: {', '.join(set(missing))}", ephemeral=True)
             return
 
         for tool in cost.get("tools", []):
@@ -118,7 +120,6 @@ class ReinforceButton(discord.ui.Button):
         new_view.stored_messages = self.view.stored_messages
         await self.view.stored_messages[1].edit(view=new_view)
 
-        # Count remaining tools
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
         remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
 
