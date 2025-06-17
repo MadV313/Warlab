@@ -30,7 +30,7 @@ class CraftDropdown(discord.ui.Select):
             await interaction.response.send_message("⚠️ You cannot use someone else's crafting menu.", ephemeral=True)
             return
 
-        item = self.values[0]
+        item = self.values[0]  # Value is the actual item name (e.g., "Mlock")
         await interaction.response.defer(ephemeral=True)
 
         user_id = self.user_id
@@ -40,19 +40,21 @@ class CraftDropdown(discord.ui.Select):
         explosives = await load_file(EXPLOSIVE_DATA) or {}
 
         user = profiles.get(user_id)
-        item_key = item.replace(" Blueprint", "").lower()
-        recipe = recipes.get(item_key)
-
-        if not recipe:
-            await interaction.followup.send("❌ Unknown item or invalid blueprint selected.", ephemeral=True)
+        if not user:
+            await interaction.followup.send("❌ Profile not found.", ephemeral=True)
             return
 
-        blueprint_name = f"{recipe['produces']} Blueprint"
-        if blueprint_name not in user.get("blueprints", []):
+        if item not in user.get("blueprints", []):
             await interaction.followup.send(
-                f"🔒 You must unlock **{blueprint_name}** before crafting.",
+                f"🔒 You must unlock **{item} Blueprint** before crafting.",
                 ephemeral=True
             )
+            return
+
+        item_key = item.lower()
+        recipe = recipes.get(item_key)
+        if not recipe:
+            await interaction.followup.send("❌ Unknown item or invalid blueprint selected.", ephemeral=True)
             return
 
         prestige = user.get("prestige", 0)
@@ -101,7 +103,7 @@ class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints):
         super().__init__(timeout=60)
         options = [
-            discord.SelectOption(label=bp, value=bp)
+            discord.SelectOption(label=f"{bp} Blueprint", value=bp)
             for bp in blueprints[:25]
         ]
         self.add_item(CraftDropdown(user_id, options))
