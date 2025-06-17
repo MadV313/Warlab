@@ -1,4 +1,4 @@
-# cogs/part.py — Admin: Give or remove parts from a player (with category dropdown)
+# cogs/part.py — Unified Category → Part → Quantity Selection in One Flow
 
 import discord
 from discord.ext import commands
@@ -17,86 +17,84 @@ CATEGORY_MAP = {
     "Explosives": EXPLOSIVE_PARTS
 }
 
-class PartDropdown(discord.ui.Select):
-    def __init__(self, category, callback_fn):
-        self.category = category
-        self.callback_fn = callback_fn
-        super().__init__(placeholder="Select a part...", min_values=1, max_values=1, options=[])
-
-    async def update_options(self):
-        data = await load_file(CATEGORY_MAP[self.category]) or {}
-        all_parts = set()
-        for item in data.values():
-            all_parts.update(item.get("required_parts", []))
-        self.options = [discord.SelectOption(label=part, value=part) for part in sorted(all_parts)]
-
-    async def callback(self, interaction: discord.Interaction):
-        await self.callback_fn(interaction, self.values[0])
-
-class CategoryDropdown(discord.ui.Select):
-    def __init__(self, callback_fn):
-        self.callback_fn = callback_fn
-        options = [
-            discord.SelectOption(label="Weapons", value="Weapons"),
-            discord.SelectOption(label="Armor", value="Armor"),
-            discord.SelectOption(label="Explosives", value="Explosives")
-        ]
-        super().__init__(placeholder="Choose category", min_values=1, max_values=1, options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        await self.callback_fn(interaction, self.values[0])
-
-class PartSelectionView(discord.ui.View):
-    def __init__(self, action, user, quantity):
+class PartSelect(discord.ui.View):
+    def __init__(self, interaction, action: str, target_user: discord.Member, quantity: int):
         super().__init__(timeout=60)
+        self.interaction = interaction
         self.action = action
-        self.user = user
+        self.target_user = target_user
         self.quantity = quantity
-        self.part = None
-        self.add_item(CategoryDropdown(self.category_chosen))
+        self.selected_category = None
+        self.selected_part = None
 
-    async def category_chosen(self, interaction, category):
+        self.category_select = discord.ui.Select(
+            placeholder="Select part category...",
+            options=[
+                discord.SelectOption(label="Weapons", value="Weapons"),
+                discord.SelectOption(label="Armor", value="Armor"),
+                discord.SelectOption(label="Explosives", value="Explosives")
+            ]
+        )
+        self.category_select.callback = self.category_chosen
+        self.add_item(self.category_select)
+
+    async def category_chosen(self, interaction: discord.Interaction):
+        self.selected_category = self.category_select.values[0]
         self.clear_items()
-        part_selector = PartDropdown(category, self.part_chosen)
-        await part_selector.update_options()
-        self.add_item(part_selector)
-        await interaction.response.edit_message(content=f"🔧 Select a part from **{category}**", view=self)
 
-    async def part_chosen(self, interaction, part):
-        self.part = part
+        # Load all parts under that category
+        part_file = CATEGORY_MAP[self.selected_category]
+        raw = await load_file(part_file) or {}
+        part_set = set()
+        for entry in raw.values():
+            part_set.update(entry.get("required_parts", []))
+
+        self.part_select = discord.ui.Select(
+            placeholder=f"Select a part from {self.selected_category}...",
+            options=[discord.SelectOption(label=p, value=p) for p in sorted(part_set)]
+        )
+        self.part_select.callback = self.part_chosen
+        self.add_item(self.part_select)
+
+        await interaction.response.edit_message(content="🔧 Now pick the part:", view=self)
+
+    async def part_chosen(self, interaction: discord.Interaction):
+        self.selected_part = self.part_select.values[0]
         await self.execute(interaction)
 
-    async def execute(self, interaction):
+    async def execute(self, interaction: discord.Interaction):
         profiles = await load_file(USER_DATA) or {}
-        uid = str(self.user.id)
+        uid = str(self.target_user.id)
         profile = profiles.get(uid, {})
         stash = profile.get("stash", [])
 
         if not isinstance(stash, list):
             stash = []
 
+        # Perform action
         if self.action == "give":
-            stash.extend([self.part] * self.quantity)
-            msg = f"✅ Gave **{self.quantity} × {self.part}** to {self.user.mention}."
+            stash.extend([self.selected_part] * self.quantity)
+            msg = f"✅ Gave **{self.quantity} × {self.selected_part}** to {self.target_user.mention}."
         else:
             removed = 0
             new_stash = []
-            for s in stash:
-                if s == self.part and removed < self.quantity:
+            for item in stash:
+                if item == self.selected_part and removed < self.quantity:
                     removed += 1
                     continue
-                new_stash.append(s)
+                new_stash.append(item)
             stash = new_stash
             msg = (
-                f"🗑 Removed **{removed} × {self.part}** from {self.user.mention}."
+                f"🗑 Removed **{removed} × {self.selected_part}** from {self.target_user.mention}."
                 if removed else
-                f"⚠️ {self.user.mention} doesn't have that many **{self.part}**."
+                f"⚠️ Not enough **{self.selected_part}** to remove."
             )
 
         profile["stash"] = stash
         profiles[uid] = profile
         await save_file(USER_DATA, profiles)
         await interaction.response.edit_message(content=msg, view=None)
+
 
 class PartManager(commands.Cog):
     def __init__(self, bot):
@@ -107,7 +105,7 @@ class PartManager(commands.Cog):
     @app_commands.describe(
         action="Give or remove a part",
         user="Target player",
-        quantity="How many to give or remove"
+        quantity="Amount to give or remove"
     )
     async def part(
         self,
@@ -118,11 +116,15 @@ class PartManager(commands.Cog):
     ):
         await interaction.response.defer(ephemeral=True)
         if quantity <= 0:
-            await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
+            await interaction.followup.send("⚠️ Quantity must be more than **0**.", ephemeral=True)
             return
 
-        view = PartSelectionView(action, user, quantity)
-        await interaction.followup.send("📦 Select a category to begin:", view=view, ephemeral=True)
+        view = PartSelect(interaction, action, user, quantity)
+        await interaction.followup.send(
+            f"🔧 Choose a part category to **{action}** to {user.mention}:",
+            view=view,
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(PartManager(bot))
