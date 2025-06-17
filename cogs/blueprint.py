@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage + suffix applied)
 
 import discord
 from discord.ext import commands
@@ -24,7 +24,7 @@ class BlueprintManager(commands.Cog):
             for entry in data.values():
                 produced = entry.get("produces")
                 if produced:
-                    blueprints.add(produced)  # 🔑 Store clean key only
+                    blueprints.add(produced)
         return sorted(blueprints)
 
     @app_commands.checks.has_permissions(administrator=True)
@@ -52,7 +52,8 @@ class BlueprintManager(commands.Cog):
             await interaction.followup.send("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        item = item.replace(" Blueprint", "").strip()  # 🧼 Strip suffix
+        item = item.replace(" Blueprint", "").strip()
+        full_item = f"{item} Blueprint"
         valid_blueprints = await self.get_all_blueprints()
         if item not in valid_blueprints:
             await interaction.followup.send(
@@ -69,25 +70,25 @@ class BlueprintManager(commands.Cog):
         if action == "give":
             added = False
             for _ in range(quantity):
-                if item not in blueprints:
-                    blueprints.append(item)
+                if full_item not in blueprints:
+                    blueprints.append(full_item)
                     added = True
             if added:
                 await interaction.followup.send(
-                    f"✅ Blueprint **{item}** unlocked for {user.mention}.",
+                    f"✅ Blueprint **{full_item}** unlocked for {user.mention}.",
                     ephemeral=True
                 )
             else:
                 await interaction.followup.send(
-                    f"⚠️ {user.mention} already has blueprint **{item}**.",
+                    f"⚠️ {user.mention} already has blueprint **{full_item}**.",
                     ephemeral=True
                 )
 
         elif action == "remove":
-            if item in blueprints:
-                blueprints.remove(item)
+            if full_item in blueprints:
+                blueprints.remove(full_item)
                 await interaction.followup.send(
-                    f"🗑 Blueprint **{item}** removed from {user.mention}.",
+                    f"🗑 Blueprint **{full_item}** removed from {user.mention}.",
                     ephemeral=True
                 )
             else:
