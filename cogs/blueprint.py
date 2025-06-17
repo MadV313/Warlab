@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (dynamic dropdowns)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage)
 
 import discord
 from discord.ext import commands
@@ -24,7 +24,7 @@ class BlueprintManager(commands.Cog):
             for entry in data.values():
                 produced = entry.get("produces")
                 if produced:
-                    blueprints.add(f"{produced} Blueprint")
+                    blueprints.add(produced)  # 🔑 Store clean key only
         return sorted(blueprints)
 
     @app_commands.checks.has_permissions(administrator=True)
@@ -52,11 +52,11 @@ class BlueprintManager(commands.Cog):
             await interaction.followup.send("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        item = item.strip()
+        item = item.replace(" Blueprint", "").strip()  # 🧼 Strip suffix
         valid_blueprints = await self.get_all_blueprints()
         if item not in valid_blueprints:
             await interaction.followup.send(
-                f"❌ Invalid blueprint.\nChoose from: {', '.join(valid_blueprints)}",
+                f"❌ Invalid blueprint.\nChoose from: {', '.join(bp + ' Blueprint' for bp in valid_blueprints)}",
                 ephemeral=True
             )
             return
@@ -105,7 +105,7 @@ class BlueprintManager(commands.Cog):
     async def autocomplete_item(self, interaction: discord.Interaction, current: str):
         all_items = await self.get_all_blueprints()
         return [
-            app_commands.Choice(name=bp, value=bp)
+            app_commands.Choice(name=bp + " Blueprint", value=bp + " Blueprint")
             for bp in all_items if current.lower() in bp.lower()
         ][:25]
 
