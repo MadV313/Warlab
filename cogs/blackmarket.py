@@ -1,4 +1,4 @@
-# cogs/blackmarket.py — WARLAB rotating black market shop (uses coins + buttons + fixed Guard Dog + Claymore Trap + working Close)
+# cogs/blackmarket.py — WARLAB rotating black market shop (now with suffix-fixed blueprint storage)
 
 import discord
 from discord.ext import commands
@@ -49,11 +49,12 @@ class BuyButton(discord.ui.Button):
         user["coins"] -= self.cost
 
         if self.item_name in ["Guard Dog", "Claymore Trap"]:
-            user.setdefault("stash", []).append(self.item_name)  # ✅ Save to stash
+            user.setdefault("stash", []).append(self.item_name)
         else:
+            blueprint_name = f"{self.item_name} Blueprint"
             user.setdefault("blueprints", [])
-            if self.item_name not in user["blueprints"]:
-                user["blueprints"].append(self.item_name)
+            if blueprint_name not in user["blueprints"]:
+                user["blueprints"].append(blueprint_name)
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
