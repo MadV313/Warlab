@@ -31,7 +31,6 @@ class CraftButton(discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
 
         if str(interaction.user.id) != self.user_id:
-            print("⚠️ [CraftButton] Wrong user.")
             await interaction.followup.send("⚠️ This isn’t your crafting menu.", ephemeral=True)
             return
 
@@ -49,7 +48,6 @@ class CraftButton(discord.ui.Button):
         blueprint_name = f"{self.blueprint} Blueprint"
         owned_blueprints = user.get("blueprints", [])
         if blueprint_name not in owned_blueprints:
-            print(f"🔒 [CraftButton] Missing blueprint: {blueprint_name}")
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
@@ -57,7 +55,6 @@ class CraftButton(discord.ui.Button):
         recipe = all_recipes.get(item_key)
 
         if not recipe or not isinstance(recipe, dict):
-            print(f"❌ [CraftButton] Invalid recipe format: {item_key} => {type(recipe)}")
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
@@ -80,9 +77,10 @@ class CraftButton(discord.ui.Button):
             return
 
         try:
-            remove_parts(user["stash"], recipe["requirements"])
-            crafted = recipe["produces"]
+            remove_parts(stash, recipe["requirements"])
+            user["stash"] = list(stash.elements())
 
+            crafted = recipe["produces"]
             user["stash"].append(crafted)
             user.setdefault("crafted", []).append(crafted)
             profiles[self.user_id] = user
