@@ -1,4 +1,4 @@
-# cogs/craft.py — Button-based blueprint crafting with single-message response
+# cogs/craft.py — Button-based blueprint crafting with Fortify-style corrections
 
 import discord
 from discord.ext import commands
@@ -18,8 +18,8 @@ EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 class CraftButton(discord.ui.Button):
     def __init__(self, user_id, blueprint, enabled=True):
         self.user_id = user_id
-        self.blueprint = blueprint  # e.g., "Mlock"
-        label = f"🛠️ {blueprint} Blueprint"
+        self.blueprint = blueprint
+        label = f"🛠️ {blueprint}"
         super().__init__(
             label=label,
             style=discord.ButtonStyle.success if enabled else discord.ButtonStyle.secondary,
@@ -44,12 +44,12 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        # Blueprint ownership check (NO "Blueprint" suffix used in saved data)
-        if self.blueprint not in user.get("blueprints", []):
-            await interaction.followup.send(f"🔒 You must unlock **{self.blueprint}** first.", ephemeral=True)
+        blueprint_name = self.blueprint  # e.g., "Mlock"
+        if blueprint_name not in user.get("blueprints", []):
+            await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
-        item_key = self.blueprint.lower()
+        item_key = blueprint_name.lower()
         recipe = all_recipes.get(item_key)
         if not recipe:
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
@@ -64,7 +64,6 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
-        # Inventory check
         stash = Counter(user.get("stash", []))
         if not has_required_parts(stash, recipe["requirements"]):
             missing = [
@@ -92,7 +91,10 @@ class CraftButton(discord.ui.Button):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        if hasattr(self.view, "stored_messages"):
+            await self.view.stored_messages[0].edit(embed=embed, view=None)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ❌ Close button
 class CloseButton(discord.ui.Button):
@@ -102,12 +104,15 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         for child in self.view.children:
             child.disabled = True
-        await interaction.message.edit(content="❌ Crafting closed.", embed=None, view=self.view)
+        if hasattr(self.view, "stored_messages"):
+            await self.view.stored_messages[0].edit(content="❌ Crafting closed.", embed=None, view=None)
+        await interaction.response.defer()
 
 # 🧰 View: shows craftable and locked buttons
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
+        self.stored_messages = []
 
         count = 0
         for bp in blueprints:
@@ -162,7 +167,7 @@ class Craft(commands.Cog):
         embed.set_footer(text="WARLAB | SV13 Bot")
 
         view = CraftView(uid, blueprints, stash, all_recipes)
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         sent = await interaction.original_response()
         view.stored_messages = [sent]
 
