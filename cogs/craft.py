@@ -27,11 +27,11 @@ class CraftButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("⚠️ This isn’t your crafting menu.", ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
+
+        if str(interaction.user.id) != self.user_id:
+            await interaction.followup.send("⚠️ This isn’t your crafting menu.", ephemeral=True)
+            return
 
         profiles   = await load_file(USER_DATA) or {}
         recipes    = await load_file(RECIPE_DATA) or {}
@@ -75,6 +75,7 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
+        # ✅ Perform crafting
         remove_parts(user["stash"], recipe["requirements"])
         crafted = recipe["produces"]
         user["stash"].append(crafted)
@@ -91,7 +92,14 @@ class CraftButton(discord.ui.Button):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        try:
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except Exception as e:
+            print(f"❌ Failed to send crafting followup: {e}")
+            try:
+                await interaction.user.send("✅ Crafting succeeded, but the confirmation message failed to display in Discord.")
+            except:
+                pass
 
 # ❌ Close button
 class CloseButton(discord.ui.Button):
