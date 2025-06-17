@@ -1,4 +1,4 @@
-# cogs/part.py — Unified Category → Part → Quantity Selection in One Flow
+# cogs/part.py — Fully Inline /part Command with Dynamic Field Autocomplete
 
 import discord
 from discord.ext import commands
@@ -17,94 +17,30 @@ CATEGORY_MAP = {
     "Explosives": EXPLOSIVE_PARTS
 }
 
-class PartSelect(discord.ui.View):
-    def __init__(self, interaction, action: str, target_user: discord.Member, quantity: int):
-        super().__init__(timeout=60)
-        self.interaction = interaction
-        self.action = action
-        self.target_user = target_user
-        self.quantity = quantity
-        self.selected_category = None
-        self.selected_part = None
-
-        self.category_select = discord.ui.Select(
-            placeholder="Select part category...",
-            options=[
-                discord.SelectOption(label="Weapons", value="Weapons"),
-                discord.SelectOption(label="Armor", value="Armor"),
-                discord.SelectOption(label="Explosives", value="Explosives")
-            ]
-        )
-        self.category_select.callback = self.category_chosen
-        self.add_item(self.category_select)
-
-    async def category_chosen(self, interaction: discord.Interaction):
-        self.selected_category = self.category_select.values[0]
-        self.clear_items()
-
-        # Load all parts under that category
-        part_file = CATEGORY_MAP[self.selected_category]
-        raw = await load_file(part_file) or {}
-        part_set = set()
-        for entry in raw.values():
-            part_set.update(entry.get("required_parts", []))
-
-        self.part_select = discord.ui.Select(
-            placeholder=f"Select a part from {self.selected_category}...",
-            options=[discord.SelectOption(label=p, value=p) for p in sorted(part_set)]
-        )
-        self.part_select.callback = self.part_chosen
-        self.add_item(self.part_select)
-
-        await interaction.response.edit_message(content="🔧 Now pick the part:", view=self)
-
-    async def part_chosen(self, interaction: discord.Interaction):
-        self.selected_part = self.part_select.values[0]
-        await self.execute(interaction)
-
-    async def execute(self, interaction: discord.Interaction):
-        profiles = await load_file(USER_DATA) or {}
-        uid = str(self.target_user.id)
-        profile = profiles.get(uid, {})
-        stash = profile.get("stash", [])
-
-        if not isinstance(stash, list):
-            stash = []
-
-        # Perform action
-        if self.action == "give":
-            stash.extend([self.selected_part] * self.quantity)
-            msg = f"✅ Gave **{self.quantity} × {self.selected_part}** to {self.target_user.mention}."
-        else:
-            removed = 0
-            new_stash = []
-            for item in stash:
-                if item == self.selected_part and removed < self.quantity:
-                    removed += 1
-                    continue
-                new_stash.append(item)
-            stash = new_stash
-            msg = (
-                f"🗑 Removed **{removed} × {self.selected_part}** from {self.target_user.mention}."
-                if removed else
-                f"⚠️ Not enough **{self.selected_part}** to remove."
-            )
-
-        profile["stash"] = stash
-        profiles[uid] = profile
-        await save_file(USER_DATA, profiles)
-        await interaction.response.edit_message(content=msg, view=None)
-
-
 class PartManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.cached_parts = {}  # {"Weapons": [parts], ...}
+
+    async def get_parts_by_category(self, category):
+        if category in self.cached_parts:
+            return self.cached_parts[category]
+
+        data = await load_file(CATEGORY_MAP[category]) or {}
+        part_set = set()
+        for item in data.values():
+            part_set.update(item.get("required_parts", []))
+
+        self.cached_parts[category] = sorted(part_set)
+        return self.cached_parts[category]
 
     @app_commands.command(name="part", description="Admin: Give or remove parts from a player.")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.describe(
         action="Give or remove a part",
         user="Target player",
+        item="Category: Weapons, Armor, or Explosives",
+        part="Part name from selected category",
         quantity="Amount to give or remove"
     )
     async def part(
@@ -112,19 +48,66 @@ class PartManager(commands.Cog):
         interaction: discord.Interaction,
         action: Literal["give", "remove"],
         user: discord.Member,
+        item: Literal["Weapons", "Armor", "Explosives"],
+        part: str,
         quantity: int
     ):
         await interaction.response.defer(ephemeral=True)
+
         if quantity <= 0:
-            await interaction.followup.send("⚠️ Quantity must be more than **0**.", ephemeral=True)
+            await interaction.followup.send("⚠️ Quantity must be greater than 0.", ephemeral=True)
             return
 
-        view = PartSelect(interaction, action, user, quantity)
-        await interaction.followup.send(
-            f"🔧 Choose a part category to **{action}** to {user.mention}:",
-            view=view,
-            ephemeral=True
-        )
+        valid_parts = await self.get_parts_by_category(item)
+        if part not in valid_parts:
+            await interaction.followup.send(
+                f"❌ Invalid part for {item}. Try auto-completing the field.",
+                ephemeral=True
+            )
+            return
+
+        profiles = await load_file(USER_DATA) or {}
+        uid = str(user.id)
+        profile = profiles.get(uid, {})
+        stash = profile.get("stash", [])
+        if not isinstance(stash, list):
+            stash = []
+
+        # ── Action Logic ──
+        if action == "give":
+            stash.extend([part] * quantity)
+            msg = f"✅ Gave **{quantity} × {part}** to {user.mention}."
+        else:
+            removed = 0
+            new_stash = []
+            for s in stash:
+                if s == part and removed < quantity:
+                    removed += 1
+                    continue
+                new_stash.append(s)
+            stash = new_stash
+            msg = (
+                f"🗑 Removed **{removed} × {part}** from {user.mention}."
+                if removed else
+                f"⚠️ {user.mention} doesn't have that many **{part}**."
+            )
+
+        profile["stash"] = stash
+        profiles[uid] = profile
+        await save_file(USER_DATA, profiles)
+        await interaction.followup.send(msg, ephemeral=True)
+
+    @part.autocomplete("part")
+    async def autocomplete_part(self, interaction: discord.Interaction, current: str):
+        item_category = interaction.namespace.item
+        if not item_category:
+            return []
+
+        parts = await self.get_parts_by_category(item_category)
+        return [
+            app_commands.Choice(name=p, value=p)
+            for p in parts if current.lower() in p.lower()
+        ][:25]
 
 async def setup(bot):
     await bot.add_cog(PartManager(bot))
