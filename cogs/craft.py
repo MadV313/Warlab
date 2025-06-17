@@ -1,4 +1,4 @@
-# cogs/craft.py — Button-based blueprint crafting with Fortify-style corrections
+# cogs/craft.py — Button-based blueprint crafting with Fortify-style corrections + Visual Display of Blueprints and Buildables
 
 import discord
 from discord.ext import commands
@@ -44,10 +44,9 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        blueprint_name = self.blueprint  # e.g., "Mlock"
+        blueprint_name = self.blueprint
         owned_blueprints = user.get("blueprints", [])
 
-        # ✅ FIX: support both naming patterns
         if blueprint_name not in owned_blueprints and f"{blueprint_name} Blueprint" not in owned_blueprints:
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
@@ -58,7 +57,6 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
-        # Prestige check
         prestige = user.get("prestige", 0)
         if item_key in armor and not can_craft_tactical(prestige):
             await interaction.followup.send("🔒 Requires Prestige II for tactical gear.", ephemeral=True)
@@ -77,7 +75,6 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
-        # ✅ Craft
         remove_parts(user["stash"], recipe["requirements"])
         crafted = recipe["produces"]
         user["stash"].append(crafted)
@@ -141,9 +138,9 @@ class Craft(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         uid = str(interaction.user.id)
-        profiles = await load_file(USER_DATA) or {}
-        recipes  = await load_file(RECIPE_DATA) or {}
-        armor    = await load_file(ARMOR_DATA) or {}
+        profiles   = await load_file(USER_DATA) or {}
+        recipes    = await load_file(RECIPE_DATA) or {}
+        armor      = await load_file(ARMOR_DATA) or {}
         explosives = await load_file(EXPLOSIVE_DATA) or {}
 
         user = profiles.get(uid)
@@ -159,12 +156,37 @@ class Craft(commands.Cog):
         stash = Counter(user.get("stash", []))
         all_recipes = {**recipes, **armor, **explosives}
 
+        # 🧾 Prepare Blueprint + Buildable Display (like /stash)
+        buildables = []
+        for bp in blueprints:
+            recipe = all_recipes.get(bp.lower())
+            if not recipe:
+                continue
+            reqs = recipe.get("requirements", {})
+            can_build = all(stash.get(p, 0) >= q for p, q in reqs.items())
+            status = "✅ Build Ready" if can_build else "❌ Missing Parts"
+            buildables.append(f"{recipe['produces']} — {status}")
+
         embed = discord.Embed(
             title=f"🔧 {interaction.user.display_name}'s Blueprint Workshop",
             description="Click an item below to craft it if you have the parts.",
             color=0xf1c40f
         )
         embed.set_footer(text="WARLAB | SV13 Bot")
+
+        # 📘 Show owned blueprints
+        embed.add_field(
+            name="📘 Blueprints Owned",
+            value="\n".join(f"• {bp}" for bp in blueprints),
+            inline=False
+        )
+
+        # 🧰 Show buildable items
+        embed.add_field(
+            name="🧰 Buildable Items",
+            value="\n".join(buildables),
+            inline=False
+        )
 
         view = CraftView(uid, blueprints, stash, all_recipes)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
