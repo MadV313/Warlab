@@ -83,6 +83,7 @@ class CraftButton(discord.ui.Button):
             crafted = recipe["produces"]
             user["stash"].append(crafted)
             user.setdefault("crafted", []).append(crafted)
+            user["builds_completed"] = user.get("builds_completed", 0) + 1
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
 
