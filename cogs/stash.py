@@ -6,10 +6,10 @@ from discord import app_commands
 import json
 from collections import Counter
 
-USER_DATA_FILE = "data/user_profiles.json"
-ITEMS_MASTER_FILE = "data/items_master.json"
-ITEM_RECIPES_FILE = "data/item_recipes.json"
-ARMOR_RECIPES_FILE = "data/armor_blueprints.json"
+USER_DATA_FILE      = "data/user_profiles.json"
+ITEMS_MASTER_FILE   = "data/items_master.json"
+ITEM_RECIPES_FILE   = "data/item_recipes.json"
+ARMOR_RECIPES_FILE  = "data/armor_blueprints.json"
 EXPLOSIVE_RECIPES_FILE = "data/explosive_blueprints.json"
 
 # 🔴 Close Button (copied from Black Market)
@@ -44,13 +44,14 @@ class Stash(commands.Cog):
 
     @app_commands.command(name="stash", description="View your stash, coins, skins, and buildable items.")
     async def stash(self, interaction: discord.Interaction):
-        uid = str(interaction.user.id)
-        profiles = self.load_json(USER_DATA_FILE)
-        items_master = self.load_json(ITEMS_MASTER_FILE)
-        recipes = self.load_json(ITEM_RECIPES_FILE)
+        uid           = str(interaction.user.id)
+        profiles      = self.load_json(USER_DATA_FILE)
+        items_master  = self.load_json(ITEMS_MASTER_FILE)
+        recipes       = self.load_json(ITEM_RECIPES_FILE)
         armor_recipes = self.load_json(ARMOR_RECIPES_FILE)
         explosive_recipes = self.load_json(EXPLOSIVE_RECIPES_FILE)
 
+        # merge all recipe dictionaries into lowercase lookup table
         all_recipes = {}
         for source in (recipes, armor_recipes, explosive_recipes):
             for key, data in source.items():
@@ -61,24 +62,25 @@ class Stash(commands.Cog):
             await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        stash_items = Counter(user.get("stash", []))
-        blueprints = user.get("blueprints", [])
+        stash_items   = Counter(user.get("stash", []))
+        blueprints    = user.get("blueprints", [])
         equipped_skin = user.get("equipped_skin", "None")
-        coins = user.get("coins", 0)
+        coins         = user.get("coins", 0)
 
         grouped = {
-            "🔫 Gun Parts": [],
-            "🪖 Armor Parts": [],
-            "💣 Explosives": [],
-            "🛠️ Tools": [],
+            "🔫 Gun Parts"      : [],
+            "🪖 Armor Parts"    : [],
+            "💣 Explosives"     : [],
+            "🛠️ Tools"         : [],
             "🏚️ Workshop Skins": [],
-            "🎒 Misc": []
+            "🎒 Misc"           : []
         }
 
+        # group stash items
         for item, qty in stash_items.items():
-            info = items_master.get(item, {})
+            info      = items_master.get(item, {})
             item_type = info.get("type", "").lower()
-            label = f"{item} x{qty}"
+            label     = f"{item} x{qty}"
 
             if item_type == "gun_part":
                 grouped["🔫 Gun Parts"].append(label)
@@ -93,9 +95,11 @@ class Stash(commands.Cog):
             else:
                 grouped["🎒 Misc"].append(label)
 
+        # ── FIX: strip " Blueprint" before lookup ──────────────────────────
         buildables = []
         for blueprint in blueprints:
-            recipe = all_recipes.get(blueprint.lower())
+            core_name = blueprint.replace(" Blueprint", "").strip()    # ← added
+            recipe    = all_recipes.get(core_name.lower())             # ← uses stripped name
             if not recipe:
                 continue
             requirements = recipe.get("requirements", {})
@@ -103,6 +107,7 @@ class Stash(commands.Cog):
             status = "✅ Build Ready" if can_build else "❌ Missing Parts"
             buildables.append(f"{recipe['produces']} — {status}")
 
+        # embed construction
         embed = discord.Embed(
             title=f"🎒 {interaction.user.display_name}'s Stash",
             color=0x74c1f2
@@ -115,13 +120,13 @@ class Stash(commands.Cog):
         if blueprints:
             embed.add_field(
                 name="📘 Blueprints Owned",
-                value="\n".join([f"• {bp}" for bp in blueprints]),
+                value="\n".join(f"• {bp}" for bp in blueprints),
                 inline=False
             )
 
         if buildables:
             embed.add_field(
-                name="🧰 Buildable Weapons",
+                name="🧰 Buildable Items",
                 value="\n".join(buildables),
                 inline=False
             )
@@ -130,7 +135,7 @@ class Stash(commands.Cog):
         embed.add_field(name="🏚️ Equipped Workshop Skin", value=equipped_skin, inline=True)
 
         view = StashView()
-        msg = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        msg  = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         sent = await interaction.original_response()
         view.stored_messages = [sent]
 
