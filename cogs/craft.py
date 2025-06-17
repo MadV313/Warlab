@@ -94,6 +94,14 @@ class CraftButton(discord.ui.Button):
 
         try:
             await interaction.followup.send(embed=embed, ephemeral=True)
+
+            # ✅ Refresh the CraftView after state change
+            if hasattr(self.view, "stored_messages"):
+                updated_stash = Counter(user["stash"])
+                updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
+                updated_view.stored_messages = self.view.stored_messages
+                await self.view.stored_messages[0].edit(view=updated_view)
+
         except Exception as e:
             print(f"❌ Failed to send crafting followup: {e}")
             try:
