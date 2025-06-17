@@ -18,7 +18,7 @@ EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 class CraftButton(discord.ui.Button):
     def __init__(self, user_id, blueprint, enabled=True):
         self.user_id = user_id
-        self.blueprint = blueprint
+        self.blueprint = blueprint  # clean name
         label = f"🛠️ {blueprint}"
         super().__init__(
             label=label,
@@ -42,66 +42,49 @@ class CraftButton(discord.ui.Button):
         all_recipes = {**recipes, **armor, **explosives}
         user       = profiles.get(self.user_id)
 
-        print(f"📦 [CraftButton] Loaded profiles and blueprints for {self.user_id}")
         if not user:
-            print("❌ [CraftButton] User profile not found.")
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        blueprint_name = self.blueprint
+        blueprint_name = f"{self.blueprint} Blueprint"
         owned_blueprints = user.get("blueprints", [])
-        print(f"📘 [CraftButton] Owned blueprints: {owned_blueprints}")
-
-        if blueprint_name not in owned_blueprints and f"{blueprint_name} Blueprint" not in owned_blueprints:
+        if blueprint_name not in owned_blueprints:
             print(f"🔒 [CraftButton] Missing blueprint: {blueprint_name}")
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
-        item_key = blueprint_name.lower()
+        item_key = self.blueprint.lower()
         recipe = all_recipes.get(item_key)
-        print(f"📐 [CraftButton] Fetched recipe for {item_key}: {recipe}")
         if not recipe:
-            print(f"❌ [CraftButton] Recipe not found: {item_key}")
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
         prestige = user.get("prestige", 0)
-        print(f"🎖️ [CraftButton] User prestige: {prestige}")
         if item_key in armor and not can_craft_tactical(prestige):
-            print(f"🔒 [CraftButton] Insufficient prestige for tactical: {prestige}")
             await interaction.followup.send("🔒 Requires Prestige II for tactical gear.", ephemeral=True)
             return
         if item_key in explosives and not can_craft_explosives(prestige):
-            print(f"🔒 [CraftButton] Insufficient prestige for explosives: {prestige}")
             await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
         stash = Counter(user.get("stash", []))
-        print(f"🧰 [CraftButton] Current stash: {dict(stash)}")
         if not has_required_parts(stash, recipe["requirements"]):
-            print(f"❌ [CraftButton] Missing parts for {self.blueprint}")
             missing = [
                 f"{qty - stash.get(p, 0)}× {p}"
                 for p, qty in recipe["requirements"].items()
                 if stash.get(p, 0) < qty
             ]
-            print(f"🧾 [CraftButton] Missing parts: {missing}")
             await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
-        # ✅ Perform crafting
-        print(f"✅ [CraftButton] Crafting {self.blueprint} now...")
         try:
-            print(f"🔧 [CraftButton] Removing parts: {recipe['requirements']}")
             remove_parts(user["stash"], recipe["requirements"])
             crafted = recipe["produces"]
-            print(f"🎁 [CraftButton] Crafted item: {crafted}")
 
             user["stash"].append(crafted)
             user.setdefault("crafted", []).append(crafted)
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
-            print(f"💾 [CraftButton] Profile updated and saved for user {self.user_id}")
 
             embed = discord.Embed(
                 title="✅ Crafting Successful",
@@ -113,24 +96,20 @@ class CraftButton(discord.ui.Button):
             embed.set_footer(text="WARLAB | SV13 Bot")
 
             await interaction.followup.send(embed=embed, ephemeral=True)
-            print("📨 [CraftButton] Sent crafting confirmation embed.")
 
-            # ✅ Refresh the CraftView after state change
             if hasattr(self.view, "stored_messages"):
                 updated_stash = Counter(user["stash"])
                 updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
                 updated_view.stored_messages = self.view.stored_messages
                 await self.view.stored_messages[0].edit(view=updated_view)
-                print("🔁 [CraftButton] Refreshed craft view.")
 
         except Exception as e:
             print(f"❌ [CraftButton] Exception occurred: {e}")
             try:
                 await interaction.user.send("✅ Crafting succeeded, but view update failed.")
             except:
-                print("❌ [CraftButton] Could not DM user after fail.")
+                pass
 
-# ❌ Close button
 class CloseButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
@@ -142,7 +121,6 @@ class CloseButton(discord.ui.Button):
             await self.view.stored_messages[0].edit(content="❌ Crafting closed.", embed=None, view=None)
         await interaction.response.defer()
 
-# 🧰 View: shows craftable and locked buttons
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
@@ -150,14 +128,15 @@ class CraftView(discord.ui.View):
 
         count = 0
         for bp in blueprints:
-            key = bp.lower()
+            core_name = bp.replace(" Blueprint", "").strip()
+            key = core_name.lower()
             recipe = all_recipes.get(key)
             if not recipe:
                 continue
 
             reqs = recipe.get("requirements", {})
             can_build = all(stash_counter.get(p, 0) >= q for p, q in reqs.items())
-            self.add_item(CraftButton(user_id, bp, enabled=can_build))
+            self.add_item(CraftButton(user_id, core_name, enabled=can_build))
 
             count += 1
             if count >= 20:
@@ -165,7 +144,6 @@ class CraftView(discord.ui.View):
 
         self.add_item(CloseButton())
 
-# 📘 Slash Command Entry
 class Craft(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -193,7 +171,6 @@ class Craft(commands.Cog):
         stash = Counter(user.get("stash", []))
         all_recipes = {**recipes, **armor, **explosives}
 
-        # 🧾 Prepare Blueprint + Buildable Display
         grouped_buildables = {
             "🔫 Weapons": [],
             "🪖 Armor": [],
@@ -201,9 +178,12 @@ class Craft(commands.Cog):
         }
 
         for bp in blueprints:
-            recipe = all_recipes.get(bp.lower())
+            core_name = bp.replace(" Blueprint", "").strip()
+            key = core_name.lower()
+            recipe = all_recipes.get(key)
             if not recipe:
                 continue
+
             reqs = recipe.get("requirements", {})
             can_build = all(stash.get(p, 0) >= q for p, q in reqs.items())
             if can_build:
@@ -216,9 +196,9 @@ class Craft(commands.Cog):
                 ]
                 line = f"{recipe['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
 
-            if bp.lower() in explosives:
+            if key in explosives:
                 grouped_buildables["💣 Explosives"].append(line)
-            elif bp.lower() in armor:
+            elif key in armor:
                 grouped_buildables["🪖 Armor"].append(line)
             else:
                 grouped_buildables["🔫 Weapons"].append(line)
@@ -230,14 +210,12 @@ class Craft(commands.Cog):
         )
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        # 📘 Show owned blueprints
         embed.add_field(
             name="📘 Blueprints Owned",
             value="\n".join(f"• {bp}" for bp in blueprints),
             inline=False
         )
 
-        # 🧰 Show grouped buildables
         for group_name, items in grouped_buildables.items():
             if items:
                 embed.add_field(
