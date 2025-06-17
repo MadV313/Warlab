@@ -156,16 +156,35 @@ class Craft(commands.Cog):
         stash = Counter(user.get("stash", []))
         all_recipes = {**recipes, **armor, **explosives}
 
-        # 🧾 Prepare Blueprint + Buildable Display (like /stash)
-        buildables = []
+        # 🧾 Prepare Blueprint + Buildable Display
+        grouped_buildables = {
+            "🔫 Weapons": [],
+            "🪖 Armor": [],
+            "💣 Explosives": []
+        }
+
         for bp in blueprints:
             recipe = all_recipes.get(bp.lower())
             if not recipe:
                 continue
             reqs = recipe.get("requirements", {})
             can_build = all(stash.get(p, 0) >= q for p, q in reqs.items())
-            status = "✅ Build Ready" if can_build else "❌ Missing Parts"
-            buildables.append(f"{recipe['produces']} — {status}")
+            if can_build:
+                line = f"{recipe['produces']} — ✅ Build Ready"
+            else:
+                missing = [
+                    f"{q - stash.get(p, 0)}× {p}" 
+                    for p, q in reqs.items() 
+                    if stash.get(p, 0) < q
+                ]
+                line = f"{recipe['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
+
+            if bp.lower() in explosives:
+                grouped_buildables["💣 Explosives"].append(line)
+            elif bp.lower() in armor:
+                grouped_buildables["🪖 Armor"].append(line)
+            else:
+                grouped_buildables["🔫 Weapons"].append(line)
 
         embed = discord.Embed(
             title=f"🔧 {interaction.user.display_name}'s Blueprint Workshop",
@@ -181,12 +200,14 @@ class Craft(commands.Cog):
             inline=False
         )
 
-        # 🧰 Show buildable items
-        embed.add_field(
-            name="🧰 Buildable Items",
-            value="\n".join(buildables),
-            inline=False
-        )
+        # 🧰 Show grouped buildables
+        for group_name, items in grouped_buildables.items():
+            if items:
+                embed.add_field(
+                    name=group_name,
+                    value="\n".join(items),
+                    inline=False
+                )
 
         view = CraftView(uid, blueprints, stash, all_recipes)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
