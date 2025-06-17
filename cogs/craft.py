@@ -105,11 +105,11 @@ class CraftDropdown(discord.ui.Select):
 class CraftView(discord.ui.View):
     def __init__(self, user_id: str, blueprints: list[str]):
         super().__init__(timeout=90)
-        opts = [
+        self.dropdown = CraftDropdown(user_id, [
             discord.SelectOption(label=f"{bp} Blueprint", value=bp)
             for bp in blueprints[:25]
-        ]
-        self.add_item(CraftDropdown(user_id, opts))
+        ])
+        self.add_item(self.dropdown)
 
 # ────────────────────────────────────────────────────────────────
 class Craft(commands.Cog):
