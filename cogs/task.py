@@ -16,7 +16,7 @@ RECIPE_PATHS         = [
     "data/armor_blueprints.json",
     "data/explosive_blueprints.json"
 ]
-EMOJI_35 = "<a:emoji_35:1372056026840305757>"
+EMOJI_35 = "<:emoji_35:1372056026840305757>"
 
 DAILY_TASKS = [
     "Cleared an infected nest outside Topolin.",
