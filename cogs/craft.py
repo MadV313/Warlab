@@ -145,7 +145,7 @@ class Craft(commands.Cog):
 
         user = profiles.get(uid)
         if not user:
-            await interaction.followup.send("❌ You need a profile. Use `/register` first.", ephemeral=True)
+            await interaction.followup.send("❌ You don't have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
         blueprints = user.get("blueprints", [])
