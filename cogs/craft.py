@@ -55,7 +55,9 @@ class CraftButton(discord.ui.Button):
 
         item_key = self.blueprint.lower()
         recipe = all_recipes.get(item_key)
-        if not recipe:
+
+        if not recipe or not isinstance(recipe, dict):
+            print(f"❌ [CraftButton] Invalid recipe format: {item_key} => {type(recipe)}")
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
