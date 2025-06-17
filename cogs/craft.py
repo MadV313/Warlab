@@ -94,10 +94,7 @@ class CraftButton(discord.ui.Button):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        if hasattr(self.view, "stored_messages"):
-            await self.view.stored_messages[0].edit(embed=embed, view=None)
-        else:
-            await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ❌ Close button
 class CloseButton(discord.ui.Button):
