@@ -18,8 +18,8 @@ EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 class CraftButton(discord.ui.Button):
     def __init__(self, user_id, blueprint, enabled=True):
         self.user_id = user_id
-        self.blueprint = blueprint
-        label = f"🛠️ {blueprint}"
+        self.blueprint = blueprint  # e.g., "Mlock"
+        label = f"🛠️ {blueprint} Blueprint"
         super().__init__(
             label=label,
             style=discord.ButtonStyle.success if enabled else discord.ButtonStyle.secondary,
@@ -44,13 +44,12 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        blueprint_name = self.blueprint  # e.g., "Mlock"
-        blueprint_entry = f"{blueprint_name} Blueprint"
-        if blueprint_entry not in user.get("blueprints", []):
-            await interaction.followup.send(f"🔒 You must unlock **{blueprint_entry}** first.", ephemeral=True)
+        # Blueprint ownership check (NO "Blueprint" suffix used in saved data)
+        if self.blueprint not in user.get("blueprints", []):
+            await interaction.followup.send(f"🔒 You must unlock **{self.blueprint}** first.", ephemeral=True)
             return
 
-        item_key = blueprint_name.lower()
+        item_key = self.blueprint.lower()
         recipe = all_recipes.get(item_key)
         if not recipe:
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
@@ -65,6 +64,7 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
+        # Inventory check
         stash = Counter(user.get("stash", []))
         if not has_required_parts(stash, recipe["requirements"]):
             missing = [
@@ -108,7 +108,6 @@ class CloseButton(discord.ui.Button):
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
-        self.stored_messages = []
 
         count = 0
         for bp in blueprints:
