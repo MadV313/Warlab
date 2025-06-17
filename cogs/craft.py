@@ -1,4 +1,4 @@
-# cogs/craft.py — Dynamic blueprint crafting with single-message flow
+# cogs/craft.py — Button-based blueprint crafting with single-message response
 
 import discord
 from discord.ext import commands
@@ -14,75 +14,69 @@ RECIPE_DATA     = "data/item_recipes.json"
 ARMOR_DATA      = "data/armor_blueprints.json"
 EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 
-# ────────────────────────────────────────────────────────────────
-class CraftDropdown(discord.ui.Select):
-    def __init__(self, user_id: str, options):
+# 🔘 Craft Button (1 per blueprint)
+class CraftButton(discord.ui.Button):
+    def __init__(self, user_id, blueprint, enabled=True):
         self.user_id = user_id
+        self.blueprint = blueprint
+        label = f"🛠️ {blueprint}"
         super().__init__(
-            placeholder="Select a blueprint to craft…",
-            min_values=1,
-            max_values=1,
-            options=options
+            label=label,
+            style=discord.ButtonStyle.success if enabled else discord.ButtonStyle.secondary,
+            disabled=not enabled
         )
 
     async def callback(self, interaction: discord.Interaction):
-        # Ownership check ────────────────────────────
         if str(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("⚠️ Not your menu.", ephemeral=True)
+            await interaction.response.send_message("⚠️ This isn’t your crafting menu.", ephemeral=True)
             return
 
-        item_name = self.values[0]            # clean: "Mlock"
         await interaction.response.defer(ephemeral=True)
 
-        # Load data ─────────────────────────────────
+        # Load files
         profiles   = await load_file(USER_DATA) or {}
         recipes    = await load_file(RECIPE_DATA) or {}
         armor      = await load_file(ARMOR_DATA) or {}
         explosives = await load_file(EXPLOSIVE_DATA) or {}
         user       = profiles.get(self.user_id)
+        all_recipes = {**recipes, **armor, **explosives}
 
         if not user:
-            await interaction.response.edit_message(content="❌ Profile not found.", view=None)
+            await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        # Blueprint ownership check
-        if item_name not in user.get("blueprints", []):
-            await interaction.response.edit_message(
-                content=f"🔒 You must unlock **{item_name} Blueprint** first.",
-                view=None
-            )
-            return
+        blueprint = self.blueprint
+        item_key  = blueprint.lower()
+        recipe    = all_recipes.get(item_key)
 
-        item_key = item_name.lower()
-        recipe   = recipes.get(item_key)
         if not recipe:
-            await interaction.response.edit_message(content="❌ Unknown / invalid blueprint.", view=None)
+            await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
         # Prestige gates
         prestige = user.get("prestige", 0)
         if item_key in armor and not can_craft_tactical(prestige):
-            await interaction.response.edit_message(content="🔒 Prestige II required for tactical gear.", view=None)
+            await interaction.followup.send("🔒 Requires Prestige II for tactical gear.", ephemeral=True)
             return
         if item_key in explosives and not can_craft_explosives(prestige):
-            await interaction.response.edit_message(content="🔒 Prestige III required for explosives.", view=None)
+            await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
-        # Parts check
-        stash_counter = Counter(user.get("stash", []))
-        if not has_required_parts(stash_counter, recipe["requirements"]):
+        # Inventory check
+        stash = Counter(user.get("stash", []))
+        if not has_required_parts(stash, recipe["requirements"]):
             missing = [
-                f"{qty - stash_counter.get(p, 0)}× {p}"
+                f"{qty - stash.get(p, 0)}× {p}"
                 for p, qty in recipe["requirements"].items()
-                if stash_counter.get(p, 0) < qty
+                if stash.get(p, 0) < qty
             ]
-            await interaction.response.edit_message(
-                content="❌ Missing parts:\n• " + "\n• ".join(missing),
-                view=None
+            await interaction.followup.send(
+                "❌ Missing parts:\n• " + "\n• ".join(missing),
+                ephemeral=True
             )
             return
 
-        # Crafting ───────────────────────────────────
+        # Craft it
         remove_parts(user["stash"], recipe["requirements"])
         crafted = recipe["produces"]
         user["stash"].append(crafted)
@@ -99,19 +93,42 @@ class CraftDropdown(discord.ui.Select):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"),  inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        await interaction.response.edit_message(content="", embed=embed, view=None)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-# ────────────────────────────────────────────────────────────────
+# ❌ Close button
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
+
+    async def callback(self, interaction: discord.Interaction):
+        for msg in getattr(self.view, "stored_messages", []):
+            await msg.edit(content="❌ Crafting closed.", embed=None, view=None)
+        await interaction.response.defer()
+
+# 🧰 View: shows craftable and locked buttons
 class CraftView(discord.ui.View):
-    def __init__(self, user_id: str, blueprints: list[str]):
+    def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
-        self.dropdown = CraftDropdown(user_id, [
-            discord.SelectOption(label=f"{bp} Blueprint", value=bp)
-            for bp in blueprints[:25]
-        ])
-        self.add_item(self.dropdown)
+        self.stored_messages = []
 
-# ────────────────────────────────────────────────────────────────
+        count = 0
+        for bp in blueprints:
+            key = bp.lower()
+            recipe = all_recipes.get(key)
+            if not recipe:
+                continue
+
+            reqs = recipe.get("requirements", {})
+            can_build = all(stash_counter.get(p, 0) >= q for p, q in reqs.items())
+            self.add_item(CraftButton(user_id, bp, enabled=can_build))
+
+            count += 1
+            if count >= 20:
+                break
+
+        self.add_item(CloseButton())
+
+# 📘 Slash Command Entry
 class Craft(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -120,24 +137,36 @@ class Craft(commands.Cog):
     async def craft(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-        uid       = str(interaction.user.id)
-        profiles  = await load_file(USER_DATA) or {}
-        profile   = profiles.get(uid)
+        uid = str(interaction.user.id)
+        profiles = await load_file(USER_DATA) or {}
+        recipes  = await load_file(RECIPE_DATA) or {}
+        armor    = await load_file(ARMOR_DATA) or {}
+        explosives = await load_file(EXPLOSIVE_DATA) or {}
 
-        if not profile:
+        user = profiles.get(uid)
+        if not user:
             await interaction.followup.send("❌ You need a profile. Use `/register` first.", ephemeral=True)
             return
 
-        blueprints = profile.get("blueprints", [])
+        blueprints = user.get("blueprints", [])
         if not blueprints:
-            await interaction.followup.send("🔒 You own no blueprints yet. Visit `/blackmarket`.", ephemeral=True)
+            await interaction.followup.send("🔒 You don’t own any blueprints. Visit `/blackmarket`.", ephemeral=True)
             return
 
-        await interaction.followup.send(
-            "🛠️ Choose an item to craft:",
-            view=CraftView(uid, blueprints),
-            ephemeral=True
+        stash = Counter(user.get("stash", []))
+        all_recipes = {**recipes, **armor, **explosives}
+
+        embed = discord.Embed(
+            title=f"🔧 {interaction.user.display_name}'s Blueprint Workshop",
+            description="Click an item below to craft it if you have the parts.",
+            color=0xf1c40f
         )
+        embed.set_footer(text="WARLAB | SV13 Bot")
+
+        view = CraftView(uid, blueprints, stash, all_recipes)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        sent = await interaction.original_response()
+        view.stored_messages = [sent]
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
