@@ -58,7 +58,7 @@ class TurnInButton(discord.ui.Button):
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
             user_data["coins"]    += coins
-            user_data["builds_completed"] = user_data.get("builds_completed", 0) + 1  # ★ keeps /rank in sync
+            user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
             # ── log entry
             logs.setdefault(self.user_id, []).append({
