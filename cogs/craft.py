@@ -45,7 +45,10 @@ class CraftButton(discord.ui.Button):
             return
 
         blueprint_name = self.blueprint  # e.g., "Mlock"
-        if blueprint_name not in user.get("blueprints", []):
+        owned_blueprints = user.get("blueprints", [])
+
+        # ✅ FIX: support both naming patterns
+        if blueprint_name not in owned_blueprints and f"{blueprint_name} Blueprint" not in owned_blueprints:
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
@@ -55,7 +58,7 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
 
-        # Prestige gates
+        # Prestige check
         prestige = user.get("prestige", 0)
         if item_key in armor and not can_craft_tactical(prestige):
             await interaction.followup.send("🔒 Requires Prestige II for tactical gear.", ephemeral=True)
@@ -74,7 +77,7 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
-        # Craft
+        # ✅ Craft
         remove_parts(user["stash"], recipe["requirements"])
         crafted = recipe["produces"]
         user["stash"].append(crafted)
