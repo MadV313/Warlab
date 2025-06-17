@@ -95,7 +95,7 @@ class CraftDropdown(discord.ui.Select):
         embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.message.edit(content="", embed=embed, view=None)
 
 # ──────────────────────────────────────────────────────────────────
 
