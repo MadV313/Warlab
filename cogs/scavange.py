@@ -45,7 +45,6 @@ class Scavenge(commands.Cog):
             profiles = await load_file(USER_DATA) or {}
             print(f"📁 Loaded user_profiles.json: {list(profiles.keys())}")
 
-            # ❌ Registration check
             if user_id not in profiles:
                 await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
                 return
@@ -67,81 +66,74 @@ class Scavenge(commands.Cog):
                     pulls += 1
                     user["daily_loot_boost_used"] = now.strftime("%Y-%m-%d")
 
-            # Cooldown: 3 hours = 180 minutes
+            # Cooldown
             cooldown_min = 180
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
                     remaining = (last_time + timedelta(minutes=cooldown_min)) - now
                     mins = int(remaining.total_seconds() // 60)
-                    print(f"⏳ Cooldown active: {mins} mins remaining")
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
             # Load item pool and weights
-            try:
-                item_catalog = await load_file(ITEMS_MASTER)
-                rarity_weights = await load_file(RARITY_WEIGHTS)
-                if not isinstance(rarity_weights, dict):
-                    raise ValueError("rarity_weights.json must be a JSON object with string keys and numeric values.")
-            except Exception as e:
-                raise ValueError(f"Error loading loot files: {e}")
-
-            print(f"📦 Item catalog size: {len(item_catalog)}")
-            print(f"📊 Rarity weights: {rarity_weights}")
-
+            item_catalog = await load_file(ITEMS_MASTER)
+            rarity_weights = await load_file(RARITY_WEIGHTS)
             loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if isinstance(v, dict) and "rarity" in v]
-            if not loot_pool:
-                raise ValueError("Loot pool is empty after parsing items.")
 
             found = []
+            crafted_found = []  # 🧰 For turn-in-ready detection
             for i in range(pulls):
                 item = weighted_choice(loot_pool, rarity_weights)
                 if item:
-                    item_name = item["item"]
-                    print(f"🎯 Pull {i+1}: {item_name}")
-                    found.append(item_name)
+                    name = item["item"]
+                    found.append(name)
+                    item_type = item_catalog.get(name, {}).get("type", "")
+                    if item_type == "crafted":
+                        crafted_found.append(name)
+
+            # Weekend bonus
+            if is_weekend_boost_active():
+                bonus = weighted_choice(loot_pool, rarity_weights)
+                if bonus:
+                    name = bonus["item"]
+                    found.append(name)
+                    if item_catalog.get(name, {}).get("type", "") == "crafted":
+                        crafted_found.append(name)
 
             coins_found = random.randint(5, 25)
             if boosts.get("coin_doubler"):
                 coins_found *= 2
-                print(f"💰 Coin Doubler activated! Final coins: {coins_found}")
 
-            user["coins"] += coins_found
-
-            # Weekend bonus
-            if is_weekend_boost_active():
-                print("🎉 Weekend bonus triggered")
-                bonus = weighted_choice(loot_pool, rarity_weights)
-                if bonus:
-                    bonus_name = bonus["item"]
-                    print(f"🎁 Weekend Bonus: {bonus_name}")
-                    found.append(bonus_name)
-
-            # Update profile
             user["stash"].extend(found)
+            user["coins"] += coins_found
             user["last_scavenge"] = now.isoformat()
             user["scavenges"] += 1
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
+            # 🧾 Format embed with 🧰 marker
             mission_text = random.choice(SCAVENGE_MISSIONS)
+            display_loot = []
+            for item in found:
+                if item in crafted_found:
+                    display_loot.append(f"🧰 {item}")
+                else:
+                    display_loot.append(item)
 
-            if found:
-                print(f"📦 Items found: {found} + 💰 {coins_found} coins")
-                await interaction.followup.send(
-                    f"📋 {mission_text}\n\n"
-                    f"🔎 You scavenged and found: **{', '.join(found)}**\n"
-                    f"💰 You also found **{coins_found} coins!**",
-                    ephemeral=True
-                )
-            else:
-                print("📭 No items found, but coins granted")
-                await interaction.followup.send(
-                    f"📋 {mission_text}\n\n"
-                    f"🔎 You didn’t find any items, but gained 💰 **{coins_found} coins!**",
-                    ephemeral=True
-                )
+            await interaction.followup.send(
+                f"📋 {mission_text}\n\n"
+                f"🔎 You scavenged and found: **{', '.join(display_loot)}**\n"
+                f"💰 You also found **{coins_found} coins!**",
+                ephemeral=True
+            )
+
+            if crafted_found:
+                for turnin_item in crafted_found:
+                    await interaction.followup.send(
+                        f"🚨 Turn-in ready item pulled! Use `/turnin` to redeem: **{turnin_item}**",
+                        ephemeral=True
+                    )
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
