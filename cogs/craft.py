@@ -33,7 +33,6 @@ class CraftButton(discord.ui.Button):
 
         await interaction.response.defer(ephemeral=True)
 
-        # Load files
         profiles   = await load_file(USER_DATA) or {}
         recipes    = await load_file(RECIPE_DATA) or {}
         armor      = await load_file(ARMOR_DATA) or {}
@@ -45,10 +44,14 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
             return
 
-        blueprint = self.blueprint
-        item_key  = blueprint.lower()
-        recipe    = all_recipes.get(item_key)
+        blueprint_name = self.blueprint  # e.g., "Mlock"
+        blueprint_entry = f"{blueprint_name} Blueprint"
+        if blueprint_entry not in user.get("blueprints", []):
+            await interaction.followup.send(f"🔒 You must unlock **{blueprint_entry}** first.", ephemeral=True)
+            return
 
+        item_key = blueprint_name.lower()
+        recipe = all_recipes.get(item_key)
         if not recipe:
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
@@ -62,7 +65,6 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("🔒 Requires Prestige III for explosives.", ephemeral=True)
             return
 
-        # Inventory check
         stash = Counter(user.get("stash", []))
         if not has_required_parts(stash, recipe["requirements"]):
             missing = [
@@ -70,13 +72,10 @@ class CraftButton(discord.ui.Button):
                 for p, qty in recipe["requirements"].items()
                 if stash.get(p, 0) < qty
             ]
-            await interaction.followup.send(
-                "❌ Missing parts:\n• " + "\n• ".join(missing),
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ Missing parts:\n• " + "\n• ".join(missing), ephemeral=True)
             return
 
-        # Craft it
+        # Craft
         remove_parts(user["stash"], recipe["requirements"])
         crafted = recipe["produces"]
         user["stash"].append(crafted)
@@ -89,8 +88,8 @@ class CraftButton(discord.ui.Button):
             description=f"You crafted **{crafted}**!",
             color=0x2ecc71
         )
-        embed.add_field(name="Type",   value=recipe.get("type",   "Unknown"), inline=True)
-        embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"),  inline=True)
+        embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
+        embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
         embed.set_footer(text="WARLAB | SV13 Bot")
 
         await interaction.followup.send(embed=embed, ephemeral=True)
@@ -109,6 +108,7 @@ class CloseButton(discord.ui.Button):
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
+        self.stored_messages = []
 
         count = 0
         for bp in blueprints:
@@ -144,7 +144,7 @@ class Craft(commands.Cog):
 
         user = profiles.get(uid)
         if not user:
-            await interaction.followup.send("❌ You don't have a profile yet. Please use `/register` first.", ephemeral=True)
+            await interaction.followup.send("❌ You don't have a profile yet. Use `/register` first.", ephemeral=True)
             return
 
         blueprints = user.get("blueprints", [])
@@ -164,6 +164,8 @@ class Craft(commands.Cog):
 
         view = CraftView(uid, blueprints, stash, all_recipes)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        sent = await interaction.original_response()
+        view.stored_messages = [sent]
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
