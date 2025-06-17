@@ -19,8 +19,8 @@ RANK_TITLES = {
 }
 
 SPECIAL_REWARDS = {
-    1: {"title": "💉 Weaponsmith Elite", "color": 0x3cb4fc},
-    2: {"title": "🔬 Scavenger Elite",    "color": 0x88e0a0},
+    1: {"title": "🔬 Scavenger Elite", "color": 0x3cb4fc},
+    2: {"title": "💉 Weaponsmith Elite",    "color": 0x88e0a0},
     3: {"title": "☣️ Raider Elite",       "color": 0x880808}
 }
 
@@ -216,7 +216,7 @@ class Rank(commands.Cog):
         level     = user.get("rank_level", 0)
         coins     = user.get("coins", 0)
         builds    = user.get("builds_completed", 0)
-        turnins   = user.get("turnins", 0)
+        turnins   = user.get("turnins_completed", 0)
         boosts    = user.get("boosts", {})
         class_id  = user.get("special_class")
 
