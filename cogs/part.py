@@ -1,4 +1,4 @@
-# cogs/part.py — Fully Inline /part Command with Dynamic Field Autocomplete
+# cogs/part.py — Fully Inline /part Command with Master Reference Lookup
 
 import discord
 from discord.ext import commands
@@ -7,15 +7,7 @@ from typing import Literal
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-GUN_PARTS = "data/item_recipes.json"
-ARMOR_PARTS = "data/armor_blueprints.json"
-EXPLOSIVE_PARTS = "data/explosive_blueprints.json"
-
-CATEGORY_MAP = {
-    "Weapons": GUN_PARTS,
-    "Armor": ARMOR_PARTS,
-    "Explosives": EXPLOSIVE_PARTS
-}
+PART_MASTER_REF = "data/part_master_reference.json"
 
 class PartManager(commands.Cog):
     def __init__(self, bot):
@@ -26,12 +18,8 @@ class PartManager(commands.Cog):
         if category in self.cached_parts:
             return self.cached_parts[category]
 
-        data = await load_file(CATEGORY_MAP[category]) or {}
-        part_set = set()
-        for item in data.values():
-            part_set.update(item.get("required_parts", []))
-
-        self.cached_parts[category] = sorted(part_set)
+        ref = await load_file(PART_MASTER_REF) or {}
+        self.cached_parts[category] = ref.get(category, [])
         return self.cached_parts[category]
 
     @app_commands.command(name="part", description="Admin: Give or remove parts from a player.")
