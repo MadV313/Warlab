@@ -38,8 +38,8 @@ class CraftButton(discord.ui.Button):
         recipes    = await load_file(RECIPE_DATA) or {}
         armor      = await load_file(ARMOR_DATA) or {}
         explosives = await load_file(EXPLOSIVE_DATA) or {}
-        user       = profiles.get(self.user_id)
         all_recipes = {**recipes, **armor, **explosives}
+        user       = profiles.get(self.user_id)
 
         if not user:
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
@@ -101,15 +101,14 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
 
     async def callback(self, interaction: discord.Interaction):
-        for msg in getattr(self.view, "stored_messages", []):
-            await msg.edit(content="❌ Crafting closed.", embed=None, view=None)
-        await interaction.response.defer()
+        for child in self.view.children:
+            child.disabled = True
+        await interaction.message.edit(content="❌ Crafting closed.", embed=None, view=self.view)
 
 # 🧰 View: shows craftable and locked buttons
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
         super().__init__(timeout=90)
-        self.stored_messages = []
 
         count = 0
         for bp in blueprints:
@@ -165,8 +164,6 @@ class Craft(commands.Cog):
 
         view = CraftView(uid, blueprints, stash, all_recipes)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        sent = await interaction.original_response()
-        view.stored_messages = [sent]
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
