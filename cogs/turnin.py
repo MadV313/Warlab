@@ -28,7 +28,7 @@ TURNIN_ELIGIBLE = [
 class TurnInButton(discord.ui.Button):
     def __init__(self, item_name: str, user_id: str):
         super().__init__(label=f"Turn In: {item_name}", style=discord.ButtonStyle.success)
-        self.item_name = item_name
+        self.item_name = item_name.strip()
         self.user_id   = user_id
 
     async def callback(self, interaction: discord.Interaction):
@@ -41,8 +41,11 @@ class TurnInButton(discord.ui.Button):
             logs     = await load_file(TURNIN_LOG) or {}
             user_data = profiles.get(self.user_id)
 
-            crafted_list = user_data.get("crafted", []) if user_data else []
+            crafted_list = [x.strip() for x in user_data.get("crafted", [])] if user_data else []
+
             if not user_data or self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
+                print(f"[❌ TurnIn DEBUG] Crafted List: {crafted_list}")
+                print(f"[❌ TurnIn DEBUG] Requested Item: {self.item_name}")
                 await interaction.response.send_message(
                     "❌ This item is no longer eligible or has already been turned in.",
                     ephemeral=True
@@ -76,7 +79,6 @@ class TurnInButton(discord.ui.Button):
             await save_file(USER_DATA,  profiles)
             await save_file(TURNIN_LOG, logs)
 
-            # ✅ Success Embed
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
                 description=(f"**{self.item_name}** submitted!\n\n"
@@ -167,7 +169,7 @@ class TurnIn(commands.Cog):
             )
             return
 
-        crafted = user_data.get("crafted", [])
+        crafted = [x.strip() for x in user_data.get("crafted", [])]
         eligible = [item for item in crafted if item in TURNIN_ELIGIBLE]
 
         if not eligible:
