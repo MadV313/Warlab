@@ -26,41 +26,40 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # ✅ Caching: If file already exists, skip regeneration
+    # ✅ Caching: Skip if already exists
     if os.path.exists(output_path):
         print(f"✅ Using cached stash image for {user_id}")
         return output_path
 
     try:
-        # 🏠 Load base image
         base_img_path = os.path.join(base_path, BASE_IMAGE)
         if not os.path.exists(base_img_path):
             raise FileNotFoundError(f"Missing base image: {base_img_path}")
 
         base = Image.open(base_img_path).convert("RGBA")
         base_size = base.size
+        print(f"🎨 Base size: {base_size}")
 
-        # 🔁 Layer each enabled reinforcement
-        for key in LAYER_FILES:
+        for key, filename in LAYER_FILES.items():
             readable_name = key.replace("_", " ").title()
             if reinforcements.get(readable_name, 0) > 0:
-                layer_path = os.path.join(base_path, LAYER_FILES[key])
+                layer_path = os.path.join(base_path, filename)
                 if not os.path.exists(layer_path):
                     print(f"⚠️ Missing layer file: {layer_path}")
                     continue
 
                 overlay = Image.open(layer_path).convert("RGBA")
+                print(f"📌 Adding: {filename} ({overlay.size})")
 
-                # 🧩 Resize if needed
                 if overlay.size != base_size:
-                    print(f"🔧 Resizing {key} from {overlay.size} → {base_size}")
                     overlay = overlay.resize(base_size)
+                    print(f"🔧 Resized {key} to match base size")
 
-                # ✨ Fade-in enhancement
                 faded = ImageEnhance.Brightness(overlay).enhance(1.15)
-                base = Image.alpha_composite(base, faded)
 
-        # 💾 Save the final composite
+                # ✅ Composite with alpha masking
+                base.alpha_composite(faded)
+
         base.save(output_path)
         print(f"📦 Saved new stash image: {output_path}")
         return output_path
@@ -69,8 +68,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         print(f"❌ Error generating stash image: {e}")
         return None
 
-
-# === Local Debug Test ===
+# === Local Test ===
 if __name__ == "__main__":
     test_user_id = "1234567890"
     test_reinforcements = {
