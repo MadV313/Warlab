@@ -108,22 +108,14 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        visuals = get_skin_visuals(profile, catalog)
-        visual_embed = discord.Embed(
-            title=f"{visuals['emoji']} Stash Layout",
-            description=f"```\n{render_stash_visual(reinforcements)}\n```",
-            color=visuals['color']
-        )
-        visual_embed.set_footer(text="Visual representation of your fortified stash.")
-        await self.view.stored_messages[0].edit(embed=visual_embed)
-
+        # Update buttons (view) only
         new_view = ReinforcementView(profile)
         new_view.stored_messages = self.view.stored_messages
         await self.view.stored_messages[1].edit(view=new_view)
 
+        # Render updated image and embed
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
         remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
-
         tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
@@ -142,12 +134,12 @@ class ReinforceButton(discord.ui.Button):
             confirm.set_image(url="attachment://stash.png")
             confirm.set_footer(text="WARLAB | SV13 Bot")
 
-            # ✅ Update the original stash preview message instead of spamming new ones
-            await self.view.stored_messages[0].edit(embed=confirm, attachments=[file])
+            # ✅ Only update the second message (image message)
+            await self.view.stored_messages[1].edit(embed=confirm, attachments=[file], view=new_view)
 
         except Exception as e:
             print(f"❌ Error generating stash image: {e}")
-            await self.view.stored_messages[0].edit(content="⚠️ Reinforcement saved, but image failed to render.")
+            await self.view.stored_messages[1].edit(content="⚠️ Reinforcement saved, but image failed to render.")
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
