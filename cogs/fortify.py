@@ -108,14 +108,12 @@ class ReinforceButton(discord.ui.Button):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        # Update buttons (view) only
-        new_view = ReinforcementView(profile)
-        new_view.stored_messages = self.view.stored_messages
-        await self.view.stored_messages[1].edit(view=new_view)
+        visuals = get_skin_visuals(profile, catalog)
+        visual_text = render_stash_visual(reinforcements)
 
-        # Render updated image and embed
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
         remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
+
         tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
@@ -123,23 +121,25 @@ class ReinforceButton(discord.ui.Button):
             stash_img_path = generate_stash_image(user_id, reinforcements, base_path="assets/stash_layers")
             file = discord.File(stash_img_path, filename="stash.png")
 
-            confirm = discord.Embed(
-                title=f"✅ {self.rtype} installed!",
-                description="Your stash has been fortified.",
-                color=0x3498db
+            embed = discord.Embed(
+                title=f"{visuals['emoji']} Stash Layout",
+                description=f"```
+{visual_text}
+```",
+                color=visuals['color']
             )
-            confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
-            confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
-            confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
-            confirm.set_image(url="attachment://stash.png")
-            confirm.set_footer(text="WARLAB | SV13 Bot")
+            embed.add_field(name="✅ Installed", value=self.rtype, inline=False)
+            embed.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
+            embed.add_field(name="Tools Remaining", value=tools_string, inline=False)
+            embed.add_field(name="Specials Remaining", value=specials_string, inline=False)
+            embed.set_image(url="attachment://stash.png")
+            embed.set_footer(text="WARLAB | SV13 Bot")
 
-            # ✅ Only update the second message (image message)
-            await self.view.stored_messages[1].edit(embed=confirm, attachments=[file], view=new_view)
+            await self.view.main_msg.edit(embed=embed, attachments=[file], view=self.view)
 
         except Exception as e:
             print(f"❌ Error generating stash image: {e}")
-            await self.view.stored_messages[1].edit(content="⚠️ Reinforcement saved, but image failed to render.")
+            await self.view.main_msg.edit(content="⚠️ Reinforcement saved, but image failed to render.")
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
@@ -147,8 +147,7 @@ class CloseButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            for msg in getattr(self.view, "stored_messages", []):
-                await msg.edit(content="❌ Fortification UI closed.", embed=None, view=None)
+            await self.view.main_msg.edit(content="❌ Fortification UI closed.", embed=None, view=None)
         except Exception as e:
             print(f"❌ Failed to close fortify UI: {e}")
         await interaction.response.defer()
@@ -156,7 +155,7 @@ class CloseButton(discord.ui.Button):
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
-        self.stored_messages = []
+        self.main_msg = None
         for rtype in REINFORCEMENT_COSTS:
             current = profile.get("reinforcements", {}).get(rtype, 0)
             if current < MAX_REINFORCEMENTS.get(rtype, 0):
@@ -190,17 +189,23 @@ class Fortify(commands.Cog):
 
             visuals = get_skin_visuals(profile, catalog)
             visual_text = render_stash_visual(profile["reinforcements"])
-            visual_embed = discord.Embed(
+
+            stash_img_path = generate_stash_image(user_id, profile["reinforcements"], base_path="assets/stash_layers")
+            file = discord.File(stash_img_path, filename="stash.png")
+
+            embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```\n{visual_text}\n```",
-                color=visuals["color"]
+                description=f"```
+{visual_text}
+```",
+                color=visuals['color']
             )
-            visual_embed.set_footer(text="Visual representation of your fortified stash.")
-            visual_msg = await interaction.followup.send(embed=visual_embed, ephemeral=True)
+            embed.set_image(url="attachment://stash.png")
+            embed.set_footer(text="Visual representation of your fortified stash.")
 
             view = ReinforcementView(profile)
-            button_msg = await interaction.followup.send("🔧 Select a reinforcement to install:", view=view, ephemeral=True)
-            view.stored_messages = [visual_msg, button_msg]
+            msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
+            view.main_msg = msg
 
         except Exception as e:
             print(f"❌ /fortify crashed: {e}")
