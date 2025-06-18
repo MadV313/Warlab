@@ -21,13 +21,10 @@ REWARD_VALUES = {
 
 TURNIN_ELIGIBLE = [
     "Mlock", "M4", "Mosin", "USG45", "BK-133",
-    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grendae",
+    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grenade",
     "Combat Outfit", "Tactical Outfit", "NBC Suit"
 ]
 
-# ──────────────────────────────────────────────────────────────
-#  BUTTON – one per crafted item
-# ──────────────────────────────────────────────────────────────
 class TurnInButton(discord.ui.Button):
     def __init__(self, item_name: str, user_id: str):
         super().__init__(label=f"Turn In: {item_name}", style=discord.ButtonStyle.success)
@@ -40,13 +37,15 @@ class TurnInButton(discord.ui.Button):
             return
 
         try:
-            profiles = await load_file(USER_DATA)  or {}
+            profiles = await load_file(USER_DATA) or {}
             logs     = await load_file(TURNIN_LOG) or {}
             user_data = profiles.get(self.user_id)
 
-            if not user_data or self.item_name not in user_data.get("crafted", []):
+            crafted_list = user_data.get("crafted", []) if user_data else []
+            if not user_data or self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
                 await interaction.response.send_message(
-                    "❌ Item not found (or already turned in).", ephemeral=True
+                    "❌ This item is no longer eligible or has already been turned in.",
+                    ephemeral=True
                 )
                 return
 
@@ -80,11 +79,9 @@ class TurnInButton(discord.ui.Button):
             # ✅ Success Embed
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
-                description=(
-                    f"**{self.item_name}** submitted!\n\n"
-                    f"+ 🧠 `{prestige}` Prestige\n"
-                    f"+ 💰 `{coins}` Coins"
-                ),
+                description=(f"**{self.item_name}** submitted!\n\n"
+                             f"+ 🧠 `{prestige}` Prestige\n"
+                             f"+ 💰 `{coins}` Coins"),
                 color=0x00FF7F
             )
             await interaction.response.edit_message(embed=success_embed, view=None)
@@ -92,13 +89,11 @@ class TurnInButton(discord.ui.Button):
             # 👮 Admin Ping
             admin_embed = discord.Embed(
                 title="🔧 Craft Turn-In",
-                description=(
-                    f"🧑 Player: <@{self.user_id}>\n"
-                    f"📦 Item : {self.item_name}\n"
-                    f"🧠 Prestige: {prestige}\n"
-                    f"💰 Coins   : {coins if coins else 'None'}\n\n"
-                    "✅ Click the button below when the reward is ready."
-                ),
+                description=(f"🧑 Player: <@{self.user_id}>\n"
+                             f"📦 Item : {self.item_name}\n"
+                             f"🧠 Prestige: {prestige}\n"
+                             f"💰 Coins   : {coins if coins else 'None'}\n\n"
+                             "✅ Click the button below when the reward is ready."),
                 color=0xF1C40F
             )
             channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
@@ -118,9 +113,6 @@ class TurnInButton(discord.ui.Button):
                 ephemeral=True
             )
 
-# ──────────────────────────────────────────────────────────────
-#  ADMIN CONFIRM UI
-# ──────────────────────────────────────────────────────────────
 class RewardConfirmView(discord.ui.View):
     def __init__(self, player_id: str, player_name: str):
         super().__init__(timeout=None)
@@ -158,9 +150,6 @@ class ConfirmRewardButton(discord.ui.Button):
 
         await interaction.response.defer()
 
-# ──────────────────────────────────────────────────────────────
-#  SLASH COMMAND
-# ──────────────────────────────────────────────────────────────
 class TurnIn(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -200,6 +189,5 @@ class TurnIn(commands.Cog):
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-# ──────────────────────────────────────────────────────────────
 async def setup(bot):
     await bot.add_cog(TurnIn(bot))
