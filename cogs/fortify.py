@@ -1,15 +1,17 @@
-# cogs/fortify.py — WARLAB stash fortification system (flat stash logic, tool & special split)
+# cogs/fortify.py — WARLAB stash fortification system (flat stash logic + image generator)
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json
 from urllib.parse import quote
+import os
+
 from utils.fileIO import load_file, save_file
+from stash_image_generator import generate_stash_image  # ✅ NEW: visual stash renderer
 
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
-FORTIFY_UI_URL = "https://madv313.github.io/Stash-Fortify-UI/?data="
 
 MAX_REINFORCEMENTS = {
     "Barbed Fence": 9,
@@ -65,8 +67,7 @@ class ReinforceButton(discord.ui.Button):
         self.rtype = rtype
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)  # ✅ Fix to allow followup.send later
-
+        await interaction.response.defer(ephemeral=True)
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
@@ -126,12 +127,9 @@ class ReinforceButton(discord.ui.Button):
         tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
-        preview_data = {
-            "stash_hp": profile["stash_hp"],
-            "reinforcements": reinforcements,
-            "tools": stash
-        }
-        visual_link = f"{FORTIFY_UI_URL}{quote(json.dumps(preview_data))}"
+        # 🔁 Generate visual composite image
+        stash_img_path = generate_stash_image(user_id, reinforcements)
+        file = discord.File(stash_img_path, filename="stash.png")
 
         confirm = discord.Embed(
             title=f"✅ {self.rtype} installed!",
@@ -141,9 +139,10 @@ class ReinforceButton(discord.ui.Button):
         confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
         confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
         confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
-        confirm.add_field(name="View Reinforcements", value=f"[Open Fortify UI]({visual_link})", inline=False)
+        confirm.set_image(url="attachment://stash.png")
         confirm.set_footer(text="WARLAB | SV13 Bot")
-        await interaction.followup.send(embed=confirm, ephemeral=True)
+
+        await interaction.followup.send(embed=confirm, file=file, ephemeral=True)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
