@@ -6,7 +6,7 @@ from discord import app_commands
 from utils.fileIO import load_file, save_file
 from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
 from datetime import datetime
-import traceback   # <-- now imported only once, at the top
+import traceback
 
 USER_DATA  = "data/user_profiles.json"
 TURNIN_LOG = "logs/turnin_log.json"
@@ -29,38 +29,37 @@ class TurnInButton(discord.ui.Button):
         self.user_id   = user_id
 
     async def callback(self, interaction: discord.Interaction):
-        # Guard: wrong user presses the button
         if str(interaction.user.id) != self.user_id:
             await interaction.response.send_message("⚠️ That button isn’t for you.", ephemeral=True)
             return
 
         try:
-            # ── load files
             profiles = await load_file(USER_DATA)  or {}
             logs     = await load_file(TURNIN_LOG) or {}
             user_data = profiles.get(self.user_id)
 
-            # ── sanity checks
             if not user_data or self.item_name not in user_data.get("crafted", []):
                 await interaction.response.send_message(
                     "❌ Item not found (or already turned in).", ephemeral=True
                 )
                 return
 
-            # ── calculate rewards
             prestige = REWARD_VALUES["base_prestige"]
             if "Tactical" in self.item_name:
                 prestige += REWARD_VALUES["tactical_bonus"]
             coins = REWARD_VALUES["coin_bonus"] if REWARD_VALUES["coin_enabled"] else 0
 
-            # ── mutate profile
+            # 🔧 Update profile
             user_data["crafted"].remove(self.item_name)
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
             user_data["coins"]    += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
-            # ── log entry
+            # 🪵 Remove crafted item from stash as well
+            if self.item_name in user_data.get("stash", []):
+                user_data["stash"].remove(self.item_name)
+
             logs.setdefault(self.user_id, []).append({
                 "item"           : self.item_name,
                 "reward_prestige": prestige,
@@ -68,12 +67,11 @@ class TurnInButton(discord.ui.Button):
                 "timestamp"      : datetime.utcnow().isoformat()
             })
 
-            # ── persist
             profiles[self.user_id] = user_data
             await save_file(USER_DATA,  profiles)
             await save_file(TURNIN_LOG, logs)
 
-            # ── update player’s message
+            # ✅ Success Embed
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
                 description=(
@@ -85,7 +83,7 @@ class TurnInButton(discord.ui.Button):
             )
             await interaction.response.edit_message(embed=success_embed, view=None)
 
-            # ── ping admins
+            # 👮 Admin Ping
             admin_embed = discord.Embed(
                 title="🔧 Craft Turn-In",
                 description=(
@@ -108,7 +106,6 @@ class TurnInButton(discord.ui.Button):
                 )
 
         except Exception:
-            # full traceback → Railway / console logs
             print("❌ [TurnInButton Error]\n" + traceback.format_exc())
             await interaction.followup.send(
                 "❌ Something broke while processing your turn-in — please ping an admin.",
@@ -190,7 +187,7 @@ class TurnIn(commands.Cog):
         )
 
         view = discord.ui.View(timeout=120)
-        for item in crafted[:10]:                # first 10 items only (Discord row limit)
+        for item in crafted[:10]:
             view.add_item(TurnInButton(item, user_id))
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
