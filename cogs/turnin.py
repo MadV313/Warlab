@@ -19,6 +19,12 @@ REWARD_VALUES = {
     "coin_bonus"    : 25
 }
 
+TURNIN_ELIGIBLE = [
+    "Mlock", "M4", "Mosin", "USG45", "BK-133",
+    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grendae",
+    "Combat Outfit", "Tactical Outfit", "NBC Suit"
+]
+
 # ──────────────────────────────────────────────────────────────
 #  BUTTON – one per crafted item
 # ──────────────────────────────────────────────────────────────
@@ -173,9 +179,11 @@ class TurnIn(commands.Cog):
             return
 
         crafted = user_data.get("crafted", [])
-        if not crafted:
+        eligible = [item for item in crafted if item in TURNIN_ELIGIBLE]
+
+        if not eligible:
             await interaction.response.send_message(
-                "❌ No crafted items to turn in. Use `/craft` first.",
+                "❌ No eligible crafted items to turn in. Use `/craft` first.",
                 ephemeral=True
             )
             return
@@ -187,7 +195,7 @@ class TurnIn(commands.Cog):
         )
 
         view = discord.ui.View(timeout=120)
-        for item in crafted[:10]:
+        for item in eligible[:10]:
             view.add_item(TurnInButton(item, user_id))
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
