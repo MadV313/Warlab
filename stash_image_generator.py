@@ -1,14 +1,11 @@
 # stash_image_generator.py — Composite generator for Fortify UI visuals
 
 import os
-import json
 from PIL import Image, ImageEnhance
 
 # === Default Paths ===
 DEFAULT_LAYERS_DIR = "assets/stash_layers"
 OUTPUT_DIR = "generated_stashes"
-
-# Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # === Supported Layers in Order (from back to front) ===
@@ -29,18 +26,22 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # Caching: Skip if already exists
+    # ✅ Caching
     if os.path.exists(output_path):
         print(f"✅ Using cached stash image for {user_id}")
         return output_path
 
     try:
-        base = Image.open(os.path.join(base_path, BASE_IMAGE)).convert("RGBA")
+        base_img_path = os.path.join(base_path, BASE_IMAGE)
+        if not os.path.exists(base_img_path):
+            raise FileNotFoundError(f"Missing base image: {base_img_path}")
+
+        base = Image.open(base_img_path).convert("RGBA")
+        base_size = base.size
 
         for key in LAYER_FILES:
             readable_name = key.replace("_", " ").title()
-            count = reinforcements.get(readable_name, 0)
-            if count > 0:
+            if reinforcements.get(readable_name, 0) > 0:
                 layer_path = os.path.join(base_path, LAYER_FILES[key])
                 if not os.path.exists(layer_path):
                     print(f"⚠️ Missing layer file: {layer_path}")
@@ -48,9 +49,14 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
 
                 overlay = Image.open(layer_path).convert("RGBA")
 
-                # Optional: Add animation effects like glow or opacity fade-in
-                fade = ImageEnhance.Brightness(overlay).enhance(1.15)
-                base = Image.alpha_composite(base, fade)
+                # 🛠 Resize if needed
+                if overlay.size != base_size:
+                    print(f"🔧 Resizing {key} layer from {overlay.size} to {base_size}")
+                    overlay = overlay.resize(base_size)
+
+                # ✨ Optional glow/fade effect
+                faded = ImageEnhance.Brightness(overlay).enhance(1.15)
+                base = Image.alpha_composite(base, faded)
 
         base.save(output_path)
         print(f"📦 Saved new stash image: {output_path}")
@@ -61,7 +67,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         return None
 
 
-# === Example Local Test ===
+# === Local Debug ===
 if __name__ == "__main__":
     test_user_id = "1234567890"
     test_reinforcements = {
@@ -72,5 +78,5 @@ if __name__ == "__main__":
         "Claymore Trap": 1
     }
 
-    img_path = generate_stash_image(test_user_id, test_reinforcements)
-    print(f"🖼️ Generated: {img_path}")
+    path = generate_stash_image(test_user_id, test_reinforcements)
+    print(f"🖼️ Output: {path}")
