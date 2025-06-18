@@ -79,6 +79,7 @@ class TurnInButton(discord.ui.Button):
             await save_file(USER_DATA,  profiles)
             await save_file(TURNIN_LOG, logs)
 
+            # ✅ Success Embed First
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
                 description=(f"**{self.item_name}** submitted!\n\n"
@@ -88,25 +89,28 @@ class TurnInButton(discord.ui.Button):
             )
             await interaction.response.edit_message(embed=success_embed, view=None)
 
-            # 👮 Admin Ping
-            admin_embed = discord.Embed(
-                title="🔧 Craft Turn-In",
-                description=(f"🧑 Player: <@{self.user_id}>\n"
-                             f"📦 Item : {self.item_name}\n"
-                             f"🧠 Prestige: {prestige}\n"
-                             f"💰 Coins   : {coins if coins else 'None'}\n\n"
-                             "✅ Click the button below when the reward is ready."),
-                color=0xF1C40F
-            )
-            channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
-            if channel:
-                await channel.send(embed=admin_embed,
-                                   view=RewardConfirmView(self.user_id, interaction.user.display_name))
-            else:
-                await interaction.followup.send(
-                    "⚠️ Admin payout channel not found. Please alert staff.",
-                    ephemeral=True
-                )
+            # 👮 Admin Ping (after UI update)
+            try:
+                channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
+                if channel:
+                    admin_embed = discord.Embed(
+                        title="🔧 Craft Turn-In",
+                        description=(f"🧑 Player: <@{self.user_id}>\n"
+                                     f"📦 Item : {self.item_name}\n"
+                                     f"🧠 Prestige: {prestige}\n"
+                                     f"💰 Coins   : {coins if coins else 'None'}\n\n"
+                                     "✅ Click the button below when the reward is ready."),
+                        color=0xF1C40F
+                    )
+                    await channel.send(embed=admin_embed,
+                                       view=RewardConfirmView(self.user_id, interaction.user.display_name))
+                else:
+                    await interaction.followup.send(
+                        "⚠️ Admin payout channel not found. Please alert staff.",
+                        ephemeral=True
+                    )
+            except Exception:
+                print("❌ [Admin Ping Error]\n" + traceback.format_exc())
 
         except Exception:
             print("❌ [TurnInButton Error]\n" + traceback.format_exc())
