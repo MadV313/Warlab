@@ -10,14 +10,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # === Supported Layers in Order (from back to front) ===
 LAYER_FILES = {
-    "barbed_fence": "barbed_fence.png",
-    "locked_container": "locked_container.png",
-    "reinforced_gate": "reinforced_gate.png",
-    "guard_dog": "guard_dog.png",
-    "claymore_trap": "claymore_trap.png"
+    "barbed_fence": "barbed_fence.PNG",
+    "locked_container": "locked_container.PNG",
+    "reinforced_gate": "reinforced_gate.PNG",
+    "guard_dog": "guard_dog.PNG",
+    "claymore_trap": "claymore_trap.PNG"
 }
 
-BASE_IMAGE = "base_house.png"
+BASE_IMAGE = "base_house.PNG"
 
 def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR) -> str:
     """
