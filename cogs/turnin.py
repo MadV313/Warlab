@@ -145,10 +145,12 @@ class ConfirmRewardButton(discord.ui.Button):
             player = interaction.client.get_user(int(self.player_id))
             if player:
                 await player.send(
-                    f"🎉 Trader reward confirmed!\n\n"
-                    f"📦 **Total builds completed:** `{total}`\n"
-                    f"🧠 **Prestige:** `{prestige}` ({rank_name})\n"
-                    f"📊 **Progress:** {progress}% toward next rank"
+                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to recieve your new:**\n\n"
+                    f"🔧 **Item Turned In:** {self.player_name}'s submission\n"
+                    f"📦 **Total Builds Completed:** `{total}`\n"
+                    f"🧠 **Current Prestige:** `{prestige}` • *{rank_name}*\n"
+                    f"📊 **Progress to Next Rank:** `{progress}%`\n\n"
+                    f"🫡 Stay frost Survivor, your legend is growing!"
                 )
 
         except Exception:
