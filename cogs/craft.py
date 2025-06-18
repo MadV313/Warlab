@@ -14,11 +14,17 @@ RECIPE_DATA     = "data/item_recipes.json"
 ARMOR_DATA      = "data/armor_blueprints.json"
 EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 
-# 🔘 Craft Button (1 per blueprint)
+# ✅ Items that are eligible for /turnin
+TURNIN_ELIGIBLE = [
+    "Mlock", "M4", "Mosin", "USG45", "BK-133",
+    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grendae",
+    "Combat Outfit", "Tactical Outfit", "NBC Suit"
+]
+
 class CraftButton(discord.ui.Button):
     def __init__(self, user_id, blueprint, enabled=True):
         self.user_id = user_id
-        self.blueprint = blueprint  # clean name
+        self.blueprint = blueprint
         label = f"🛠️ {blueprint}"
         super().__init__(
             label=label,
@@ -82,7 +88,10 @@ class CraftButton(discord.ui.Button):
 
             crafted = recipe["produces"]
             user["stash"].append(crafted)
-            user.setdefault("crafted", []).append(crafted)
+
+            if crafted in TURNIN_ELIGIBLE:
+                user.setdefault("crafted", []).append(crafted)
+
             user["builds_completed"] = user.get("builds_completed", 0) + 1
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
