@@ -1,4 +1,4 @@
-# cogs/stash.py — Updated with 📦 Turn-In Items group for crafted weapons/gear
+# cogs/stash.py — Updated with 📦 Crafted Items group for crafted weapons/gear
 
 import discord
 from discord.ext import commands
@@ -82,7 +82,7 @@ class Stash(commands.Cog):
             "💣 Explosives"      : [],
             "🛠️ Tools"          : [],
             "🏚️ Workshop Skins" : [],
-            "📦 Turn-In Items"   : [],  # ✅ NEW GROUP
+            "📦 Crafted Items"   : [],  # ✅ NEW GROUP
             "🎒 Misc"            : []
         }
 
@@ -95,7 +95,7 @@ class Stash(commands.Cog):
             is_completed = item in produced_lookup or item in TURNIN_ELIGIBLE
 
             if is_completed:
-                grouped["📦 Turn-In Items"].append(label)
+                grouped["📦 Crafted Items"].append(label)
             elif item_type == "gun_part":
                 grouped["🔫 Gun Parts"].append(label)
             elif item_type == "armor_part":
