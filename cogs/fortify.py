@@ -141,11 +141,13 @@ class ReinforceButton(discord.ui.Button):
             confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
             confirm.set_image(url="attachment://stash.png")
             confirm.set_footer(text="WARLAB | SV13 Bot")
-            await interaction.followup.send(embed=confirm, file=file, ephemeral=True)
+
+            # ✅ Update the original stash preview message instead of spamming new ones
+            await self.view.stored_messages[0].edit(embed=confirm, attachments=[file])
 
         except Exception as e:
             print(f"❌ Error generating stash image: {e}")
-            await interaction.followup.send("⚠️ Reinforcement saved, but image failed to render.", ephemeral=True)
+            await self.view.stored_messages[0].edit(content="⚠️ Reinforcement saved, but image failed to render.")
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
