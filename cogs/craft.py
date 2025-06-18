@@ -17,7 +17,7 @@ EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 # ✅ Items that are eligible for /turnin
 TURNIN_ELIGIBLE = [
     "Mlock", "M4", "Mosin", "USG45", "BK-133",
-    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grendae",
+    "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grenade",
     "Combat Outfit", "Tactical Outfit", "NBC Suit"
 ]
 
