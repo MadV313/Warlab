@@ -3,4 +3,5 @@ requests
 aiohttp
 aiofiles
 pytz
+pillow
 python-dotenv
