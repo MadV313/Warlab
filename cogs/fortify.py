@@ -4,11 +4,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import json
-from urllib.parse import quote
 import os
 
 from utils.fileIO import load_file, save_file
-from stash_image_generator import generate_stash_image  # ✅ visual stash renderer
+from stash_image_generator import generate_stash_image
 
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
@@ -50,7 +49,6 @@ def render_stash_visual(reinforcements):
     row3 = f"{bf_emojis[7]} {lc_slots[3]} 📦 {lc_slots[4]} {bf_emojis[8]}"
     row4 = rg_row
     row5 = f"  {dog}       {clay}"
-
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
 def get_skin_visuals(profile, catalog):
@@ -123,9 +121,7 @@ class ReinforceButton(discord.ui.Button):
 
             embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```
-{visual_text}
-```",
+                description=f"```\n{visual_text}\n```",
                 color=visuals['color']
             )
             embed.add_field(name="✅ Installed", value=self.rtype, inline=False)
@@ -189,16 +185,13 @@ class Fortify(commands.Cog):
 
             visuals = get_skin_visuals(profile, catalog)
             visual_text = render_stash_visual(profile["reinforcements"])
-
             stash_img_path = generate_stash_image(user_id, profile["reinforcements"], base_path="assets/stash_layers")
             file = discord.File(stash_img_path, filename="stash.png")
 
             embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```
-{visual_text}
-```",
-                color=visuals['color']
+                description=f"```\n{visual_text}\n```",
+                color=visuals["color"]
             )
             embed.set_image(url="attachment://stash.png")
             embed.set_footer(text="Visual representation of your fortified stash.")
