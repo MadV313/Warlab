@@ -4,8 +4,8 @@ import os
 import json
 from PIL import Image, ImageEnhance
 
-# === Paths ===
-LAYERS_DIR = "assets/stash_layers"
+# === Default Paths ===
+DEFAULT_LAYERS_DIR = "assets/stash_layers"
 OUTPUT_DIR = "generated_stashes"
 
 # Ensure output directory exists
@@ -22,8 +22,7 @@ LAYER_FILES = {
 
 BASE_IMAGE = "base_house.png"
 
-
-def generate_stash_image(user_id: str, reinforcements: dict) -> str:
+def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR) -> str:
     """
     Composites a stash image for a user based on their equipped reinforcements.
     Returns the path to the saved image.
@@ -36,13 +35,13 @@ def generate_stash_image(user_id: str, reinforcements: dict) -> str:
         return output_path
 
     try:
-        base = Image.open(os.path.join(LAYERS_DIR, BASE_IMAGE)).convert("RGBA")
+        base = Image.open(os.path.join(base_path, BASE_IMAGE)).convert("RGBA")
 
         for key in LAYER_FILES:
             readable_name = key.replace("_", " ").title()
             count = reinforcements.get(readable_name, 0)
             if count > 0:
-                layer_path = os.path.join(LAYERS_DIR, LAYER_FILES[key])
+                layer_path = os.path.join(base_path, LAYER_FILES[key])
                 if not os.path.exists(layer_path):
                     print(f"⚠️ Missing layer file: {layer_path}")
                     continue
