@@ -26,12 +26,13 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # ✅ Caching
+    # ✅ Caching: If file already exists, skip regeneration
     if os.path.exists(output_path):
         print(f"✅ Using cached stash image for {user_id}")
         return output_path
 
     try:
+        # 🏠 Load base image
         base_img_path = os.path.join(base_path, BASE_IMAGE)
         if not os.path.exists(base_img_path):
             raise FileNotFoundError(f"Missing base image: {base_img_path}")
@@ -39,6 +40,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         base = Image.open(base_img_path).convert("RGBA")
         base_size = base.size
 
+        # 🔁 Layer each enabled reinforcement
         for key in LAYER_FILES:
             readable_name = key.replace("_", " ").title()
             if reinforcements.get(readable_name, 0) > 0:
@@ -49,15 +51,16 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
 
                 overlay = Image.open(layer_path).convert("RGBA")
 
-                # 🛠 Resize if needed
+                # 🧩 Resize if needed
                 if overlay.size != base_size:
-                    print(f"🔧 Resizing {key} layer from {overlay.size} to {base_size}")
+                    print(f"🔧 Resizing {key} from {overlay.size} → {base_size}")
                     overlay = overlay.resize(base_size)
 
-                # ✨ Optional glow/fade effect
+                # ✨ Fade-in enhancement
                 faded = ImageEnhance.Brightness(overlay).enhance(1.15)
                 base = Image.alpha_composite(base, faded)
 
+        # 💾 Save the final composite
         base.save(output_path)
         print(f"📦 Saved new stash image: {output_path}")
         return output_path
@@ -67,7 +70,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         return None
 
 
-# === Local Debug ===
+# === Local Debug Test ===
 if __name__ == "__main__":
     test_user_id = "1234567890"
     test_reinforcements = {
