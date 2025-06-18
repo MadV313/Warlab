@@ -82,7 +82,7 @@ class TurnInButton(discord.ui.Button):
             # ✅ Success Embed First
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
-                description=(f"**{self.item_name}** submitted!\n\n"
+                description=(f"**{self.item_name}** submitted! Please stand by for further rewards!\n\n"
                              f"+ 🧠 `{prestige}` Prestige\n"
                              f"+ 💰 `{coins}` Coins"),
                 color=0x00FF7F
@@ -99,11 +99,11 @@ class TurnInButton(discord.ui.Button):
                                      f"📦 Item : {self.item_name}\n"
                                      f"🧠 Prestige: {prestige}\n"
                                      f"💰 Coins   : {coins if coins else 'None'}\n\n"
-                                     "✅ Click the button below when the reward is ready."),
+                                     "**Please click the button below when the reward is ready.**"),
                         color=0xF1C40F
                     )
                     await channel.send(embed=admin_embed,
-                                       view=RewardConfirmView(self.user_id, interaction.user.display_name))
+                                       view=RewardConfirmView(self.user_id, self.item_name))
                 else:
                     await interaction.followup.send(
                         "⚠️ Admin payout channel not found. Please alert staff.",
@@ -120,15 +120,15 @@ class TurnInButton(discord.ui.Button):
             )
 
 class RewardConfirmView(discord.ui.View):
-    def __init__(self, player_id: str, player_name: str):
+    def __init__(self, player_id: str, item_name: str):
         super().__init__(timeout=None)
-        self.add_item(ConfirmRewardButton(player_id, player_name))
+        self.add_item(ConfirmRewardButton(player_id, item_name))
 
 class ConfirmRewardButton(discord.ui.Button):
-    def __init__(self, player_id: str, player_name: str):
+    def __init__(self, player_id: str, item_name: str):
         super().__init__(label="Confirm Reward Ready", style=discord.ButtonStyle.success)
-        self.player_id   = player_id
-        self.player_name = player_name
+        self.player_id  = player_id
+        self.item_name  = item_name
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.message.edit(content=f"✅ Confirmed by {interaction.user.mention}", view=None)
@@ -145,12 +145,12 @@ class ConfirmRewardButton(discord.ui.Button):
             player = interaction.client.get_user(int(self.player_id))
             if player:
                 await player.send(
-                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to recieve your new:**\n\n"
-                    f"🔧 **Item Turned In:** {self.player_name}'s submission\n"
+                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
+                    f"🔧 **Item Turned In:** {self.item_name}\n"
                     f"📦 **Total Builds Completed:** `{total}`\n"
                     f"🧠 **Current Prestige:** `{prestige}` • *{rank_name}*\n"
-                    f"📊 **Progress to Next Rank:** `{progress}%`\n\n"
-                    f"🫡 Stay frost Survivor, your legend is growing!"
+                    f"📊 **Progress to Next Rank:** `{progress}`\n\n"
+                    f"🫡 Stay frosty, Survivor — your legend is growing!"
                 )
 
         except Exception:
