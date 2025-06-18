@@ -131,7 +131,10 @@ class ReinforceButton(discord.ui.Button):
             embed.set_image(url="attachment://stash.png")
             embed.set_footer(text="WARLAB | SV13 Bot")
 
-            await self.view.main_msg.edit(embed=embed, attachments=[file], view=self.view)
+            # ✅ Refresh updated buttons based on new reinforcement counts
+            new_view = ReinforcementView(profile)
+            new_view.main_msg = self.view.main_msg
+            await self.view.main_msg.edit(embed=embed, attachments=[file], view=new_view)
 
         except Exception as e:
             print(f"❌ Error generating stash image: {e}")
