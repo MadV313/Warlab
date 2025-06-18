@@ -5,7 +5,7 @@ import json
 from PIL import Image, ImageEnhance
 
 # === Paths ===
-LAYERS_DIR = "stash_layers"
+LAYERS_DIR = "assets/stash_layers"
 OUTPUT_DIR = "generated_stashes"
 
 # Ensure output directory exists
@@ -39,9 +39,14 @@ def generate_stash_image(user_id: str, reinforcements: dict) -> str:
         base = Image.open(os.path.join(LAYERS_DIR, BASE_IMAGE)).convert("RGBA")
 
         for key in LAYER_FILES:
-            count = reinforcements.get(key.replace("_", " ").title(), 0)
+            readable_name = key.replace("_", " ").title()
+            count = reinforcements.get(readable_name, 0)
             if count > 0:
                 layer_path = os.path.join(LAYERS_DIR, LAYER_FILES[key])
+                if not os.path.exists(layer_path):
+                    print(f"⚠️ Missing layer file: {layer_path}")
+                    continue
+
                 overlay = Image.open(layer_path).convert("RGBA")
 
                 # Optional: Add animation effects like glow or opacity fade-in
