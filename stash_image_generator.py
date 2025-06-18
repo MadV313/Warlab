@@ -26,10 +26,10 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # ✅ Caching: Skip if already exists
+    # 🧼 Always regenerate to reflect all reinforcement layers
     if os.path.exists(output_path):
-        print(f"✅ Using cached stash image for {user_id}")
-        return output_path
+        os.remove(output_path)
+        print(f"♻️ Removed cached image to regenerate: {output_path}")
 
     try:
         base_img_path = os.path.join(base_path, BASE_IMAGE)
