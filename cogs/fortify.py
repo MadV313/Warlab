@@ -8,7 +8,7 @@ from urllib.parse import quote
 import os
 
 from utils.fileIO import load_file, save_file
-from stash_image_generator import generate_stash_image  # ✅ NEW: visual stash renderer
+from stash_image_generator import generate_stash_image  # ✅ visual stash renderer
 
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
@@ -127,22 +127,25 @@ class ReinforceButton(discord.ui.Button):
         tools_string = "\n".join(f"{tool} x{count}" for tool, count in remaining_tools.items()) or "None"
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
-        # 🔁 Generate visual composite image
-        stash_img_path = generate_stash_image(user_id, reinforcements)
-        file = discord.File(stash_img_path, filename="stash.png")
+        try:
+            stash_img_path = generate_stash_image(user_id, reinforcements, base_path="assets/stash_layers")
+            file = discord.File(stash_img_path, filename="stash.png")
 
-        confirm = discord.Embed(
-            title=f"✅ {self.rtype} installed!",
-            description="Your stash has been fortified.",
-            color=0x3498db
-        )
-        confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
-        confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
-        confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
-        confirm.set_image(url="attachment://stash.png")
-        confirm.set_footer(text="WARLAB | SV13 Bot")
+            confirm = discord.Embed(
+                title=f"✅ {self.rtype} installed!",
+                description="Your stash has been fortified.",
+                color=0x3498db
+            )
+            confirm.add_field(name="Stash HP", value=str(profile["stash_hp"]), inline=True)
+            confirm.add_field(name="Tools Remaining", value=tools_string, inline=False)
+            confirm.add_field(name="Specials Remaining", value=specials_string, inline=False)
+            confirm.set_image(url="attachment://stash.png")
+            confirm.set_footer(text="WARLAB | SV13 Bot")
+            await interaction.followup.send(embed=confirm, file=file, ephemeral=True)
 
-        await interaction.followup.send(embed=confirm, file=file, ephemeral=True)
+        except Exception as e:
+            print(f"❌ Error generating stash image: {e}")
+            await interaction.followup.send("⚠️ Reinforcement saved, but image failed to render.", ephemeral=True)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
