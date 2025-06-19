@@ -42,7 +42,7 @@
   },
   "Dark Ops": {
     "emoji": "🏰",
-    "description": "An inpenatrable fortress only awarded only to Raid Masters.",
+    "description": "An inpenatrable fortress awarded only to Raid Masters.",
     "color": 12541613,
     "unlock": {
       "raids_successful": 25
