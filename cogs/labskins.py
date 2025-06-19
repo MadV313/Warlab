@@ -1,4 +1,4 @@
-# cogs/labskins.py — Lab skin equip command with unlock validation
+# cogs/labskins.py — Lab skin equip command with unlock validation and base image assignment
 
 import discord
 from discord.ext import commands
@@ -7,6 +7,18 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
+
+# 🧱 Mapping of lab skin names to corresponding base image filenames
+SKIN_IMAGE_PATHS = {
+    "Rust Bucket": "assets/stash_layers/base_house_prestige1.PNG",
+    "Field Technician": "assets/stash_layers/base_house_prestige2.png",
+    "Contaminated Worksite": "assets/stash_layers/base_house_prestige3.png",
+    "Tactical Emerald": "assets/stash_layers/house_base_prestige4.png",
+    "Warlab Blacksite": "assets/stash_layers/base_house_prestige5.png",
+    "Dark Ops": "assets/stash_layers/base_house_raid_master.png",
+    "Architect's Vault": "assets/stash_layers/base_house_blueprint_master.png",
+    "Scavenger's Haven": "assets/stash_layers/base_house_scavenge_master.png"
+}
 
 class LabSkinSelect(discord.ui.Select):
     def __init__(self, user_id, available_skins, catalog, profile):
@@ -60,7 +72,10 @@ class LabSkinSelect(discord.ui.Select):
 
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(self.user_id, {})
+
         profile["activeSkin"] = selected
+        profile["baseImage"] = SKIN_IMAGE_PATHS.get(selected, "assets/stash_layers/base_house_prestige1.PNG")
+
         profiles[self.user_id] = profile
         await save_file(USER_DATA, profiles)
 
