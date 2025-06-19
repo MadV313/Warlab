@@ -1,7 +1,7 @@
 {
   "Rust Bucket": {
     "emoji": "🏚️",
-    "description": "A corroded, rusty old lab setup. Basic, no frills.",
+    "description": "Corroded, rusty old lab setup. Basic, no frills.",
     "color": 2135709,
     "filename": "base_house_prestige1.PNG",
     "unlock": {
@@ -47,7 +47,7 @@
   },
   "Dark Ops": {
     "emoji": "🏰",
-    "description": "An inpenatrable fortress awarded only to Raid Masters.",
+    "description": "Impenetrable fortress awarded only to Raid Masters.",
     "color": 12541613,
     "filename": "base_house_raid_master.png",
     "unlock": {
@@ -56,7 +56,7 @@
   },
   "Architect's Vault": {
     "emoji": "🏛️",
-    "description": "A pristine high-tech lab awarded only to Blueprint Masters.",
+    "description": "Pristine high-tech lab awarded only to Blueprint Masters.",
     "color": 3447003,
     "filename": "base_house_blueprint_master.png",
     "unlock": {
