@@ -121,7 +121,7 @@ class ReinforceButton(discord.ui.Button):
                 user_id,
                 reinforcements,
                 base_path="assets/stash_layers",
-                skin=visuals["skin"]
+                baseImagePath=profile.get("baseImage")
             )
             file = discord.File(stash_img_path, filename="stash.png")
 
@@ -197,7 +197,7 @@ class Fortify(commands.Cog):
                 user_id,
                 profile["reinforcements"],
                 base_path="assets/stash_layers",
-                skin=visuals["skin"]
+                baseImagePath=profile.get("baseImage")
             )
             file = discord.File(stash_img_path, filename="stash.png")
 
