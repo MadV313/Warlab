@@ -13,7 +13,7 @@ SKIN_IMAGE_PATHS = {
     "Rust Bucket": "assets/stash_layers/base_house_prestige1.PNG",
     "Field Technician": "assets/stash_layers/base_house_prestige2.png",
     "Contaminated Worksite": "assets/stash_layers/base_house_prestige3.png",
-    "Tactical Emerald": "assets/stash_layers/house_base_prestige4.png",
+    "Tactical Emerald": "assets/stash_layers/base_house_prestige4.png",
     "Warlab Blacksite": "assets/stash_layers/base_house_prestige5.png",
     "Dark Ops": "assets/stash_layers/base_house_raid_master.png",
     "Architect's Vault": "assets/stash_layers/base_house_blueprint_master.png",
