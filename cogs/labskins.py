@@ -1,4 +1,4 @@
-# cogs/labskins.py — Lab skin equip command with unlock validation and base image assignment
+# cogs/labskins.py — Lab skin equip command with unlock validation and hardcoded descriptions
 
 import discord
 from discord.ext import commands
@@ -8,7 +8,7 @@ from utils.fileIO import load_file, save_file
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
 
-# 🧱 Mapping of lab skin names to corresponding base image filenames
+# 🧱 Mapping of lab skin names to base image paths
 SKIN_IMAGE_PATHS = {
     "Rust Bucket": "assets/stash_layers/base_house_prestige1.PNG",
     "Field Technician": "assets/stash_layers/base_house_prestige2.png",
@@ -18,6 +18,18 @@ SKIN_IMAGE_PATHS = {
     "Dark Ops": "assets/stash_layers/base_house_raid_master.png",
     "Architect's Vault": "assets/stash_layers/base_house_blueprint_master.png",
     "Scavenger's Haven": "assets/stash_layers/base_house_scavenge_master.png"
+}
+
+# 📝 Hardcoded descriptions for dropdown clarity
+SKIN_DESCRIPTIONS = {
+    "Rust Bucket": "Corroded, rusty old lab setup. Basic, no frills.",
+    "Field Technician": "Tactical repair station used by survivors in the field.",
+    "Contaminated Worksite": "Bright yellow, with biohazard symbols. High-security zone.",
+    "Tactical Emerald": "Sleek green tactical theme. Everything is more advanced here.",
+    "Warlab Blacksite": "Secret blacksite aesthetics. Shadowy, elite. Prestige-exclusive.",
+    "Dark Ops": "Impenetrable fortress awarded only to Raid Masters.",
+    "Architect's Vault": "Pristine high-tech lab awarded only to Blueprint Masters.",
+    "Scavenger's Haven": "Makeshift but well-organized survivor lab awarded only to Scavenge Masters."
 }
 
 class LabSkinSelect(discord.ui.Select):
@@ -31,7 +43,7 @@ class LabSkinSelect(discord.ui.Select):
         for skin in available_skins:
             data = catalog.get(skin, {})
             emoji = data.get("emoji", None)
-            description = data.get("description", "No description.")
+            description = SKIN_DESCRIPTIONS.get(skin, "No description.")
             options.append(
                 discord.SelectOption(
                     label=skin,
@@ -51,7 +63,7 @@ class LabSkinSelect(discord.ui.Select):
 
     def meets_unlock_conditions(self, skin: str) -> bool:
         if skin in self.unlocked:
-            return True  # ✅ Player was granted the skin manually
+            return True
 
         requirements = self.catalog.get(skin, {}).get("unlock", {})
         prestige_needed = requirements.get("prestige", 0)
@@ -60,9 +72,8 @@ class LabSkinSelect(discord.ui.Select):
         scavenges_required = requirements.get("scavenges_completed", 0)
         blueprints_required = requirements.get("blueprints_unlocked", None)
 
-        if blueprints_required == "all":
-            if self.profile.get("blueprints_unlocked", []) != "all":
-                return False
+        if blueprints_required == "all" and self.profile.get("blueprints_unlocked", []) != "all":
+            return False
 
         return (
             self.profile.get("prestige", 0) >= prestige_needed and
@@ -120,7 +131,6 @@ class LabSkins(commands.Cog):
         catalog = await load_file(CATALOG_PATH) or {}
         unlocked_skins = []
 
-        # ✅ Determine available skins (auto-include if player meets requirements)
         for skin, data in catalog.items():
             unlock = data.get("unlock", {})
             prestige_needed = unlock.get("prestige", 0)
@@ -142,7 +152,6 @@ class LabSkins(commands.Cog):
             ):
                 unlocked_skins.append(skin)
 
-        # ✅ Add manually granted skins
         unlocked_skins += [s for s in profile.get("labskins", []) if s not in unlocked_skins]
 
         if not unlocked_skins:
