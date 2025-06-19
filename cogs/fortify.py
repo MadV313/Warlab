@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system (flat stash logic + image generator)
+# cogs/fortify.py — WARLAB stash fortification system (with badge counts, skin themes, dynamic buttons)
 
 import discord
 from discord.ext import commands
@@ -55,6 +55,7 @@ def get_skin_visuals(profile, catalog):
     skin = profile.get("activeSkin", "default")
     skin_data = catalog.get(skin, {})
     return {
+        "skin": skin,
         "emoji": skin_data.get("emoji", "🏚️"),
         "color": skin_data.get("color", 0x8e44ad)
     }
@@ -116,7 +117,12 @@ class ReinforceButton(discord.ui.Button):
         specials_string = "\n".join(f"{item} x{count}" for item, count in remaining_specials.items()) or "None"
 
         try:
-            stash_img_path = generate_stash_image(user_id, reinforcements, base_path="assets/stash_layers")
+            stash_img_path = generate_stash_image(
+                user_id,
+                reinforcements,
+                base_path="assets/stash_layers",
+                skin=visuals["skin"]
+            )
             file = discord.File(stash_img_path, filename="stash.png")
 
             embed = discord.Embed(
@@ -131,7 +137,6 @@ class ReinforceButton(discord.ui.Button):
             embed.set_image(url="attachment://stash.png")
             embed.set_footer(text="WARLAB | SV13 Bot")
 
-            # ✅ Refresh updated buttons based on new reinforcement counts
             new_view = ReinforcementView(profile)
             new_view.main_msg = self.view.main_msg
             await self.view.main_msg.edit(embed=embed, attachments=[file], view=new_view)
@@ -188,7 +193,12 @@ class Fortify(commands.Cog):
 
             visuals = get_skin_visuals(profile, catalog)
             visual_text = render_stash_visual(profile["reinforcements"])
-            stash_img_path = generate_stash_image(user_id, profile["reinforcements"], base_path="assets/stash_layers")
+            stash_img_path = generate_stash_image(
+                user_id,
+                profile["reinforcements"],
+                base_path="assets/stash_layers",
+                skin=visuals["skin"]
+            )
             file = discord.File(stash_img_path, filename="stash.png")
 
             embed = discord.Embed(
