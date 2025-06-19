@@ -18,36 +18,35 @@ LAYER_FILES = {
 }
 
 # === Font for Badge Overlays ===
-BADGE_FONT_PATH = "assets/fonts/arialbd.ttf"  # You can replace this with any bold TTF in your assets
+BADGE_FONT_PATH = "assets/fonts/arialbd.ttf"  # Update path if needed
 BADGE_FONT_SIZE = 26
 
-def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR, skin: str = "default") -> str:
+def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR, baseImagePath: str = None) -> str:
     """
-    Composites a stash image for a user based on their equipped reinforcements and theme.
+    Composites a stash image for a user based on their equipped reinforcements and custom base image.
     Returns the path to the saved image.
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # ♻️ Always regenerate to reflect all reinforcement layers
+    # ♻️ Always regenerate
     if os.path.exists(output_path):
         os.remove(output_path)
         print(f"♻️ Removed cached image to regenerate: {output_path}")
 
     try:
-        # 🧱 Themed base path
-        base_filename = f"base_house_{skin}.png"
-        base_img_path = os.path.join(base_path, base_filename)
-        if not os.path.exists(base_img_path):
-            print(f"⚠️ Fallback to default base image.")
-            base_img_path = os.path.join(base_path, "base_house.png")
-        if not os.path.exists(base_img_path):
-            raise FileNotFoundError(f"Missing base image: {base_img_path}")
+        # 🔍 Determine base image path
+        if not baseImagePath:
+            baseImagePath = os.path.join(base_path, "base_house.png")
+        if not os.path.exists(baseImagePath):
+            print(f"⚠️ Missing specified base image, falling back.")
+            baseImagePath = os.path.join(base_path, "base_house.png")
+        if not os.path.exists(baseImagePath):
+            raise FileNotFoundError(f"❌ No fallback base image found at {baseImagePath}")
 
-        base = Image.open(base_img_path).convert("RGBA")
+        base = Image.open(baseImagePath).convert("RGBA")
         base_size = base.size
         print(f"🎨 Base size: {base_size}")
 
-        # Draw context for badges
         draw = ImageDraw.Draw(base)
         try:
             font = ImageFont.truetype(BADGE_FONT_PATH, BADGE_FONT_SIZE)
@@ -72,7 +71,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
                 faded = ImageEnhance.Brightness(overlay).enhance(1.15)
                 base.alpha_composite(faded)
 
-                # 🏷️ Badge for reinforcement count if > 1
+                # 🏷️ Reinforcement count badge
                 if count > 1:
                     badge_text = f"x{count}"
                     badge_position = (base_size[0] - 60, 10 + list(LAYER_FILES.keys()).index(key) * 40)
@@ -97,6 +96,5 @@ if __name__ == "__main__":
         "Guard Dog": 1,
         "Claymore Trap": 1
     }
-
-    path = generate_stash_image(test_user_id, test_reinforcements, skin="prestige3")
+    path = generate_stash_image(test_user_id, test_reinforcements, baseImagePath="assets/stash_layers/base_house_prestige3.png")
     print(f"🖼️ Output: {path}")
