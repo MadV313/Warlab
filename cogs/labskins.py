@@ -65,21 +65,20 @@ class LabSkinSelect(discord.ui.Select):
         if skin in self.unlocked:
             return True
 
-        requirements = self.catalog.get(skin, {}).get("unlock", {})
-        prestige_needed = requirements.get("prestige", 0)
-        builds_required = requirements.get("builds_required", 0)
-        raids_required = requirements.get("raids_successful", 0)
-        scavenges_required = requirements.get("scavenges_completed", 0)
-        blueprints_required = requirements.get("blueprints_unlocked", None)
-
-        if blueprints_required == "all" and self.profile.get("blueprints_unlocked", []) != "all":
-            return False
+        prestige = self.profile.get("prestige", 0)
+        raids = self.profile.get("raids_successful", 0)
+        scavenges = self.profile.get("scavenges_completed", 0)
+        blueprints = self.profile.get("blueprints_unlocked", [])
 
         return (
-            self.profile.get("prestige", 0) >= prestige_needed and
-            self.profile.get("lab_builds", 0) >= builds_required and
-            self.profile.get("raids_successful", 0) >= raids_required and
-            self.profile.get("scavenges_completed", 0) >= scavenges_required
+            (skin == "Rust Bucket" and prestige >= 1) or
+            (skin == "Field Technician" and prestige >= 2) or
+            (skin == "Contaminated Worksite" and prestige >= 3) or
+            (skin == "Tactical Emerald" and prestige >= 4) or
+            (skin == "Warlab Blacksite" and prestige >= 5) or
+            (skin == "Dark Ops" and raids >= 25) or
+            (skin == "Architect's Vault" and blueprints == "all") or
+            (skin == "Scavenger's Haven" and scavenges >= 100)
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -131,26 +130,27 @@ class LabSkins(commands.Cog):
         catalog = await load_file(CATALOG_PATH) or {}
         unlocked_skins = []
 
-        for skin, data in catalog.items():
-            unlock = data.get("unlock", {})
-            prestige_needed = unlock.get("prestige", 0)
-            builds_required = unlock.get("builds_required", 0)
-            raids_required = unlock.get("raids_successful", 0)
-            scavenges_required = unlock.get("scavenges_completed", 0)
-            blueprints_required = unlock.get("blueprints_unlocked", None)
+        prestige = profile.get("prestige", 0)
+        raids = profile.get("raids_successful", 0)
+        scavenges = profile.get("scavenges_completed", 0)
+        blueprints = profile.get("blueprints_unlocked", [])
 
-            meets_blueprints = True
-            if blueprints_required == "all":
-                meets_blueprints = profile.get("blueprints_unlocked", []) == "all"
-
-            if (
-                profile.get("prestige", 0) >= prestige_needed and
-                profile.get("lab_builds", 0) >= builds_required and
-                profile.get("raids_successful", 0) >= raids_required and
-                profile.get("scavenges_completed", 0) >= scavenges_required and
-                meets_blueprints
-            ):
-                unlocked_skins.append(skin)
+        if prestige >= 1:
+            unlocked_skins.append("Rust Bucket")
+        if prestige >= 2:
+            unlocked_skins.append("Field Technician")
+        if prestige >= 3:
+            unlocked_skins.append("Contaminated Worksite")
+        if prestige >= 4:
+            unlocked_skins.append("Tactical Emerald")
+        if prestige >= 5:
+            unlocked_skins.append("Warlab Blacksite")
+        if raids >= 25:
+            unlocked_skins.append("Dark Ops")
+        if blueprints == "all":
+            unlocked_skins.append("Architect's Vault")
+        if scavenges >= 100:
+            unlocked_skins.append("Scavenger's Haven")
 
         unlocked_skins += [s for s in profile.get("labskins", []) if s not in unlocked_skins]
 
