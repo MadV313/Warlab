@@ -7,7 +7,7 @@ from typing import Literal
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-CATALOG_PATH = "data/labskins_catalog.json"
+CATALOG_PATH = "data/labskin_catalog.json"  # ✅ corrected to match Fortify & generator usage
 
 class LabSkinManager(commands.Cog):
     def __init__(self, bot):
