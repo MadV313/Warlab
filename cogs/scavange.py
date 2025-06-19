@@ -108,7 +108,7 @@ class Scavenge(commands.Cog):
             user["stash"].extend(found)
             user["coins"] += coins_found
             user["last_scavenge"] = now.isoformat()
-            user["scavenges"] += 1
+            user["scavenges"] += 1  # ✅ Count tracked
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
