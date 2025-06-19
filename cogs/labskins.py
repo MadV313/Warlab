@@ -25,6 +25,7 @@ class LabSkinSelect(discord.ui.Select):
         self.user_id = user_id
         self.profile = profile
         self.catalog = catalog
+        self.unlocked = profile.get("labskins", [])
 
         options = []
         for skin in available_skins:
@@ -49,15 +50,19 @@ class LabSkinSelect(discord.ui.Select):
         )
 
     def meets_unlock_conditions(self, skin: str) -> bool:
-        requirements = self.catalog.get(skin, {}).get("unlock", {})
-        prestige_needed = requirements.get("prestige", 0)
-        builds_required = requirements.get("builds_required", 0)
-        raids_required = requirements.get("raids_successful", 0)
+        if skin in self.unlocked:
+            return True  # ✅ Player already owns the skin
 
+        requirements = self.catalog.get(skin, {}).get("unlock", {})
         return (
-            self.profile.get("prestige", 0) >= prestige_needed and
-            self.profile.get("lab_builds", 0) >= builds_required and
-            self.profile.get("raids_successful", 0) >= raids_required
+            self.profile.get("prestige", 0) >= requirements.get("prestige", 0) and
+            self.profile.get("lab_builds", 0) >= requirements.get("builds_required", 0) and
+            self.profile.get("raids_successful", 0) >= requirements.get("raids_successful", 0) and
+            self.profile.get("scavenges_completed", 0) >= requirements.get("scavenges_completed", 0) and
+            (
+                requirements.get("blueprints_unlocked") != "all" or
+                self.profile.get("blueprints_unlocked", []) == "all"
+            )
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -98,17 +103,14 @@ class LabSkins(commands.Cog):
         profiles = await load_file(USER_DATA) or {}
         profile = profiles.get(user_id)
 
-        # 🔒 Not registered
         if not profile:
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        # 🔒 Prestige requirement
         if profile.get("prestige", 0) < 1:
             await interaction.followup.send("🔒 Prestige I required to use lab skins.", ephemeral=True)
             return
 
-        # 🔒 No skins unlocked
         unlocked_skins = profile.get("labskins", [])
         if not unlocked_skins:
             await interaction.followup.send("⚠️ You have not unlocked any lab skins yet.", ephemeral=True)
