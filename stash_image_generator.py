@@ -39,7 +39,7 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         base_img_path = os.path.join(base_path, base_filename)
         if not os.path.exists(base_img_path):
             print(f"⚠️ Fallback to default base image.")
-            base_img_path = os.path.join(base_path, "base_house.PNG")
+            base_img_path = os.path.join(base_path, "base_house.png")
         if not os.path.exists(base_img_path):
             raise FileNotFoundError(f"Missing base image: {base_img_path}")
 
