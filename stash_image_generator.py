@@ -1,7 +1,7 @@
 # stash_image_generator.py — Composite generator for Fortify UI visuals
 
 import os
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 
 # === Default Paths ===
 DEFAULT_LAYERS_DIR = "assets/stash_layers"
@@ -17,22 +17,29 @@ LAYER_FILES = {
     "claymore_trap": "claymore_trap.PNG"
 }
 
-BASE_IMAGE = "base_house.PNG"
+# === Font for Badge Overlays ===
+BADGE_FONT_PATH = "assets/fonts/arialbd.ttf"  # You can replace this with any bold TTF in your assets
+BADGE_FONT_SIZE = 26
 
-def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR) -> str:
+def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DEFAULT_LAYERS_DIR, skin: str = "default") -> str:
     """
-    Composites a stash image for a user based on their equipped reinforcements.
+    Composites a stash image for a user based on their equipped reinforcements and theme.
     Returns the path to the saved image.
     """
     output_path = os.path.join(OUTPUT_DIR, f"{user_id}.png")
 
-    # 🧼 Always regenerate to reflect all reinforcement layers
+    # ♻️ Always regenerate to reflect all reinforcement layers
     if os.path.exists(output_path):
         os.remove(output_path)
         print(f"♻️ Removed cached image to regenerate: {output_path}")
 
     try:
-        base_img_path = os.path.join(base_path, BASE_IMAGE)
+        # 🧱 Themed base path
+        base_filename = f"base_house_{skin}.png"
+        base_img_path = os.path.join(base_path, base_filename)
+        if not os.path.exists(base_img_path):
+            print(f"⚠️ Fallback to default base image.")
+            base_img_path = os.path.join(base_path, "base_house.PNG")
         if not os.path.exists(base_img_path):
             raise FileNotFoundError(f"Missing base image: {base_img_path}")
 
@@ -40,25 +47,37 @@ def generate_stash_image(user_id: str, reinforcements: dict, base_path: str = DE
         base_size = base.size
         print(f"🎨 Base size: {base_size}")
 
+        # Draw context for badges
+        draw = ImageDraw.Draw(base)
+        try:
+            font = ImageFont.truetype(BADGE_FONT_PATH, BADGE_FONT_SIZE)
+        except:
+            font = ImageFont.load_default()
+            print("⚠️ Using default font for badges.")
+
         for key, filename in LAYER_FILES.items():
             readable_name = key.replace("_", " ").title()
-            if reinforcements.get(readable_name, 0) > 0:
+            count = reinforcements.get(readable_name, 0)
+            if count > 0:
                 layer_path = os.path.join(base_path, filename)
                 if not os.path.exists(layer_path):
                     print(f"⚠️ Missing layer file: {layer_path}")
                     continue
 
                 overlay = Image.open(layer_path).convert("RGBA")
-                print(f"📌 Adding: {filename} ({overlay.size})")
-
                 if overlay.size != base_size:
                     overlay = overlay.resize(base_size)
                     print(f"🔧 Resized {key} to match base size")
 
                 faded = ImageEnhance.Brightness(overlay).enhance(1.15)
-
-                # ✅ Composite with alpha masking
                 base.alpha_composite(faded)
+
+                # 🏷️ Badge for reinforcement count if > 1
+                if count > 1:
+                    badge_text = f"x{count}"
+                    badge_position = (base_size[0] - 60, 10 + list(LAYER_FILES.keys()).index(key) * 40)
+                    draw.text(badge_position, badge_text, fill=(255, 255, 0, 255), font=font)
+                    print(f"🏷️ Added badge {badge_text} at {badge_position}")
 
         base.save(output_path)
         print(f"📦 Saved new stash image: {output_path}")
@@ -74,10 +93,10 @@ if __name__ == "__main__":
     test_reinforcements = {
         "Barbed Fence": 3,
         "Reinforced Gate": 1,
-        "Locked Container": 1,
+        "Locked Container": 2,
         "Guard Dog": 1,
         "Claymore Trap": 1
     }
 
-    path = generate_stash_image(test_user_id, test_reinforcements)
+    path = generate_stash_image(test_user_id, test_reinforcements, skin="prestige3")
     print(f"🖼️ Output: {path}")
