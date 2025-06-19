@@ -1,14 +1,16 @@
-# cogs/raid.py — Updated Warlab Raid System with Overlays, Risk, Prestige, Unlocks
+# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering)
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 import random
-import json
-from datetime import datetime, timedelta
 import asyncio
+from datetime import datetime, timedelta
 
+from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
+from cogs.fortify import render_stash_visual, get_skin_visuals
+from stash_image_generator import generate_stash_image  # ✅ Enable visual render
 
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
@@ -28,37 +30,27 @@ class Raid(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def load(self, path):
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except:
-            return {} if path.endswith(".json") else []
-
-    def save(self, path, data):
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
-
     @app_commands.command(name="raid", description="Attempt to raid another player's stash.")
     async def raid(self, interaction: discord.Interaction, target: discord.Member):
+        await interaction.response.defer(ephemeral=True)
         attacker_id = str(interaction.user.id)
         defender_id = str(target.id)
         now = datetime.utcnow()
 
         if attacker_id == defender_id:
-            await interaction.response.send_message("❌ You cannot raid yourself.", ephemeral=True)
+            await interaction.followup.send("❌ You cannot raid yourself.", ephemeral=True)
             return
 
-        cooldowns = self.load(COOLDOWN_FILE)
-        users = self.load(USER_DATA)
+        cooldowns = await load_file(COOLDOWN_FILE) or {}
+        users = await load_file(USER_DATA) or {}
         attacker = users.get(attacker_id)
         defender = users.get(defender_id)
 
         if not attacker:
-            await interaction.response.send_message("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
+            await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
             return
         if not defender:
-            await interaction.response.send_message("❌ That player doesn’t have a profile yet.", ephemeral=True)
+            await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
             return
 
         last_attacks = cooldowns.get(attacker_id, {})
@@ -66,23 +58,39 @@ class Raid(commands.Cog):
             last_time = datetime.fromisoformat(last_attacks[defender_id])
             if now - last_time < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last_time)
-                await interaction.response.send_message(f"⏳ Wait {wait.seconds//3600}h before raiding this player again.", ephemeral=True)
+                await interaction.followup.send(f"⏳ Wait {wait.seconds//3600}h before raiding this player again.", ephemeral=True)
                 return
         elif attacker_id in cooldowns and now - datetime.fromisoformat(list(last_attacks.values())[-1]) < timedelta(hours=3):
-            await interaction.response.send_message(f"⏳ Wait before raiding again (3h cooldown).", ephemeral=True)
+            await interaction.followup.send("⏳ Wait before raiding again (3h cooldown).", ephemeral=True)
             return
 
         reinforcements = defender.get("reinforcements", {})
-        visual_embed = discord.Embed(
-            title=f"🏚️ {target.display_name}'s Fortified Lab",
-            description=f"```{self.render_stash(reinforcements)}```",
-            color=0x95a5a6
+        catalog = await load_file(CATALOG_PATH) or {}
+        visuals = get_skin_visuals(defender, catalog)
+        stash_visual = render_stash_visual(reinforcements)
+
+        # ✅ Generate and attach visual stash image
+        stash_img_path = generate_stash_image(
+            defender_id,
+            reinforcements,
+            base_path="assets/stash_layers",
+            baseImagePath=defender.get("baseImage")
         )
-        await interaction.response.send_message(embed=visual_embed, ephemeral=True)
+        file = discord.File(stash_img_path, filename="raid_stash.png")
+
+        visual_embed = discord.Embed(
+            title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
+            description=f"```\n{stash_visual}\n```",
+            color=visuals["color"]
+        )
+        visual_embed.set_image(url="attachment://raid_stash.png")
+        await interaction.followup.send(embed=visual_embed, file=file, ephemeral=True)
+        await asyncio.sleep(1)
 
         result_summary = []
         triggered = []
         success = True
+
         for i in range(3):
             hit = True
             for rtype, chance in REINFORCEMENT_ROLLS.items():
@@ -91,7 +99,6 @@ class Raid(commands.Cog):
                     triggered.append(rtype)
                     hit = False
                     break
-            # ⏺️ Add visual animation placeholders
             await interaction.followup.send(f"🎞️ Roll {i+1}: {'✅ HIT' if hit else '❌ BLOCKED'}", ephemeral=True)
             await asyncio.sleep(1)
             if not hit:
@@ -111,12 +118,13 @@ class Raid(commands.Cog):
             stash = defender.get("stash", [])
             max_steal = min(len(stash), random.randint(1, 3 + item_bonus))
             stolen_items = random.sample(stash, max_steal) if stash else []
+
             for item in stolen_items:
                 stash.remove(item)
                 attacker.setdefault("stash", []).append(item)
             defender["stash"] = stash
 
-            stolen_coins = random.randint(1, 50)
+            stolen_coins = int(random.randint(1, 50) * coin_multiplier)
             defender["coins"] = max(0, defender.get("coins", 0) - stolen_coins)
             attacker["coins"] = attacker.get("coins", 0) + stolen_coins
 
@@ -142,10 +150,12 @@ class Raid(commands.Cog):
 
         users[attacker_id] = attacker
         users[defender_id] = defender
-        self.save(USER_DATA, users)
+        await save_file(USER_DATA, users)
+
         cooldowns.setdefault(attacker_id, {})[defender_id] = now.isoformat()
-        self.save(COOLDOWN_FILE, cooldowns)
-        self.log_raid({
+        await save_file(COOLDOWN_FILE, cooldowns)
+
+        await self.log_raid({
             "timestamp": now.isoformat(),
             "attacker": attacker_id,
             "defender": defender_id,
@@ -165,27 +175,12 @@ class Raid(commands.Cog):
         except:
             pass
 
-    def render_stash(self, reinforcements):
-        bf = reinforcements.get("Barbed Fence", 0)
-        lc = reinforcements.get("Locked Container", 0)
-        rg = reinforcements.get("Reinforced Gate", 0)
-        gd = reinforcements.get("Guard Dog", 0)
-        cm = reinforcements.get("Claymore Trap", 0)
-
-        row1 = " ".join(["🧱" if i < bf else "🔲" for i in range(5)])
-        row2 = " ".join(["🔐" if i < lc else "🔲" for i in range(5)])
-        row3 = " ".join(["🚪" if i < rg else "🔲" for i in range(5)])
-        row4 = f"🐶 x{gd}" if gd else ""
-        row5 = f"💣 x{cm}" if cm else ""
-
-        return f"{row1}\n{row2}\n{row3}\n{row4} {row5}"
-
-    def log_raid(self, entry):
-        logs = self.load(RAID_LOG_FILE)
+    async def log_raid(self, entry):
+        logs = await load_file(RAID_LOG_FILE) or []
         if not isinstance(logs, list):
             logs = []
         logs.append(entry)
-        self.save(RAID_LOG_FILE, logs)
+        await save_file(RAID_LOG_FILE, logs)
 
 async def setup(bot):
     await bot.add_cog(Raid(bot))
