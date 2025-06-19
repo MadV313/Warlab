@@ -3,6 +3,7 @@
     "emoji": "🏚️",
     "description": "A corroded, rusty old lab setup. Basic, no frills.",
     "color": 2135709,
+    "filename": "base_house_prestige1.PNG",
     "unlock": {
       "prestige": 1,
       "builds_required": 4
@@ -12,6 +13,7 @@
     "emoji": "🏪",
     "description": "Tactical repair station used by survivors in the field.",
     "color": 3066993,
+    "filename": "base_house_prestige2.png",
     "unlock": {
       "prestige": 2
     }
@@ -20,6 +22,7 @@
     "emoji": "🏥",
     "description": "Bright yellow, with biohazard symbols. High-security zone.",
     "color": 15794175,
+    "filename": "base_house_prestige3.png",
     "unlock": {
       "prestige": 3
     }
@@ -28,6 +31,7 @@
     "emoji": "🏢",
     "description": "Sleek green tactical theme. Everything is more advanced here.",
     "color": 2591792,
+    "filename": "house_base_prestige4.png",
     "unlock": {
       "prestige": 4
     }
@@ -36,6 +40,7 @@
     "emoji": "🕋",
     "description": "Secret blacksite aesthetics. Shadowy, elite. Prestige-exclusive.",
     "color": 0,
+    "filename": "base_house_prestige5.png",
     "unlock": {
       "prestige": 5
     }
@@ -44,6 +49,7 @@
     "emoji": "🏰",
     "description": "An inpenatrable fortress awarded only to Raid Masters.",
     "color": 12541613,
+    "filename": "base_house_raid_master.png",
     "unlock": {
       "raids_successful": 25
     }
@@ -52,6 +58,7 @@
     "emoji": "🏛️",
     "description": "A pristine high-tech lab awarded only to Blueprint Masters.",
     "color": 3447003,
+    "filename": "base_house_blueprint_master.png",
     "unlock": {
       "blueprints_unlocked": "all"
     }
@@ -60,6 +67,7 @@
     "emoji": "🛖",
     "description": "Makeshift but well-organized survivor lab awarded only to Scavenge Masters.",
     "color": 15844367,
+    "filename": "base_house_scavenge_master.png",
     "unlock": {
       "scavenges_completed": 100
     }
