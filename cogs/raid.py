@@ -7,6 +7,7 @@ import random
 import asyncio
 from datetime import datetime, timedelta
 from PIL import Image
+import os
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
@@ -32,6 +33,9 @@ MISS_GIF = "miss.gif"
 
 def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
     try:
+        # ✅ Ensure the temp directory exists
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
         base = Image.open(base_path).convert("RGBA")
         overlay = Image.open(overlay_path).convert("RGBA").resize(base.size)
         base.paste(overlay, (0, 0), overlay)
