@@ -118,7 +118,7 @@ class RaidView(discord.ui.View):
         )
         embed.set_image(url="attachment://merged_raid.gif")
 
-        if not hit or self.phase == 2:
+        if self.phase == 2:
             self.success = hit
             self.phase = 3
             self.clear_items()
