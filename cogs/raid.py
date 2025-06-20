@@ -1,4 +1,4 @@
-# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering)
+# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering + Test Mode)
 
 import discord
 from discord.ext import commands
@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
 from cogs.fortify import render_stash_visual, get_skin_visuals
-from stash_image_generator import generate_stash_image  # ✅ Enable visual render
+from stash_image_generator import generate_stash_image
 
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
@@ -36,6 +36,7 @@ class Raid(commands.Cog):
         attacker_id = str(interaction.user.id)
         defender_id = str(target.id)
         now = datetime.utcnow()
+        is_test_mode = target.display_name.lower() == "war lab"
 
         if attacker_id == defender_id:
             await interaction.followup.send("❌ You cannot raid yourself.", ephemeral=True)
@@ -44,32 +45,50 @@ class Raid(commands.Cog):
         cooldowns = await load_file(COOLDOWN_FILE) or {}
         users = await load_file(USER_DATA) or {}
         attacker = users.get(attacker_id)
-        defender = users.get(defender_id)
 
         if not attacker:
             await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
             return
-        if not defender:
-            await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
-            return
 
-        last_attacks = cooldowns.get(attacker_id, {})
-        if defender_id in last_attacks:
-            last_time = datetime.fromisoformat(last_attacks[defender_id])
-            if now - last_time < timedelta(hours=24):
-                wait = timedelta(hours=24) - (now - last_time)
-                await interaction.followup.send(f"⏳ Wait {wait.seconds//3600}h before raiding this player again.", ephemeral=True)
+        if is_test_mode:
+            catalog = await load_file(CATALOG_PATH) or {}
+            random_skin = random.choice(list(catalog.keys()))
+            base_img = catalog[random_skin]["baseImage"]
+            defender = {
+                "labskins": [random_skin],
+                "baseImage": base_img,
+                "reinforcements": {
+                    "Guard Dog": random.randint(0, 1),
+                    "Claymore Trap": random.randint(0, 2),
+                    "Barbed Fence": random.randint(0, 4),
+                    "Reinforced Gate": random.randint(0, 3),
+                    "Locked Container": random.randint(0, 2)
+                },
+                "stash": [f"TestItem{i}" for i in range(random.randint(1, 5))],
+                "coins": random.randint(10, 75)
+            }
+        else:
+            defender = users.get(defender_id)
+            if not defender:
+                await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
                 return
-        elif attacker_id in cooldowns and now - datetime.fromisoformat(list(last_attacks.values())[-1]) < timedelta(hours=3):
-            await interaction.followup.send("⏳ Wait before raiding again (3h cooldown).", ephemeral=True)
-            return
+
+            last_attacks = cooldowns.get(attacker_id, {})
+            if defender_id in last_attacks:
+                last_time = datetime.fromisoformat(last_attacks[defender_id])
+                if now - last_time < timedelta(hours=24):
+                    wait = timedelta(hours=24) - (now - last_time)
+                    await interaction.followup.send(f"⏳ Wait {wait.seconds//3600}h before raiding this player again.", ephemeral=True)
+                    return
+            elif attacker_id in cooldowns and now - datetime.fromisoformat(list(last_attacks.values())[-1]) < timedelta(hours=3):
+                await interaction.followup.send("⏳ Wait before raiding again (3h cooldown).", ephemeral=True)
+                return
 
         reinforcements = defender.get("reinforcements", {})
         catalog = await load_file(CATALOG_PATH) or {}
         visuals = get_skin_visuals(defender, catalog)
         stash_visual = render_stash_visual(reinforcements)
 
-        # ✅ Generate and attach visual stash image
         stash_img_path = generate_stash_image(
             defender_id,
             reinforcements,
@@ -148,30 +167,30 @@ class Raid(commands.Cog):
         if prestige_earned:
             result_summary.append(f"🏅 Prestige gained: {prestige_earned}")
 
-        users[attacker_id] = attacker
-        users[defender_id] = defender
-        await save_file(USER_DATA, users)
-
-        cooldowns.setdefault(attacker_id, {})[defender_id] = now.isoformat()
-        await save_file(COOLDOWN_FILE, cooldowns)
-
-        await self.log_raid({
-            "timestamp": now.isoformat(),
-            "attacker": attacker_id,
-            "defender": defender_id,
-            "blocked": not success,
-            "items": stolen_items,
-            "coins": stolen_coins,
-            "lost_coins": coin_loss,
-            "prestige": prestige_earned,
-            "defenses_triggered": triggered
-        })
+        if not is_test_mode:
+            users[attacker_id] = attacker
+            users[defender_id] = defender
+            await save_file(USER_DATA, users)
+            cooldowns.setdefault(attacker_id, {})[defender_id] = now.isoformat()
+            await save_file(COOLDOWN_FILE, cooldowns)
+            await self.log_raid({
+                "timestamp": now.isoformat(),
+                "attacker": attacker_id,
+                "defender": defender_id,
+                "blocked": not success,
+                "items": stolen_items,
+                "coins": stolen_coins,
+                "lost_coins": coin_loss,
+                "prestige": prestige_earned,
+                "defenses_triggered": triggered
+            })
 
         outcome = "✅ **Raid Successful!**" if success else "❌ **Raid Repelled!**"
         await interaction.followup.send(f"⚔️ Raid on {target.display_name}\n{outcome}\n\n" + "\n".join(result_summary), ephemeral=True)
 
         try:
-            await target.send(f"⚠️ {interaction.user.display_name} raided your stash!\n{outcome}\n\n" + "\n".join(result_summary))
+            if not is_test_mode:
+                await target.send(f"⚠️ {interaction.user.display_name} raided your stash!\n{outcome}\n\n" + "\n".join(result_summary))
         except:
             pass
 
