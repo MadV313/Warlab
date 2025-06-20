@@ -9,6 +9,8 @@ import json, os, asyncio
 from datetime import datetime
 import pytz
 
+from utils.fileIO import load_file, save_file
+
 # ── Load config ──────────────────────────────────────────────────────────────
 try:
     with open("config.json", "r") as f:
@@ -27,6 +29,7 @@ TOKEN     = config["token"]
 GUILD_ID  = int(config.get("guild_id", "0"))
 PREFIX    = "/"
 WARLAB_CHANNEL_ID = 1382187883590455296
+WARLAB_BOT_ID = "1382188850671255612"
 
 # ── Discord bot setup ────────────────────────────────────────────────────────
 intents = discord.Intents.default()
@@ -35,8 +38,8 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
-bot.config = config                          # cogs can access self.bot.config
-guild_obj = discord.Object(id=GUILD_ID)      # reuse reference
+bot.config = config
+guild_obj = discord.Object(id=GUILD_ID)
 
 # ── Weekend Boost Broadcast ──────────────────────────────────────────────────
 boost_announcement_sent = False
@@ -45,8 +48,6 @@ boost_announcement_sent = False
 async def check_weekend_boosts():
     global boost_announcement_sent
     now = datetime.now(pytz.utc)
-
-    # Friday 6AM UTC through Sunday 11:59PM UTC
     if now.weekday() in [4, 5, 6]:
         if (now.weekday() == 4 and now.hour >= 6) or now.weekday() in [5, 6]:
             if not boost_announcement_sent:
@@ -55,9 +56,29 @@ async def check_weekend_boosts():
                     await channel.send("@everyone 🔥 **Weekend Boosts are in effect for Scavenge, Tasks, and Raids!**\nLoot and rewards are increased all weekend long — make the most of it!")
                     boost_announcement_sent = True
             return
-
-    # Reset flag when boost ends (Monday)
     boost_announcement_sent = False
+
+# ── Ensure @Warlab is registered ─────────────────────────────────────────────
+async def ensure_bot_profile():
+    profiles = await load_file("data/user_profiles.json") or {}
+    if WARLAB_BOT_ID not in profiles:
+        profiles[WARLAB_BOT_ID] = {
+            "labskins": ["Rust Bucket"],
+            "baseImage": "assets/stash_layers/base_house_prestige1.PNG",
+            "reinforcements": {
+                "Guard Dog": 1,
+                "Claymore Trap": 1,
+                "Barbed Fence": 3,
+                "Reinforced Gate": 2,
+                "Locked Container": 2
+            },
+            "stash": ["Scrap", "Nails", "Hammer"],
+            "coins": 25,
+            "prestige_points": 0,
+            "raids_successful": 0
+        }
+        await save_file("data/user_profiles.json", profiles)
+        print("✅ Auto-registered @Warlab profile.")
 
 # ── Auto-load cogs *then* sync commands ──────────────────────────────────────
 @bot.event
@@ -74,6 +95,8 @@ async def on_ready():
             except Exception as exc:
                 print(f"   ❌ {path} -> {exc}")
 
+    await ensure_bot_profile()
+
     bot.tree.copy_global_to(guild=guild_obj)
     try:
         synced = await bot.tree.sync(guild=guild_obj)
@@ -81,7 +104,7 @@ async def on_ready():
     except Exception as exc:
         print(f"❌ Slash-sync error: {exc}")
 
-    check_weekend_boosts.start()  # ⏱ Start weekend boost checker
+    check_weekend_boosts.start()
 
 # ── Log every slash invocation ───────────────────────────────────────────────
 @bot.listen("on_interaction")
