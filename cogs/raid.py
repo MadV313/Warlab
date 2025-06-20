@@ -1,5 +1,4 @@
-# cogs/raid.py — Locked Raid Flow (3-Phase Rolls via Single Embed + Overlay Merge)
-
+# --- Top of File Remains the Same ---
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -36,18 +35,20 @@ def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
         base = Image.open(base_path).convert("RGBA")
         overlay = Image.open(overlay_path).convert("RGBA").resize(base.size)
         base.paste(overlay, (0, 0), overlay)
+        base = base.convert("RGB")  # GIFs don't support full alpha
         base.save(out_path, format="GIF")
         return out_path
     except Exception as e:
         print(f"❌ Failed to merge overlay: {e}")
-        return overlay_path
+        return base_path
 
+# --- Custom Button Classes ---
 class AttackButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        view: RaidView = self.view  # type: ignore
+        view: RaidView = self.view
         await view.attack_phase(interaction)
 
 class CloseButton(discord.ui.Button):
@@ -55,9 +56,10 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary)
 
     async def callback(self, interaction: discord.Interaction):
-        view: RaidView = self.view  # type: ignore
+        view: RaidView = self.view
         await view.end_raid(interaction)
 
+# --- Main View ---
 class RaidView(discord.ui.View):
     def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
         super().__init__(timeout=60)
@@ -81,7 +83,7 @@ class RaidView(discord.ui.View):
         self.defender_id = str(target.id)
         self.now = datetime.utcnow()
 
-        if phase < 3:
+        if self.phase < 3:
             self.add_item(AttackButton())
         else:
             self.add_item(CloseButton())
@@ -123,7 +125,7 @@ class RaidView(discord.ui.View):
                 attachments=[file],
                 view=self
             )
-            return await self.end_raid(interaction)
+            return
 
         self.phase += 1
         if self.phase == 3:
@@ -135,7 +137,7 @@ class RaidView(discord.ui.View):
                 attachments=[file],
                 view=self
             )
-            return await self.end_raid(interaction)
+            return
 
         new_view = RaidView(
             self.ctx, self.attacker, self.defender, self.visuals,
