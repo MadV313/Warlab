@@ -1,4 +1,4 @@
-# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering + Animated Overlays + Debug Logs + 3-Phase Button UI)
+# cogs/raid.py — Polished Warlab Raid System (Single Embed Flow + Overlay Merge + 3-Phase Button UI)
 
 import discord
 from discord.ext import commands
@@ -6,6 +6,7 @@ from discord import app_commands
 import random
 import asyncio
 from datetime import datetime, timedelta
+from PIL import Image
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
@@ -29,9 +30,20 @@ REINFORCEMENT_ROLLS = {
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF = "miss.gif"
 
+def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
+    try:
+        base = Image.open(base_path).convert("RGBA")
+        overlay = Image.open(overlay_path).convert("RGBA").resize(base.size)
+        base.paste(overlay, (0, 0), overlay)
+        base.save(out_path, format="GIF")
+        return out_path
+    except Exception as e:
+        print(f"❌ Failed to merge overlay: {e}")
+        return overlay_path
+
 class RaidView(discord.ui.View):
     def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
-        super().__init__(timeout=30)
+        super().__init__(timeout=45)
         self.ctx = ctx
         self.attacker = attacker
         self.defender = defender
@@ -54,18 +66,13 @@ class RaidView(discord.ui.View):
 
         self.attack_button = discord.ui.Button(label="Attack", style=discord.ButtonStyle.danger)
         self.attack_button.callback = self.attack_phase
-        if phase < 2:
-            self.add_item(self.attack_button)
-
-        if self.phase == 2:
-            self.close_button = discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary)
-            self.close_button.callback = self.end_raid
-            self.add_item(self.close_button)
+        self.add_item(self.attack_button)
 
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer()
         i = self.phase
         hit = True
+
         for rtype, chance in REINFORCEMENT_ROLLS.items():
             if self.reinforcements.get(rtype, 0) > 0 and random.randint(1, 100) <= chance:
                 self.reinforcements[rtype] -= 1
@@ -74,28 +81,34 @@ class RaidView(discord.ui.View):
                 hit = False
                 break
 
-        overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
-        file = discord.File(f"assets/overlays/{overlay}", filename=overlay)
+        overlay_name = OVERLAY_GIFS[i] if hit else MISS_GIF
+        overlay_path = f"assets/overlays/{overlay_name}"
+        merged_path = merge_overlay(self.stash_img_path, overlay_path)
+
+        file = discord.File(merged_path, filename="merged_raid.gif")
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab (Phase {i+1})",
             description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
             color=self.visuals["color"]
         )
-        embed.set_image(url=f"attachment://{overlay}")
-        await interaction.followup.send(embed=embed, file=file, ephemeral=True)
+        embed.set_image(url="attachment://merged_raid.gif")
 
         if not hit:
             print("❌ Raid blocked.")
             self.success = False
-            await self.end_raid(interaction)
-        else:
-            self.phase += 1
-            if self.phase == 3:
-                self.clear_items()
-                self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
-            else:
-                new_view = RaidView(self.ctx, self.attacker, self.defender, self.visuals, self.reinforcements, self.stash_visual, self.stash_img_path, self.is_test_mode, self.phase, target=self.target)
-                await interaction.followup.send("Next phase ready.", view=new_view, ephemeral=True)
+            self.clear_items()
+            self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
+            await interaction.message.edit(embed=embed, attachments=[file], view=self)
+            return await self.end_raid(interaction)
+
+        self.phase += 1
+        if self.phase == 3:
+            self.clear_items()
+            self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
+            await interaction.message.edit(embed=embed, attachments=[file], view=self)
+            return await self.end_raid(interaction)
+
+        await interaction.message.edit(embed=embed, attachments=[file], view=self)
 
     async def end_raid(self, interaction: discord.Interaction):
         weekend_bonus = is_weekend_boost_active()
@@ -141,9 +154,10 @@ class RaidView(discord.ui.View):
             cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
             await save_file(COOLDOWN_FILE, cooldowns)
 
-        outcome = "✅ **Raid Successful!**" if self.success else "❌ **Raid Repelled!**"
         await interaction.followup.send(
-            f"⚔️ Raid on {self.target.display_name}\n{outcome}\n\n" + "\n".join(result_summary),
+            f"⚔️ Raid on {self.target.display_name}\n"
+            + ("✅ **Raid Successful!**" if self.success else "❌ **Raid Repelled!**")
+            + "\n\n" + "\n".join(result_summary),
             ephemeral=True
         )
 
@@ -212,14 +226,15 @@ class Raid(commands.Cog):
             )
 
             file = discord.File(stash_img_path, filename="raid_stash.png")
-            visual_embed = discord.Embed(
+            embed = discord.Embed(
                 title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
                 description=f"```\n{stash_visual}\n```",
                 color=visuals["color"]
             )
-            visual_embed.set_image(url="attachment://raid_stash.png")
+            embed.set_image(url="attachment://raid_stash.png")
+
             view = RaidView(interaction, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, target=target)
-            await interaction.followup.send(embed=visual_embed, file=file, view=view, ephemeral=True)
+            await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
 
         except Exception as e:
             print(f"🔥 RAID EXCEPTION: {e}")
