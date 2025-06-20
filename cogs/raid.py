@@ -76,9 +76,9 @@ class RaidView(discord.ui.View):
         file = discord.File(f"assets/overlays/{overlay}", filename=overlay)
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.ctx.target.display_name}'s Fortified Lab (Phase {i+1})",
-            description=f"```
+            description=f"""```
 {render_stash_visual(self.reinforcements)}
-```",
+```""",
             color=self.visuals["color"]
         )
         embed.set_image(url=f"attachment://{overlay}")
