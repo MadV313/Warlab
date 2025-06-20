@@ -60,7 +60,7 @@ class Raid(commands.Cog):
                 return
 
             if is_test_mode:
-                print("🔧 Running in WarLab test mode.")
+                print("🔧 Running in Warlab test mode.")
                 catalog = await load_file(CATALOG_PATH) or {}
                 random_skin = random.choice(list(catalog.keys()))
                 base_img = catalog[random_skin]["baseImage"]
