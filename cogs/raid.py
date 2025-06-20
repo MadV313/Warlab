@@ -15,7 +15,7 @@ from stash_image_generator import generate_stash_image
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
 RAID_LOG_FILE = "data/raid_log.json"
-CATALOG_PATH = "data/labskin_catalog.json"
+CATALOG_PATH = "data/labskins_catalog.json"
 WARLAB_CHANNEL_ID = 1382187883590455296
 
 REINFORCEMENT_ROLLS = {
