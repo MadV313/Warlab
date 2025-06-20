@@ -1,4 +1,4 @@
-# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering + Test Mode)
+# cogs/raid.py — Polished Warlab Raid System (Visual Stash Rendering + Animated Overlays)
 
 import discord
 from discord.ext import commands
@@ -25,6 +25,9 @@ REINFORCEMENT_ROLLS = {
     "Reinforced Gate": 20,
     "Locked Container": 15
 }
+
+OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
+MISS_GIF = "miss.gif"
 
 class Raid(commands.Cog):
     def __init__(self, bot):
@@ -118,8 +121,12 @@ class Raid(commands.Cog):
                     triggered.append(rtype)
                     hit = False
                     break
-            await interaction.followup.send(f"🎞️ Roll {i+1}: {'✅ HIT' if hit else '❌ BLOCKED'}", ephemeral=True)
+
+            overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
+            file = discord.File(f"assets/overlays/{overlay}", filename=overlay)
+            await interaction.followup.send(file=file, ephemeral=True)
             await asyncio.sleep(1)
+
             if not hit:
                 success = False
                 break
