@@ -36,7 +36,7 @@ class Raid(commands.Cog):
         attacker_id = str(interaction.user.id)
         defender_id = str(target.id)
         now = datetime.utcnow()
-        is_test_mode = target.display_name.lower() == "war lab"
+        is_test_mode = target.display_name.lower() == "warlab"
 
         if attacker_id == defender_id:
             await interaction.followup.send("❌ You cannot raid yourself.", ephemeral=True)
