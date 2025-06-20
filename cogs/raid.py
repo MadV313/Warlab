@@ -74,7 +74,7 @@ class RaidView(discord.ui.View):
             close_btn.callback = self.end_raid
             self.add_item(close_btn)
 
-    async def attack_phase(self, interaction: discord.Interaction):
+        async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer()
         i = self.phase
         hit = True
@@ -105,25 +105,38 @@ class RaidView(discord.ui.View):
             self.phase = 3
             self.clear_items()
             self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
-            await interaction.message.edit(embed=embed, attachments=[file], view=self)
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
+                embed=embed,
+                attachments=[file],
+                view=self
+            )
             return await self.end_raid(interaction)
 
         self.phase += 1
         if self.phase == 3:
             self.clear_items()
             self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
-        else:
-            # Rebind updated view for next attack
-            new_view = RaidView(
-                self.ctx, self.attacker, self.defender, self.visuals,
-                self.reinforcements, self.stash_visual, self.stash_img_path,
-                self.is_test_mode, phase=self.phase, target=self.target
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
+                embed=embed,
+                attachments=[file],
+                view=self
             )
-            await interaction.message.edit(embed=embed, attachments=[file], view=new_view)
-            return
+            return await self.end_raid(interaction)
 
-        await interaction.message.edit(embed=embed, attachments=[file], view=self)
-        return await self.end_raid(interaction)
+        # Refresh with updated view for next attack
+        new_view = RaidView(
+            self.ctx, self.attacker, self.defender, self.visuals,
+            self.reinforcements, self.stash_visual, self.stash_img_path,
+            self.is_test_mode, phase=self.phase, target=self.target
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=embed,
+            attachments=[file],
+            view=new_view
+        )
 
     async def end_raid(self, interaction: discord.Interaction):
         weekend_bonus = is_weekend_boost_active()
