@@ -60,8 +60,13 @@ class Raid(commands.Cog):
                 return
 
             if is_test_mode:
-                print("🔧 Running in Warlab test mode.")
+                print("🔧 Running in WarLab test mode.")
                 catalog = await load_file(CATALOG_PATH) or {}
+                if not catalog:
+                    print("❌ Catalog is empty! Cannot generate test labskin.")
+                    await interaction.followup.send("⚠️ Catalog is empty — cannot simulate test mode until skins are added.", ephemeral=True)
+                    return
+
                 random_skin = random.choice(list(catalog.keys()))
                 base_img = catalog[random_skin]["baseImage"]
                 defender = {
