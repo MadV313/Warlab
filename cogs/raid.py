@@ -76,9 +76,7 @@ class RaidView(discord.ui.View):
         file = discord.File(f"assets/overlays/{overlay}", filename=overlay)
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.ctx.target.display_name}'s Fortified Lab (Phase {i+1})",
-            description=f"""```
-            {render_stash_visual(self.reinforcements)}
-            ```""",
+            description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
             color=self.visuals["color"]
         )
         embed.set_image(url=f"attachment://{overlay}")
@@ -214,9 +212,7 @@ class Raid(commands.Cog):
             file = discord.File(stash_img_path, filename="raid_stash.png")
             visual_embed = discord.Embed(
                 title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
-                description=f"```
-                {stash_visual}
-                ```",
+                description=f"```\n{stash_visual}\n```",
                 color=visuals["color"]
             )
             visual_embed.set_image(url="attachment://raid_stash.png")
