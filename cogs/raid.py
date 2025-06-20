@@ -68,7 +68,7 @@ class Raid(commands.Cog):
                     return
 
                 random_skin = random.choice(list(catalog.keys()))
-                base_img = catalog[random_skin]["baseImage"]
+                base_img = catalog[random_skin]["filename"]  # ✅ FIXED HERE
                 defender = {
                     "labskins": [random_skin],
                     "baseImage": base_img,
