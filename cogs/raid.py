@@ -30,7 +30,7 @@ OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF = "miss.gif"
 
 class RaidView(discord.ui.View):
-    def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0):
+    def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
         super().__init__(timeout=30)
         self.ctx = ctx
         self.attacker = attacker
@@ -41,6 +41,7 @@ class RaidView(discord.ui.View):
         self.stash_img_path = stash_img_path
         self.is_test_mode = is_test_mode
         self.phase = phase
+        self.target = target
         self.triggered = []
         self.success = True
         self.stolen_items = []
@@ -48,12 +49,13 @@ class RaidView(discord.ui.View):
         self.prestige_earned = 0
         self.coin_loss = 0
         self.attacker_id = str(ctx.user.id)
-        self.defender_id = str(ctx.target.id)
+        self.defender_id = str(target.id)
         self.now = datetime.utcnow()
 
         self.attack_button = discord.ui.Button(label="Attack", style=discord.ButtonStyle.danger)
         self.attack_button.callback = self.attack_phase
-        self.add_item(self.attack_button if phase < 2 else None)
+        if phase < 2:
+            self.add_item(self.attack_button)
 
         if self.phase == 2:
             self.close_button = discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary)
@@ -75,7 +77,7 @@ class RaidView(discord.ui.View):
         overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
         file = discord.File(f"assets/overlays/{overlay}", filename=overlay)
         embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.ctx.target.display_name}'s Fortified Lab (Phase {i+1})",
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab (Phase {i+1})",
             description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
             color=self.visuals["color"]
         )
@@ -92,7 +94,7 @@ class RaidView(discord.ui.View):
                 self.clear_items()
                 self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
             else:
-                new_view = RaidView(self.ctx, self.attacker, self.defender, self.visuals, self.reinforcements, self.stash_visual, self.stash_img_path, self.is_test_mode, self.phase)
+                new_view = RaidView(self.ctx, self.attacker, self.defender, self.visuals, self.reinforcements, self.stash_visual, self.stash_img_path, self.is_test_mode, self.phase, target=self.target)
                 await interaction.followup.send("Next phase ready.", view=new_view, ephemeral=True)
 
     async def end_raid(self, interaction: discord.Interaction):
@@ -141,7 +143,7 @@ class RaidView(discord.ui.View):
 
         outcome = "✅ **Raid Successful!**" if self.success else "❌ **Raid Repelled!**"
         await interaction.followup.send(
-            f"⚔️ Raid on {self.ctx.target.display_name}\n{outcome}\n\n" + "\n".join(result_summary),
+            f"⚔️ Raid on {self.target.display_name}\n{outcome}\n\n" + "\n".join(result_summary),
             ephemeral=True
         )
 
@@ -216,7 +218,7 @@ class Raid(commands.Cog):
                 color=visuals["color"]
             )
             visual_embed.set_image(url="attachment://raid_stash.png")
-            view = RaidView(interaction, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode)
+            view = RaidView(interaction, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, target=target)
             await interaction.followup.send(embed=visual_embed, file=file, view=view, ephemeral=True)
 
         except Exception as e:
