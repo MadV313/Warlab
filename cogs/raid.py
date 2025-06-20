@@ -91,10 +91,19 @@ class RaidView(discord.ui.View):
 
         for rtype, chance in REINFORCEMENT_ROLLS.items():
             if self.reinforcements.get(rtype, 0) > 0 and random.randint(1, 100) <= chance:
-                self.reinforcements[rtype] -= 1
                 self.triggered.append(rtype)
-                print(f"💥 {rtype} triggered!")
                 hit = False
+        
+                # Always consume Guard Dog / Claymore Trap
+                if rtype in ["Guard Dog", "Claymore Trap"]:
+                    self.reinforcements[rtype] -= 1
+        
+                # 50% chance to consume others
+                elif rtype in ["Barbed Fence", "Reinforced Gate", "Locked Container"]:
+                    if random.random() < 0.5:
+                        self.reinforcements[rtype] -= 1
+        
+                print(f"💥 {rtype} triggered!")
                 break
 
         overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
