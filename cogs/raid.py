@@ -215,8 +215,8 @@ class Raid(commands.Cog):
             visual_embed = discord.Embed(
                 title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
                 description=f"```
-{stash_visual}
-```",
+                {stash_visual}
+                ```",
                 color=visuals["color"]
             )
             visual_embed.set_image(url="attachment://raid_stash.png")
