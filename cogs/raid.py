@@ -42,6 +42,22 @@ def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
         print(f"❌ Failed to merge overlay: {e}")
         return overlay_path
 
+class AttackButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Attack", style=discord.ButtonStyle.danger)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: RaidView = self.view  # type: ignore
+        await view.attack_phase(interaction)
+
+class CloseButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Close", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: RaidView = self.view  # type: ignore
+        await view.end_raid(interaction)
+
 class RaidView(discord.ui.View):
     def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
         super().__init__(timeout=60)
@@ -66,77 +82,72 @@ class RaidView(discord.ui.View):
         self.now = datetime.utcnow()
 
         if phase < 3:
-            attack_btn = discord.ui.Button(label="Attack", style=discord.ButtonStyle.danger)
-            attack_btn.callback = self.attack_phase
-            self.add_item(attack_btn)
+            self.add_item(AttackButton())
         else:
-            close_btn = discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary)
-            close_btn.callback = self.end_raid
-            self.add_item(close_btn)
+            self.add_item(CloseButton())
 
-        async def attack_phase(self, interaction: discord.Interaction):
-            await interaction.response.defer()
-            i = self.phase
-            hit = True
-    
-            for rtype, chance in REINFORCEMENT_ROLLS.items():
-                if self.reinforcements.get(rtype, 0) > 0 and random.randint(1, 100) <= chance:
-                    self.reinforcements[rtype] -= 1
-                    self.triggered.append(rtype)
-                    print(f"💥 {rtype} triggered!")
-                    hit = False
-                    break
-    
-            overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
-            overlay_path = f"assets/overlays/{overlay}"
-            merged_path = merge_overlay(self.stash_img_path, overlay_path)
-            file = discord.File(merged_path, filename="merged_raid.gif")
-    
-            embed = discord.Embed(
-                title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab (Phase {i+1})",
-                description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
-                color=self.visuals["color"]
-            )
-            embed.set_image(url="attachment://merged_raid.gif")
-    
-            if not hit:
-                print("❌ Raid blocked.")
-                self.success = False
-                self.phase = 3
-                self.clear_items()
-                self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
-                await interaction.followup.edit_message(
-                    message_id=interaction.message.id,
-                    embed=embed,
-                    attachments=[file],
-                    view=self
-                )
-                return await self.end_raid(interaction)
-    
-            self.phase += 1
-            if self.phase == 3:
-                self.clear_items()
-                self.add_item(discord.ui.Button(label="Close", style=discord.ButtonStyle.secondary, custom_id="close"))
-                await interaction.followup.edit_message(
-                    message_id=interaction.message.id,
-                    embed=embed,
-                    attachments=[file],
-                    view=self
-                )
-                return await self.end_raid(interaction)
-    
-            # Refresh with updated view for next attack
-            new_view = RaidView(
-                self.ctx, self.attacker, self.defender, self.visuals,
-                self.reinforcements, self.stash_visual, self.stash_img_path,
-                self.is_test_mode, phase=self.phase, target=self.target
-            )
+    async def attack_phase(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        i = self.phase
+        hit = True
+
+        for rtype, chance in REINFORCEMENT_ROLLS.items():
+            if self.reinforcements.get(rtype, 0) > 0 and random.randint(1, 100) <= chance:
+                self.reinforcements[rtype] -= 1
+                self.triggered.append(rtype)
+                print(f"💥 {rtype} triggered!")
+                hit = False
+                break
+
+        overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
+        overlay_path = f"assets/overlays/{overlay}"
+        merged_path = merge_overlay(self.stash_img_path, overlay_path)
+        file = discord.File(merged_path, filename="merged_raid.gif")
+
+        embed = discord.Embed(
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab (Phase {i+1})",
+            description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
+            color=self.visuals["color"]
+        )
+        embed.set_image(url="attachment://merged_raid.gif")
+
+        if not hit:
+            print("❌ Raid blocked.")
+            self.success = False
+            self.phase = 3
+            self.clear_items()
+            self.add_item(CloseButton())
             await interaction.followup.edit_message(
                 message_id=interaction.message.id,
                 embed=embed,
                 attachments=[file],
-                view=new_view
+                view=self
             )
+            return await self.end_raid(interaction)
+
+        self.phase += 1
+        if self.phase == 3:
+            self.clear_items()
+            self.add_item(CloseButton())
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
+                embed=embed,
+                attachments=[file],
+                view=self
+            )
+            return await self.end_raid(interaction)
+
+        new_view = RaidView(
+            self.ctx, self.attacker, self.defender, self.visuals,
+            self.reinforcements, self.stash_visual, self.stash_img_path,
+            self.is_test_mode, phase=self.phase, target=self.target
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=embed,
+            attachments=[file],
+            view=new_view
+        )
 
     async def end_raid(self, interaction: discord.Interaction):
         weekend_bonus = is_weekend_boost_active()
