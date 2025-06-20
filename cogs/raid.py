@@ -42,7 +42,7 @@ def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
         print(f"❌ Failed to merge overlay: {e}")
         return base_path
 
-# --- Custom Button Classes ---
+# --- Custom Buttons ---
 class AttackButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
@@ -56,8 +56,7 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary)
 
     async def callback(self, interaction: discord.Interaction):
-        view: RaidView = self.view
-        await view.end_raid(interaction)
+        await interaction.message.delete()
 
 # --- Main View ---
 class RaidView(discord.ui.View):
@@ -83,10 +82,7 @@ class RaidView(discord.ui.View):
         self.defender_id = str(target.id)
         self.now = datetime.utcnow()
 
-        if self.phase < 3:
-            self.add_item(AttackButton())
-        else:
-            self.add_item(CloseButton())
+        self.add_item(AttackButton() if self.phase < 3 else CloseButton())
 
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -113,12 +109,12 @@ class RaidView(discord.ui.View):
         )
         embed.set_image(url="attachment://merged_raid.gif")
 
-        if not hit:
-            print("❌ Raid blocked.")
-            self.success = False
+        if not hit or self.phase == 2:
+            self.success = hit
             self.phase = 3
             self.clear_items()
             self.add_item(CloseButton())
+            await self.finalize_results(embed)
             await interaction.followup.edit_message(
                 message_id=interaction.message.id,
                 embed=embed,
@@ -128,17 +124,6 @@ class RaidView(discord.ui.View):
             return
 
         self.phase += 1
-        if self.phase == 3:
-            self.clear_items()
-            self.add_item(CloseButton())
-            await interaction.followup.edit_message(
-                message_id=interaction.message.id,
-                embed=embed,
-                attachments=[file],
-                view=self
-            )
-            return
-
         new_view = RaidView(
             self.ctx, self.attacker, self.defender, self.visuals,
             self.reinforcements, self.stash_visual, self.stash_img_path,
@@ -151,7 +136,7 @@ class RaidView(discord.ui.View):
             view=new_view
         )
 
-    async def end_raid(self, interaction: discord.Interaction):
+    async def finalize_results(self, embed: discord.Embed):
         weekend_bonus = is_weekend_boost_active()
         item_bonus = 1 if weekend_bonus else 0
         coin_multiplier = 1.3 if weekend_bonus else 1.0
@@ -186,6 +171,12 @@ class RaidView(discord.ui.View):
         if self.prestige_earned:
             result_summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
 
+        embed.add_field(
+            name="🏁 Raid Summary",
+            value="\n".join(result_summary) if result_summary else "No rewards gained.",
+            inline=False
+        )
+
         if not self.is_test_mode:
             users = await load_file(USER_DATA)
             cooldowns = await load_file(COOLDOWN_FILE)
@@ -194,13 +185,6 @@ class RaidView(discord.ui.View):
             await save_file(USER_DATA, users)
             cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
             await save_file(COOLDOWN_FILE, cooldowns)
-
-        await interaction.followup.send(
-            f"⚔️ Raid on {self.target.display_name}\n"
-            + ("✅ **Raid Successful!**" if self.success else "❌ **Raid Repelled!**")
-            + "\n\n" + "\n".join(result_summary),
-            ephemeral=True
-        )
 
 class Raid(commands.Cog):
     def __init__(self, bot):
