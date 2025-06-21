@@ -136,7 +136,7 @@ class RaidView(discord.ui.View):
         ]
         base_msg = phase_msgs[self.phase]
     
-        # Non-blocking ephemeral countdown
+        # Non-blocking ephemeral countdown (does NOT delay embed update)
         async def countdown_ephemeral(base_msg, followup):
             try:
                 wait_msg = await followup.send(content=f"{base_msg} *(20s)*", ephemeral=True)
@@ -155,7 +155,7 @@ class RaidView(discord.ui.View):
     
         asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
-        # ---------------- phase logic retained ---------------- #
+        # ======= Phase Logic Begins ======= #
         i = self.phase
         hit = True
         rtype = None
@@ -199,7 +199,7 @@ class RaidView(discord.ui.View):
         file = discord.File(merged_path, filename="merged_raid.gif")
     
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
-        embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
+        embed = discord.Embed()
         embed.title = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}"
         embed.description = f"""```\n{self.stash_visual}\n```"""
     
@@ -214,6 +214,7 @@ class RaidView(discord.ui.View):
         self.phase += 1
         print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
     
+        # Immediate visual update before phase ends
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items()
