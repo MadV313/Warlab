@@ -4,7 +4,7 @@ from discord.ext import commands
 from discord import app_commands
 import random, os
 from datetime import datetime, timedelta
-from PIL import Image
+from PIL import Image, ImageSequence
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
@@ -25,9 +25,7 @@ MISS_GIF     = "miss.gif"
 
 # ---------------------------  Helper functions  -------------------------- #
 def calculate_block_chance(reinforcements: dict, rtype: str, attacker: dict) -> int:
-    """Return % block chance contributed by a single defence type."""
     count = reinforcements.get(rtype, 0)
-
     match rtype:
         case "Barbed Fence":      return count * 1
         case "Locked Container":  return count * 2
@@ -40,13 +38,24 @@ def calculate_block_chance(reinforcements: dict, rtype: str, attacker: dict) -> 
 
 def merge_overlay(base_path: str, overlay_path: str,
                   out_path: str = "temp/merged_raid.gif") -> str:
-    """Paste animated overlay on top of the stash base and export a GIF."""
     try:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         base    = Image.open(base_path).convert("RGBA")
-        overlay = Image.open(overlay_path).convert("RGBA").resize(base.size)
-        base.paste(overlay, (0, 0), overlay)
-        base.convert("RGB").save(out_path, "GIF")
+        overlay = Image.open(overlay_path)
+
+        if overlay.is_animated:
+            frames = []
+            for frame in ImageSequence.Iterator(overlay):
+                frame = frame.convert("RGBA").resize(base.size)
+                combined = base.copy()
+                combined.paste(frame, (0, 0), frame)
+                frames.append(combined)
+            frames[0].save(out_path, save_all=True, append_images=frames[1:], loop=0, duration=overlay.info.get("duration", 100))
+        else:
+            overlay = overlay.convert("RGBA").resize(base.size)
+            base.paste(overlay, (0, 0), overlay)
+            base.convert("RGB").save(out_path, "GIF")
+
         return out_path
     except Exception as e:
         print(f"❌ merge_overlay failed: {e}")
