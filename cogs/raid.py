@@ -96,10 +96,11 @@ class CloseButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         try:
+            await interaction.response.defer()
             await interaction.message.delete()
         except Exception as e:
             print(f"❌ Failed to delete message: {e}")
-            await interaction.response.send_message("❌ Failed to close this message.", ephemeral=True)
+            await interaction.response.send_message("❌ Couldn't close this message.", ephemeral=True)
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
@@ -139,7 +140,6 @@ class RaidView(discord.ui.View):
         for item in self.children:
             if isinstance(item, AttackButton):
                 item.disabled = True
-                break
         await interaction.response.defer(thinking=True, ephemeral=True)
     
         phase_msgs = [
@@ -276,7 +276,9 @@ class RaidView(discord.ui.View):
             reinf_used = [k for k, v in self.reinforcements.items() if v < self.defender.get("reinforcements", {}).get(k, 0)]
             if reinf_used:
                 summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
-    
+
+            await self.finalize_results(summary)
+
             embed.add_field(
                 name="🏁 Raid Summary",
                 value="\n".join(summary) if summary else "No rewards gained.",
@@ -290,7 +292,7 @@ class RaidView(discord.ui.View):
                 await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
     
     # ------------------------------------------------------------------ #
-    async def finalize_results(self, embed: discord.Embed):
+    async def finalize_results(self, summary: list):
         """Compute coins/items/prestige. Also inject fallback loot when the
         defender has nothing so the summary is never empty."""
         weekend         = is_weekend_boost_active()
