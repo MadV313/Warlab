@@ -107,7 +107,7 @@ class RaidView(discord.ui.View):
 
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
-        
+
         phase_msgs = [
             "🔧 Warlab is recalibrating the targeting system... Stand by!",
             "🔋 Reloading heavy munitions... Stand by!",
@@ -142,7 +142,12 @@ class RaidView(discord.ui.View):
                 print(f"🧱 Reinforcement damaged due to success: {maybe_damage}")
 
         if any(v == 0 for v in self.reinforcements.values()):
-            self.stash_img_path = generate_stash_image(self.defender_id, self.reinforcements, base_path="assets/stash_layers", baseImagePath=self.defender.get("baseImage"))
+            self.stash_img_path = generate_stash_image(
+                self.defender_id,
+                self.reinforcements,
+                base_path="assets/stash_layers",
+                baseImagePath=self.defender.get("baseImage")
+            )
 
         self.results.append(hit)
         self.stash_visual = render_stash_visual(self.reinforcements)
@@ -156,9 +161,7 @@ class RaidView(discord.ui.View):
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-            description=f"""```
-{self.stash_visual}
-```""",
+            description=f"""```\n{self.stash_visual}\n```""",
             color=self.visuals["color"]
         )
 
@@ -171,21 +174,24 @@ class RaidView(discord.ui.View):
         embed.set_image(url="attachment://merged_raid.gif")
 
         self.phase += 1
+        print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
+
+        # Handle Phase 3 (final) or continue
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
             await self.finalize_results(embed)
-
-        print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
-        await interaction.edit_original_response(embed=embed, attachments=[file])
-
-        if self.phase < 3:
-            new_view = RaidView(self.ctx, self.attacker, self.defender, self.visuals, self.reinforcements,
-                                self.stash_visual, self.stash_img_path, self.is_test_mode, phase=self.phase, target=self.target)
+            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+        else:
+            new_view = RaidView(
+                self.ctx, self.attacker, self.defender, self.visuals,
+                self.reinforcements, self.stash_visual, self.stash_img_path,
+                self.is_test_mode, phase=self.phase, target=self.target
+            )
             new_view.results = self.results.copy()
             new_view.triggered = self.triggered.copy()
-            await interaction.edit_original_response(view=new_view)
+            await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
 
     async def finalize_results(self, embed: discord.Embed):
         weekend      = is_weekend_boost_active()
