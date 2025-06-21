@@ -122,6 +122,7 @@ class RaidView(discord.ui.View):
         self.now = datetime.utcnow()
         self.attacker_id = str(ctx.user.id)
         self.defender_id = str(target.id)
+        self.message = None  # Used to track the original embed message
 
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
@@ -220,7 +221,10 @@ class RaidView(discord.ui.View):
             self.clear_items()
             self.add_item(CloseButton())
             await self.finalize_results(embed)
-            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+            if self.message:
+                await self.message.edit(embed=embed, attachments=[file], view=self)
+            else:
+                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
         else:
             new_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -229,7 +233,10 @@ class RaidView(discord.ui.View):
             )
             new_view.results = self.results.copy()
             new_view.triggered = self.triggered.copy()
-            await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
+            if self.message:
+                await self.message.edit(embed=embed, attachments=[file], view=self)
+            else:
+                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
 
     # ---------- finalize_results (unchanged) ------------------- #
     async def finalize_results(self, embed: discord.Embed):
@@ -308,6 +315,7 @@ class Raid(commands.Cog):
         if not attacker:
             return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.",
                                                    ephemeral=True)
+            view.message = initial_msg
 
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
