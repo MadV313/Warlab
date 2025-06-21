@@ -199,9 +199,7 @@ class RaidView(discord.ui.View):
             phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
             embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
-                description=f"```
-    {self.stash_visual}
-    ```"
+                description=f"```\n{self.stash_visual}\n```"
             )
             if hit:
                 desc = "✅ Attack successful!"
@@ -211,7 +209,7 @@ class RaidView(discord.ui.View):
             else:
                 embed.description += (
                     f"\n\n💥 {rtype} triggered — attack blocked "
-                    f"{ '(Consumed ×1)' if consumed else '(Not consumed)' }"
+                    f"{'(Consumed ×1)' if consumed else '(Not consumed)'}"
                 )
     
             embed.set_image(url="attachment://merged_raid.gif")
@@ -225,7 +223,7 @@ class RaidView(discord.ui.View):
             nv.results      = self.results.copy()
             nv.triggered    = self.triggered.copy()
             nv.message      = self.message
-            nv.disable_attack_button = True  # disable attack button after use
+            nv.disable_attack_button = True  # 🛑 Disable attack after use
     
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=nv)
@@ -249,9 +247,7 @@ class RaidView(discord.ui.View):
             result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
-                description=f"```
-    {self.stash_visual}
-    ```",
+                description=f"```\n{self.stash_visual}\n```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
     
