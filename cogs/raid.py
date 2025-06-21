@@ -237,46 +237,43 @@ async def attack_phase(self, interaction: discord.Interaction):
             )
 
     # ───────────────────────────────────────── phase 3 (results) ───────────────────────────────────────── #
-else:
-    self.success = self.results.count(True) >= 2
-    self.clear_items()
-    self.add_item(CloseButton())
-
-    # populate rewards BEFORE embed
-    await self.finalize_results(self.message.embeds[0] if self.message and self.message.embeds else discord.Embed())
-
-    final_overlay = "victory.gif" if self.success else "miss.gif"
-    final_path    = f"temp/final_overlay_{self.attacker_id}.gif"
-    await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
-    file = discord.File(final_path, filename="final_overlay.gif")
-
-    result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
-    embed = discord.Embed(
-        title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
-        description=f"```\n{self.stash_visual}\n```",
-        color=discord.Color.green() if self.success else discord.Color.red()
-    )
-
-    summary = []
-    if self.stolen_items:    summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
-    if self.stolen_coins:    summary.append(f"💰 Coins stolen: {self.stolen_coins}")
-    if self.prestige_earned: summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
-    if not self.success:     summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
-
-    embed.add_field(
-        name="🏁 Raid Summary",
-        value="\n".join(summary) if summary else "No rewards gained.",
-        inline=False
-    )
-    embed.set_image(url="attachment://final_overlay.gif")
-
-    # 🚫 DO NOT increment phase here — final view should stay at phase 3
-    # self.phase += 1
-
-    if self.message:
-        await self.message.edit(embed=embed, attachments=[file], view=self)
     else:
-        await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+        self.success = self.results.count(True) >= 2
+        self.clear_items()
+        self.add_item(CloseButton())
+
+        # populate rewards BEFORE embed
+        await self.finalize_results(self.message.embeds[0] if self.message and self.message.embeds else discord.Embed())
+
+        final_overlay = "victory.gif" if self.success else "miss.gif"
+        final_path    = f"temp/final_overlay_{self.attacker_id}.gif"
+        await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
+        file = discord.File(final_path, filename="final_overlay.gif")
+
+        result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
+        embed = discord.Embed(
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
+            description=f"```\n{self.stash_visual}\n```",
+            color=discord.Color.green() if self.success else discord.Color.red()
+        )
+
+        summary = []
+        if self.stolen_items:    summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
+        if self.stolen_coins:    summary.append(f"💰 Coins stolen: {self.stolen_coins}")
+        if self.prestige_earned: summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
+        if not self.success:     summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
+
+        embed.add_field(
+            name="🏁 Raid Summary",
+            value="\n".join(summary) if summary else "No rewards gained.",
+            inline=False
+        )
+        embed.set_image(url="attachment://final_overlay.gif")
+
+        if self.message:
+            await self.message.edit(embed=embed, attachments=[file], view=self)
+        else:
+            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
 
 # ------------------------------------------------------------------ #
 async def finalize_results(self, embed: discord.Embed):
