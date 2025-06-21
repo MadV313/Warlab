@@ -113,7 +113,7 @@ class RaidView(discord.ui.View):
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
-        await interaction.followup.send(content=phase_msgs[self.phase], ephemeral=True)
+        await interaction.edit_original_response(content=phase_msgs[self.phase])
 
         i = self.phase
         hit = True
