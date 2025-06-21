@@ -113,7 +113,15 @@ class RaidView(discord.ui.View):
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
-        await interaction.edit_original_response(content=phase_msgs[self.phase])
+        base_msg = phase_msgs[self.phase]
+        msg = await interaction.edit_original_response(content=f"{base_msg} (20s)")
+        
+        for remaining in range(19, 0, -1):
+            await asyncio.sleep(1)
+            try:
+                await interaction.edit_original_response(content=f"{base_msg} ({remaining}s)")
+            except discord.NotFound:
+                break  # In case the user closed it or something else interrupted
 
         i = self.phase
         hit = True
