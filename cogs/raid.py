@@ -18,16 +18,24 @@ RAID_LOG_FILE = "data/raid_log.json"
 CATALOG_PATH = "data/labskins_catalog.json"
 WARLAB_CHANNEL_ID = 1382187883590455296
 
-REINFORCEMENT_ROLLS = {
-    "Guard Dog": 50,
-    "Claymore Trap": 35,
-    "Barbed Fence": 25,
-    "Reinforced Gate": 20,
-    "Locked Container": 15
-}
-
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF = "miss.gif"
+
+def calculate_block_chance(reinforcements, rtype, attacker):
+    count = reinforcements.get(rtype, 0)
+
+    if rtype == "Barbed Fence":
+        return count * 1
+    elif rtype == "Locked Container":
+        return count * 2
+    elif rtype == "Reinforced Gate":
+        return count * 3
+    elif rtype == "Guard Dog":
+        return 50 if count > 0 else 0
+    elif rtype == "Claymore Trap":
+        has_pliers = any(item.lower() == "pliers" for item in attacker.get("stash", []))
+        return 25 if count > 0 and has_pliers else 0
+    return 0
 
 def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
     try:
@@ -90,12 +98,13 @@ class RaidView(discord.ui.View):
         rtype = None
         used = 0
 
-        for rtype_check, chance in REINFORCEMENT_ROLLS.items():
-            if self.reinforcements.get(rtype_check, 0) > 0 and random.randint(1, 100) <= chance:
+        for rtype_check in ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]:
+            chance = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
+            if chance > 0 and random.randint(1, 100) <= chance:
                 rtype = rtype_check
                 self.triggered.append(rtype)
                 hit = False
-
+        
                 if rtype in ["Guard Dog", "Claymore Trap"]:
                     self.reinforcements[rtype] -= 1
                     used = 1
@@ -103,6 +112,7 @@ class RaidView(discord.ui.View):
                     if random.random() < 0.5:
                         self.reinforcements[rtype] -= 1
                         used = 1
+        
                 print(f"💥 {rtype} triggered!")
                 break
 
