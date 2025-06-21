@@ -25,12 +25,12 @@ MISS_GIF     = "miss.gif"
 # ---------------------- helper: non-blocking countdown ------------------- #
 async def countdown_ephemeral(base_msg: str, followup: discord.webhook.WebhookMessage):
     """
-    Send a 24-second countdown message that is **ephemeral** and does NOT block
+    Send a 25-second countdown message that is **ephemeral** and does NOT block
     the raid logic.
     """
     try:
-        wait_msg = await followup.send(f"{base_msg} *(24s)*", ephemeral=True)
-        for s in range(23, 0, -1):
+        wait_msg = await followup.send(f"{base_msg} *(25s)*", ephemeral=True)
+        for s in range(24, 0, -1):
             await asyncio.sleep(1)
             try:
                 await wait_msg.edit(content=f"{base_msg} *({s}s)*")
@@ -141,8 +141,8 @@ class RaidView(discord.ui.View):
     
             async def countdown_ephemeral(base_msg, followup):
                 try:
-                    wait_msg = await followup.send(content=f"{base_msg} *(24s)*", ephemeral=True)
-                    for seconds in range(23, 0, -1):
+                    wait_msg = await followup.send(content=f"{base_msg} *(25s)*", ephemeral=True)
+                    for seconds in range(24, 0, -1):
                         await asyncio.sleep(1)
                         try:
                             await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
@@ -228,13 +228,13 @@ class RaidView(discord.ui.View):
                 self.message = await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
     
         elif self.phase == 3:
-            # Final results logic
             self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
     
-            dummy_embed = interaction.message.embeds[0] if interaction.message and interaction.message.embeds else discord.Embed()
-            await self.finalize_results(dummy_embed)
+            await self.finalize_results(
+                self.message.embeds[0] if self.message and self.message.embeds else discord.Embed()
+            )
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_overlay_{self.attacker_id}.gif"
@@ -259,7 +259,11 @@ class RaidView(discord.ui.View):
             if not self.success:
                 summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
     
-            embed.add_field(name="🏁 Raid Summary", value="\n".join(summary) if summary else "No rewards gained.", inline=False)
+            embed.add_field(
+                name="🏁 Raid Summary",
+                value="\n".join(summary) if summary else "No rewards gained.",
+                inline=False
+            )
             embed.set_image(url="attachment://final_overlay.gif")
     
             self.phase += 1
