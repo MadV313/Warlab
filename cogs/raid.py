@@ -67,7 +67,9 @@ class AttackButton(discord.ui.Button):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        await self.view.attack_phase(interaction)
+        # Grab the actual view instance
+        view: RaidView = self.view
+        await view.attack_phase(interaction)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
