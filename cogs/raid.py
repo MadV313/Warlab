@@ -97,25 +97,18 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-
-            if self.view and hasattr(self.view, 'message'):
-                try:
-                    await self.view.message.delete()
-                    return
-                except Exception as e:
-                    print(f"⚠️ [CloseButton] Tried deleting self.view.message but failed: {e}")
-
-            try:
+            msg = getattr(self.view, "message", None)
+            if msg:
+                await msg.delete()
+            else:
                 await interaction.message.delete()
-                return
-            except Exception as e:
-                print(f"⚠️ [CloseButton] Tried deleting interaction.message but failed: {e}")
-
-            raise ValueError("No deletable message found.")
-
         except Exception as e:
-            print(f"❌ [CloseButton] Final delete attempt failed: {e}")
-            await interaction.followup.send("❌ Couldn't close this message.", ephemeral=True)
+            print(f"❌ [CloseButton] Failed to delete message: {e}")
+            try:
+                await interaction.message.edit(content="❌ Message closed.", embed=None, attachments=[], view=None)
+            except Exception as inner:
+                print(f"⛔ Edit fallback also failed: {inner}")
+            await interaction.followup.send("❌ Couldn't delete this message, but it was closed visually.", ephemeral=True)
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
