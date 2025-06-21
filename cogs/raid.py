@@ -87,8 +87,12 @@ class AttackButton(discord.ui.Button):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        view: "RaidView" = self.view
-        await view.attack_phase(interaction)
+        self.disabled = True  # Disable this button immediately
+        try:
+            await interaction.message.edit(view=self.view)  # Update view with disabled button
+        except Exception as e:
+            print(f"❌ Failed to disable Attack button: {e}")
+        await self.view.attack_phase(interaction)
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
@@ -243,8 +247,7 @@ class RaidView(discord.ui.View):
             nv.message      = self.message
             nv.disable_attack_button = True  # 🛑 Disable attack after use
 
-            self.clear_items()
-            self.add_item(AttackButton() if self.phase < 3 else CloseButton())
+            # Don't mutate this view while interaction is open — handled by new view
 
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=nv)
