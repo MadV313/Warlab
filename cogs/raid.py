@@ -142,12 +142,12 @@ class RaidView(discord.ui.View):
 
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
         embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-            description=f"```
-        {render_stash_visual(self.reinforcements)}
-        ```",
-            color=self.visuals["color"]
-        )
+          title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
+          description=f"""```
+      {render_stash_visual(self.reinforcements)}
+      ```""",
+          color=self.visuals["color"]
+      )
 
         if hit:
             result_txt = "✅ Attack successful!"
@@ -287,12 +287,12 @@ class Raid(commands.Cog):
 
         file  = discord.File(stash_img_path, "raid_stash.png")
         embed = discord.Embed(
-            title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
-            description=f"```
-        {stash_visual}
-        ```",
-            color=visuals["color"]
-        ).set_image(url="attachment://raid_stash.png")
+          title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
+          description=f"""```
+      {stash_visual}
+      ```""",
+          color=visuals["color"]
+      ).set_image(url="attachment://raid_stash.png")
 
         view = RaidView(interaction, attacker, defender, visuals,
                         reinforcements, stash_visual, stash_img_path,
