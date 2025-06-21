@@ -23,22 +23,21 @@ OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF     = "miss.gif"
 
 # ---------------------- helper: non-blocking countdown ------------------- #
-async def countdown_ephemeral(base_msg: str, followup: discord.webhook.WebhookMessage):
-    """
-    Send a 30-second countdown message that is **ephemeral** and does NOT block
-    the raid logic.
-    """
+async def countdown_ephemeral(base_msg, followup):
     try:
-        wait_msg = await followup.send(f"{base_msg} *(30s)*", ephemeral=True)
-        for s in range(29, 0, -1):
+        wait_msg = await followup.send(content=f"{base_msg} *(10s)*", ephemeral=True)
+        for seconds in range(9, 0, -1):
             await asyncio.sleep(1)
             try:
-                await wait_msg.edit(content=f"{base_msg} *({s}s)*")
+                await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
             except discord.NotFound:
                 break
-        await wait_msg.delete()
-    except Exception:
-        pass
+        try:
+            await wait_msg.delete()
+        except discord.NotFound:
+            pass
+    except Exception as e:
+        print(f"⛔ Countdown error: {e}")
 
 # ---------------------------  Helper functions  -------------------------- #
 def calculate_block_chance(reinforcements: dict, rtype: str, attacker: dict) -> int:
