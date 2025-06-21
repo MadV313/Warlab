@@ -231,8 +231,6 @@ class RaidView(discord.ui.View):
     
         elif self.phase == 3:
             self.success = self.results.count(True) >= 2
-            self.clear_items()
-            self.add_item(CloseButton())
             dummy_embed = interaction.message.embeds[0] if interaction.message and interaction.message.embeds else discord.Embed()
             await self.finalize_results(dummy_embed)
     
@@ -262,11 +260,23 @@ class RaidView(discord.ui.View):
             embed.add_field(name="🏁 Raid Summary", value="\n".join(summary) if summary else "No rewards gained.", inline=False)
             embed.set_image(url="attachment://final_overlay.gif")
     
+            # ✅ Create final view with CloseButton and set it correctly
+            final_view = RaidView(
+                self.ctx, self.attacker, self.defender, self.visuals,
+                self.reinforcements, self.stash_visual, self.stash_img_path,
+                self.is_test_mode, phase=self.phase + 1, target=self.target
+            )
+            final_view.results = self.results.copy()
+            final_view.triggered = self.triggered.copy()
+            final_view.message = self.message
+            final_view.clear_items()
+            final_view.add_item(CloseButton())
+    
             self.phase += 1
             if self.message:
-                await self.message.edit(embed=embed, attachments=[file], view=self)
+                await self.message.edit(embed=embed, attachments=[file], view=final_view)
             else:
-                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+                await interaction.edit_original_response(embed=embed, attachments=[file], view=final_view)
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
