@@ -106,6 +106,8 @@ class RaidView(discord.ui.View):
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
     async def attack_phase(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        
         phase_msgs = [
             "🔧 Warlab is recalibrating the targeting system...",
             "🔋 Reloading heavy munitions...",
