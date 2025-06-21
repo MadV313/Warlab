@@ -95,7 +95,10 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.delete()
+        try:
+            await interaction.message.delete()
+        except Exception as e:
+            print(f"⛔ CloseButton error: {e}")
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
@@ -129,6 +132,7 @@ class RaidView(discord.ui.View):
     # --------------------------------------------------------------------- #
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
+        self.message = interaction.message  # Capture original message for future edits
     
         phase_msgs = [
             "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
@@ -155,7 +159,7 @@ class RaidView(discord.ui.View):
     
         asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
-        # ======= Phase Logic ======= #
+        # Phase Logic
         i = self.phase
         hit = True
         rtype = None
@@ -219,14 +223,14 @@ class RaidView(discord.ui.View):
             self.clear_items()
             self.add_item(CloseButton())
     
-            # Final embed update BEFORE finalize_results
+            # Finalize and update embed with summary
+            await self.finalize_results(embed)
+    
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
                 await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
     
-            # THEN run summary
-            await self.finalize_results(embed)
         else:
             new_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
