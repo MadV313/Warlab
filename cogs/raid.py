@@ -114,14 +114,16 @@ class RaidView(discord.ui.View):
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
         base_msg = phase_msgs[self.phase]
-        msg = await interaction.edit_original_response(content=f"{base_msg} (20s)")
-        
+        countdown_msg = await interaction.followup.send(content=f"{base_msg} (20s)", ephemeral=True)
+
         for remaining in range(19, 0, -1):
             await asyncio.sleep(1)
             try:
-                await interaction.edit_original_response(content=f"{base_msg} ({remaining}s)")
+                await countdown_msg.edit(content=f"{base_msg} ({remaining}s)")
             except discord.NotFound:
-                break  # In case the user closed it or something else interrupted
+                break
+
+        await countdown_msg.delete()
 
         i = self.phase
         hit = True
@@ -167,11 +169,9 @@ class RaidView(discord.ui.View):
         file = discord.File(merged_path, filename="merged_raid.gif")
 
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
-        embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-            description=f"""```\n{self.stash_visual}\n```""",
-            color=self.visuals["color"]
-        )
+        embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
+        embed.title = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}"
+        embed.description = f"""```\n{self.stash_visual}\n```"""
 
         if hit:
             embed.description += f"\n\n✅ Attack successful!"
@@ -184,7 +184,6 @@ class RaidView(discord.ui.View):
         self.phase += 1
         print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
 
-        # Handle Phase 3 (final) or continue
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items()
