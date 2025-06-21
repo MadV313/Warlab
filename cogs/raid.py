@@ -36,8 +36,7 @@ def calculate_block_chance(reinforcements: dict, rtype: str, attacker: dict) -> 
             return 25 if count and has_pliers else 0
         case _:                   return 0
 
-def merge_overlay(base_path: str, overlay_path: str,
-                  out_path: str = "temp/merged_raid.gif") -> str:
+def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
     try:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         base    = Image.open(base_path).convert("RGBA")
@@ -45,9 +44,8 @@ def merge_overlay(base_path: str, overlay_path: str,
 
         if overlay.is_animated:
             frames = []
-            scale_factor = 1.15  # Slightly enlarge the overlay
+            scale_factor = 1.15
             new_size = (int(base.width * scale_factor), int(base.height * scale_factor))
-
             for frame in ImageSequence.Iterator(overlay):
                 frame = frame.convert("RGBA").resize(new_size)
                 combined = base.copy()
@@ -83,121 +81,119 @@ class CloseButton(discord.ui.Button):
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
-    def __init__(
-        self, ctx, attacker, defender, visuals,
-        reinforcements, stash_visual, stash_img_path,
-        is_test_mode, phase=0, target=None
-    ):
+    def __init__(self, ctx, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
         super().__init__(timeout=None)
-        self.ctx            = ctx
-        self.attacker       = attacker
-        self.defender       = defender
-        self.visuals        = visuals
+        self.ctx = ctx
+        self.attacker = attacker
+        self.defender = defender
+        self.visuals = visuals
         self.reinforcements = reinforcements
-        self.stash_visual   = stash_visual
+        self.stash_visual = stash_visual
         self.stash_img_path = stash_img_path
-        self.is_test_mode   = is_test_mode
-        self.phase          = phase
-        self.target         = target
-        self.results        = []
-        self.triggered      = []
-        self.success        = True
-        self.stolen_items   = []
-        self.stolen_coins   = 0
-        self.prestige_earned= 0
-        self.coin_loss      = 0
-        self.now            = datetime.utcnow()
-        self.attacker_id    = str(ctx.user.id)
-        self.defender_id    = str(target.id)
+        self.is_test_mode = is_test_mode
+        self.phase = phase
+        self.target = target
+        self.results = []
+        self.triggered = []
+        self.success = True
+        self.stolen_items = []
+        self.stolen_coins = 0
+        self.prestige_earned = 0
+        self.coin_loss = 0
+        self.now = datetime.utcnow()
+        self.attacker_id = str(ctx.user.id)
+        self.defender_id = str(target.id)
 
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
-
-        i          = self.phase
-        hit        = True
-        rtype      = None
-        consumed   = False
+        i = self.phase
+        hit = True
+        rtype = None
+        consumed = False
 
         for rtype_check in DEFENCE_TYPES:
             chance = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
             if chance and random.randint(1, 100) <= chance:
                 rtype = rtype_check
-                hit   = False
+                hit = False
                 self.triggered.append(rtype_check)
-
                 if rtype in ["Guard Dog", "Claymore Trap"]:
-                    self.reinforcements[rtype] -= 1; consumed = True
-                else:
-                    if random.random() < 0.5:
-                        self.reinforcements[rtype] -= 1; consumed = True
+                    self.reinforcements[rtype] -= 1
+                    consumed = True
+                elif random.random() < 0.5:
+                    self.reinforcements[rtype] -= 1
+                    consumed = True
                 break
 
+        if hit:
+            valid_dmg_targets = [r for r in DEFENCE_TYPES if self.reinforcements.get(r, 0) > 0]
+            maybe_damage = random.choice(valid_dmg_targets) if valid_dmg_targets else None
+            if maybe_damage and random.random() < 0.8:
+                self.reinforcements[maybe_damage] -= 1
+                print(f"🧱 Reinforcement damaged due to success: {maybe_damage}")
+
         self.results.append(hit)
+        self.stash_visual = render_stash_visual(self.reinforcements)
 
         overlay_path = f"assets/overlays/{OVERLAY_GIFS[i] if hit else MISS_GIF}"
-        merged_path  = merge_overlay(self.stash_img_path, overlay_path)
-        file         = discord.File(merged_path, filename="merged_raid.gif")
+        merged_path = merge_overlay(self.stash_img_path, overlay_path, f"temp/merged_phase{i+1}_{self.attacker_id}.gif")
+        file = discord.File(merged_path, filename="merged_raid.gif")
 
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
         embed = discord.Embed(
-          title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-          description=f"""```
-      {render_stash_visual(self.reinforcements)}
-      ```""",
-          color=self.visuals["color"]
-      )
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
+            description=f"""```\n{self.stash_visual}\n```""",
+            color=self.visuals["color"]
+        )
 
         if hit:
-            result_txt = "✅ Attack successful!"
+            embed.description += f"\n\n✅ Attack successful!"
         else:
             consumed_txt = "(Consumed x1)" if consumed else "(Not consumed)"
-            result_txt   = f"💥 {rtype} triggered — attack blocked {consumed_txt}"
-        embed.description += f"\n\n{result_txt}"
+            embed.description += f"\n\n💥 {rtype} triggered — attack blocked {consumed_txt}"
+
         embed.set_image(url="attachment://merged_raid.gif")
 
         self.phase += 1
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
-            self.clear_items(); self.add_item(CloseButton())
+            self.clear_items()
+            self.add_item(CloseButton())
             await self.finalize_results(embed)
 
-        await interaction.followup.edit_message(
-            interaction.message.id, embed=embed, attachments=[file], view=self
-        )
+        print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
+        await interaction.edit_original_response(embed=embed, attachments=[file])
 
         if self.phase < 3:
-            new_view                   = RaidView(
-                self.ctx, self.attacker, self.defender, self.visuals,
-                self.reinforcements, self.stash_visual, self.stash_img_path,
-                self.is_test_mode, phase=self.phase, target=self.target
-            )
-            new_view.results           = self.results.copy()
-            new_view.triggered         = self.triggered.copy()
-            await interaction.message.edit(view=new_view)
+            new_view = RaidView(self.ctx, self.attacker, self.defender, self.visuals, self.reinforcements,
+                                self.stash_visual, self.stash_img_path, self.is_test_mode, phase=self.phase, target=self.target)
+            new_view.results = self.results.copy()
+            new_view.triggered = self.triggered.copy()
+            await interaction.edit_original_response(view=new_view)
 
     async def finalize_results(self, embed: discord.Embed):
-        weekend      = is_weekend_boost_active()
-        item_bonus   = 1  if weekend else 0
-        coin_mul     = 1.3 if weekend else 1.0
-        summary      = []
+        weekend = is_weekend_boost_active()
+        item_bonus = 1 if weekend else 0
+        coin_mul = 1.3 if weekend else 1.0
+        summary = []
 
         if self.success:
-            stash            = self.defender.get("stash", [])
-            steal_limit      = min(len(stash), random.randint(1, 3 + item_bonus))
-            self.stolen_items= random.sample(stash, steal_limit) if stash else []
+            stash = self.defender.get("stash", [])
+            steal_limit = min(len(stash), random.randint(1, 3 + item_bonus))
+            self.stolen_items = random.sample(stash, steal_limit) if stash else []
             for item in self.stolen_items:
                 stash.remove(item)
                 self.attacker.setdefault("stash", []).append(item)
             self.defender["stash"] = stash
 
-            self.stolen_coins      = int(random.randint(1, 50) * coin_mul)
+            self.stolen_coins = int(random.randint(1, 50) * coin_mul)
             self.defender["coins"] = max(0, self.defender.get("coins", 0) - self.stolen_coins)
             self.attacker["coins"] = self.attacker.get("coins", 0) + self.stolen_coins
 
             self.attacker["raids_successful"] = self.attacker.get("raids_successful", 0) + 1
-            self.attacker["prestige_points"]  = self.attacker.get("prestige_points", 0) + 50
+            self.attacker["prestige_points"] = self.attacker.get("prestige_points", 0) + 50
             self.prestige_earned = 50
 
             if self.attacker["raids_successful"] >= 25 and "Dark Ops" not in self.attacker.get("labskins", []):
@@ -205,27 +201,27 @@ class RaidView(discord.ui.View):
                 summary.append("🌑 **Dark Ops** skin unlocked!")
 
         else:
-            self.coin_loss          = random.randint(1, 25)
-            self.attacker["coins"]  = max(0, self.attacker.get("coins", 0) - self.coin_loss)
+            self.coin_loss = random.randint(1, 25)
+            self.attacker["coins"] = max(0, self.attacker.get("coins", 0) - self.coin_loss)
             summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
 
         if self.stolen_items: summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
         if self.stolen_coins: summary.append(f"💰 Coins stolen: {self.stolen_coins}")
         if self.prestige_earned: summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
 
-        embed.add_field(name="🏁 Raid Summary",
-                        value="\n".join(summary) if summary else "No rewards gained.",
-                        inline=False)
+        embed.add_field(name="🏁 Raid Summary", value="\n".join(summary) if summary else "No rewards gained.", inline=False)
 
         if not self.is_test_mode:
-            users      = await load_file(USER_DATA)
-            cooldowns  = await load_file(COOLDOWN_FILE)
-            users[self.attacker_id]  = self.attacker
-            users[self.defender_id]  = self.defender
+            users = await load_file(USER_DATA)
+            cooldowns = await load_file(COOLDOWN_FILE)
+            users[self.attacker_id] = self.attacker
+            users[self.defender_id] = self.defender
             await save_file(USER_DATA, users)
 
             cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
             await save_file(COOLDOWN_FILE, cooldowns)
+
+        print(f"🎯 Final result: {'SUCCESS' if self.success else 'FAIL'} | Items: {self.stolen_items} | Coins: {self.stolen_coins} | Lost: {self.coin_loss}")
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
@@ -236,16 +232,15 @@ class Raid(commands.Cog):
         print(f"🛠️ /raid — {interaction.user.display_name} ➜ {target.display_name}")
         await interaction.response.defer(ephemeral=True)
 
-        attacker_id   = str(interaction.user.id)
-        defender_id   = str(target.id)
-        now           = datetime.utcnow()
-        is_test       = target.display_name.lower() == "warlab"
+        attacker_id = str(interaction.user.id)
+        defender_id = str(target.id)
+        now = datetime.utcnow()
+        is_test = target.display_name.lower() == "warlab"
 
-        users     = await load_file(USER_DATA) or {}
-        attacker  = users.get(attacker_id)
+        users = await load_file(USER_DATA) or {}
+        attacker = users.get(attacker_id)
         if not attacker:
-            return await interaction.followup.send(
-                "❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
+            return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
 
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
@@ -256,47 +251,38 @@ class Raid(commands.Cog):
             if now - last < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last)
                 return await interaction.followup.send(
-                    f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
-                    ephemeral=True)
+                    f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.", ephemeral=True)
 
         if is_test:
-            catalog      = await load_file(CATALOG_PATH) or {}
-            skin         = random.choice(list(catalog))
+            catalog = await load_file(CATALOG_PATH) or {}
+            skin = random.choice(list(catalog))
             defender = {
-                "labskins":    [skin],
-                "baseImage":   catalog[skin]["filename"],
+                "labskins": [skin],
+                "baseImage": catalog[skin]["filename"],
                 "reinforcements": {d: random.randint(0, 2) for d in DEFENCE_TYPES},
-                "stash":       [f"TestItem{i}" for i in range(random.randint(1, 5))],
-                "coins":       random.randint(10, 75)
+                "stash": [f"TestItem{i}" for i in range(random.randint(1, 5))],
+                "coins": random.randint(10, 75)
             }
         else:
             defender = users.get(defender_id)
             if not defender:
-                return await interaction.followup.send(
-                    "❌ That player doesn’t have a profile yet.", ephemeral=True)
+                return await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
 
         reinforcements = defender.get("reinforcements", {})
-        catalog        = await load_file(CATALOG_PATH) or {}
-        visuals        = get_skin_visuals(defender, catalog)
-        stash_visual   = render_stash_visual(reinforcements)
+        catalog = await load_file(CATALOG_PATH) or {}
+        visuals = get_skin_visuals(defender, catalog)
+        stash_visual = render_stash_visual(reinforcements)
 
-        stash_img_path = generate_stash_image(
-            defender_id, reinforcements, base_path="assets/stash_layers",
-            baseImagePath=defender.get("baseImage")
-        )
+        stash_img_path = generate_stash_image(defender_id, reinforcements, base_path="assets/stash_layers", baseImagePath=defender.get("baseImage"))
 
-        file  = discord.File(stash_img_path, "raid_stash.png")
+        file = discord.File(stash_img_path, "raid_stash.png")
         embed = discord.Embed(
-          title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
-          description=f"""```
-      {stash_visual}
-      ```""",
-          color=visuals["color"]
-      ).set_image(url="attachment://raid_stash.png")
+            title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
+            description=f"""```\n{stash_visual}\n```""",
+            color=visuals["color"]
+        ).set_image(url="attachment://raid_stash.png")
 
-        view = RaidView(interaction, attacker, defender, visuals,
-                        reinforcements, stash_visual, stash_img_path,
-                        is_test, target=target)
+        view = RaidView(interaction, attacker, defender, visuals, reinforcements, stash_visual, stash_img_path, is_test, target=target)
 
         await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
 
