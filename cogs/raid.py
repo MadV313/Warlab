@@ -141,8 +141,8 @@ class RaidView(discord.ui.View):
     
             async def countdown_ephemeral(base_msg, followup):
                 try:
-                    wait_msg = await followup.send(content=f"{base_msg} *(10s)*", ephemeral=True)
-                    for seconds in range(9, 0, -1):
+                    wait_msg = await followup.send(content=f"{base_msg} *(20s)*", ephemeral=True)
+                    for seconds in range(19, 0, -1):
                         await asyncio.sleep(1)
                         try:
                             await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
