@@ -9,7 +9,7 @@ from PIL import Image, ImageSequence
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
 from cogs.fortify import render_stash_visual, get_skin_visuals
-from stash_image_generator import generate_stash_image  # also adds enlarged badges
+from stash_image_generator import generate_stash_image
 
 USER_DATA       = "data/user_profiles.json"
 COOLDOWN_FILE   = "data/raid_cooldowns.json"
@@ -62,7 +62,7 @@ def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
         print(f"❌ merge_overlay failed: {e}")
         return base_path
 
-# ---------------------------  UI  Buttons  ------------------------------- #
+# ---------------------------  UI Buttons  ------------------------------- #
 class AttackButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
@@ -133,7 +133,6 @@ class RaidView(discord.ui.View):
                 self.reinforcements[maybe_damage] -= 1
                 print(f"🧱 Reinforcement damaged due to success: {maybe_damage}")
 
-        # Re-render base image if any layer was fully depleted
         if any(v == 0 for v in self.reinforcements.values()):
             self.stash_img_path = generate_stash_image(self.defender_id, self.reinforcements, base_path="assets/stash_layers", baseImagePath=self.defender.get("baseImage"))
 
