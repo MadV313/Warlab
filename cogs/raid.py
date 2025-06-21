@@ -141,8 +141,8 @@ class RaidView(discord.ui.View):
     
             async def countdown_ephemeral(base_msg, followup):
                 try:
-                    wait_msg = await followup.send(content=f"{base_msg} *(20s)*", ephemeral=True)
-                    for seconds in range(19, 0, -1):
+                    wait_msg = await followup.send(content=f"{base_msg} *(10s)*", ephemeral=True)
+                    for seconds in range(9, 0, -1):
                         await asyncio.sleep(1)
                         try:
                             await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
@@ -157,6 +157,7 @@ class RaidView(discord.ui.View):
     
             asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
+            # === ROLL LOGIC ===
             i = self.phase
             hit = True
             rtype = None
@@ -168,10 +169,7 @@ class RaidView(discord.ui.View):
                     rtype = rtype_check
                     hit = False
                     self.triggered.append(rtype_check)
-                    if rtype in ["Guard Dog", "Claymore Trap"]:
-                        self.reinforcements[rtype] -= 1
-                        consumed = True
-                    elif random.random() < 0.5:
+                    if rtype in ["Guard Dog", "Claymore Trap"] or random.random() < 0.5:
                         self.reinforcements[rtype] -= 1
                         consumed = True
                     break
@@ -227,10 +225,14 @@ class RaidView(discord.ui.View):
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=new_view)
             else:
-                await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
+                self.message = await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
     
         elif self.phase == 3:
+            # Final results logic
             self.success = self.results.count(True) >= 2
+            self.clear_items()
+            self.add_item(CloseButton())
+    
             dummy_embed = interaction.message.embeds[0] if interaction.message and interaction.message.embeds else discord.Embed()
             await self.finalize_results(dummy_embed)
     
@@ -260,23 +262,11 @@ class RaidView(discord.ui.View):
             embed.add_field(name="🏁 Raid Summary", value="\n".join(summary) if summary else "No rewards gained.", inline=False)
             embed.set_image(url="attachment://final_overlay.gif")
     
-            # ✅ Create final view with CloseButton and set it correctly
-            final_view = RaidView(
-                self.ctx, self.attacker, self.defender, self.visuals,
-                self.reinforcements, self.stash_visual, self.stash_img_path,
-                self.is_test_mode, phase=self.phase + 1, target=self.target
-            )
-            final_view.results = self.results.copy()
-            final_view.triggered = self.triggered.copy()
-            final_view.message = self.message
-            final_view.clear_items()
-            final_view.add_item(CloseButton())
-    
             self.phase += 1
             if self.message:
-                await self.message.edit(embed=embed, attachments=[file], view=final_view)
+                await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
-                await interaction.edit_original_response(embed=embed, attachments=[file], view=final_view)
+                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
