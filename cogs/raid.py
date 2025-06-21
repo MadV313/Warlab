@@ -25,12 +25,12 @@ MISS_GIF     = "miss.gif"
 # ---------------------- helper: non-blocking countdown ------------------- #
 async def countdown_ephemeral(base_msg: str, followup: discord.webhook.WebhookMessage):
     """
-    Send a 20-second countdown message that is **ephemeral** and does NOT block
+    Send a 30-second countdown message that is **ephemeral** and does NOT block
     the raid logic.
     """
     try:
-        wait_msg = await followup.send(f"{base_msg} *(20s)*", ephemeral=True)
-        for s in range(19, 0, -1):
+        wait_msg = await followup.send(f"{base_msg} *(30s)*", ephemeral=True)
+        for s in range(29, 0, -1):
             await asyncio.sleep(1)
             try:
                 await wait_msg.edit(content=f"{base_msg} *({s}s)*")
@@ -137,7 +137,6 @@ class RaidView(discord.ui.View):
         ]
         base_msg = phase_msgs[self.phase]
     
-        # Non-blocking ephemeral countdown (does NOT delay embed update)
         async def countdown_ephemeral(base_msg, followup):
             try:
                 wait_msg = await followup.send(content=f"{base_msg} *(20s)*", ephemeral=True)
@@ -156,7 +155,7 @@ class RaidView(discord.ui.View):
     
         asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
-        # ======= Phase Logic Begins ======= #
+        # ======= Phase Logic ======= #
         i = self.phase
         hit = True
         rtype = None
@@ -215,16 +214,19 @@ class RaidView(discord.ui.View):
         self.phase += 1
         print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
     
-        # Immediate visual update before phase ends
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
-            await self.finalize_results(embed)
+    
+            # Final embed update BEFORE finalize_results
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
                 await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+    
+            # THEN run summary
+            await self.finalize_results(embed)
         else:
             new_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -233,10 +235,12 @@ class RaidView(discord.ui.View):
             )
             new_view.results = self.results.copy()
             new_view.triggered = self.triggered.copy()
+            new_view.message = self.message
+    
             if self.message:
-                await self.message.edit(embed=embed, attachments=[file], view=self)
+                await self.message.edit(embed=embed, attachments=[file], view=new_view)
             else:
-                await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+                await interaction.edit_original_response(embed=embed, attachments=[file], view=new_view)
 
     # ---------- finalize_results (unchanged) ------------------- #
     async def finalize_results(self, embed: discord.Embed):
