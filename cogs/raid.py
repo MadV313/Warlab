@@ -105,31 +105,37 @@ class RaidView(discord.ui.View):
 
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
+    # --- [Inside RaidView class] ---
+
     async def attack_phase(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
-
+    
         phase_msgs = [
             "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
         base_msg = phase_msgs[self.phase]
-        countdown_msg = await interaction.followup.send(content=f"{base_msg} (20s)", ephemeral=True)
-
-        for remaining in range(19, 0, -1):
+    
+        # Send countdown to attacker only (ephemeral)
+        wait_msg = await interaction.followup.send(content=f"{base_msg} *(20s)*", ephemeral=True)
+        for seconds in range(19, 0, -1):
             await asyncio.sleep(1)
             try:
-                await countdown_msg.edit(content=f"{base_msg} ({remaining}s)")
+                await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
             except discord.NotFound:
                 break
-
-        await countdown_msg.delete()
-
+        try:
+            await wait_msg.delete()
+        except discord.NotFound:
+            pass
+    
+        # === [ALL BELOW LOGIC UNTOUCHED FROM YOUR BUILD] ===
         i = self.phase
         hit = True
         rtype = None
         consumed = False
-
+    
         for rtype_check in DEFENCE_TYPES:
             chance = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
             if chance and random.randint(1, 100) <= chance:
@@ -143,14 +149,14 @@ class RaidView(discord.ui.View):
                     self.reinforcements[rtype] -= 1
                     consumed = True
                 break
-
+    
         if hit:
             valid_dmg_targets = [r for r in DEFENCE_TYPES if self.reinforcements.get(r, 0) > 0]
             maybe_damage = random.choice(valid_dmg_targets) if valid_dmg_targets else None
             if maybe_damage and random.random() < 0.8:
                 self.reinforcements[maybe_damage] -= 1
                 print(f"🧱 Reinforcement damaged due to success: {maybe_damage}")
-
+    
         if any(v == 0 for v in self.reinforcements.values()):
             self.stash_img_path = generate_stash_image(
                 self.defender_id,
@@ -158,32 +164,32 @@ class RaidView(discord.ui.View):
                 base_path="assets/stash_layers",
                 baseImagePath=self.defender.get("baseImage")
             )
-
+    
         self.results.append(hit)
         self.stash_visual = render_stash_visual(self.reinforcements)
-
+    
         overlay_path = f"assets/overlays/{OVERLAY_GIFS[i] if hit else MISS_GIF}"
         merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
         await asyncio.to_thread(merge_overlay, self.stash_img_path, overlay_path, merged_path)
-
+    
         file = discord.File(merged_path, filename="merged_raid.gif")
-
+    
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
         embed.title = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}"
         embed.description = f"""```\n{self.stash_visual}\n```"""
-
+    
         if hit:
             embed.description += f"\n\n✅ Attack successful!"
         else:
             consumed_txt = "(Consumed x1)" if consumed else "(Not consumed)"
             embed.description += f"\n\n💥 {rtype} triggered — attack blocked {consumed_txt}"
-
+    
         embed.set_image(url="attachment://merged_raid.gif")
-
+    
         self.phase += 1
         print(f"📊 Phase {i+1} completed. Hit={hit} | Trigger={rtype} | Consumed={consumed}")
-
+    
         if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items()
