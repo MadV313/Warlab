@@ -2,7 +2,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import random, os
+import random, os, asyncio
 from datetime import datetime, timedelta
 from PIL import Image, ImageSequence
 
@@ -17,8 +17,7 @@ RAID_LOG_FILE   = "data/raid_log.json"
 CATALOG_PATH    = "data/labskins_catalog.json"
 WARLAB_CHANNEL  = 1382187883590455296
 
-DEFENCE_TYPES = ["Guard Dog", "Claymore Trap",
-                 "Barbed Fence", "Reinforced Gate", "Locked Container"]
+DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF     = "miss.gif"
@@ -134,11 +133,17 @@ class RaidView(discord.ui.View):
                 self.reinforcements[maybe_damage] -= 1
                 print(f"🧱 Reinforcement damaged due to success: {maybe_damage}")
 
+        # Re-render base image if any layer was fully depleted
+        if any(v == 0 for v in self.reinforcements.values()):
+            self.stash_img_path = generate_stash_image(self.defender_id, self.reinforcements, base_path="assets/stash_layers", baseImagePath=self.defender.get("baseImage"))
+
         self.results.append(hit)
         self.stash_visual = render_stash_visual(self.reinforcements)
 
         overlay_path = f"assets/overlays/{OVERLAY_GIFS[i] if hit else MISS_GIF}"
-        merged_path = merge_overlay(self.stash_img_path, overlay_path, f"temp/merged_phase{i+1}_{self.attacker_id}.gif")
+        merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
+        await asyncio.to_thread(merge_overlay, self.stash_img_path, overlay_path, merged_path)
+
         file = discord.File(merged_path, filename="merged_raid.gif")
 
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
@@ -250,8 +255,7 @@ class Raid(commands.Cog):
             last = datetime.fromisoformat(cooldowns[attacker_id][defender_id])
             if now - last < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last)
-                return await interaction.followup.send(
-                    f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.", ephemeral=True)
+                return await interaction.followup.send(f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.", ephemeral=True)
 
         if is_test:
             catalog = await load_file(CATALOG_PATH) or {}
