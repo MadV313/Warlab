@@ -92,10 +92,14 @@ class AttackButton(discord.ui.Button):
 
 class CloseButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(label="Close", style=discord.ButtonStyle.secondary)
+        super().__init__(label="Close", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.delete()
+        try:
+            await interaction.message.delete()
+        except Exception as e:
+            print(f"❌ Failed to delete message: {e}")
+            await interaction.response.send_message("❌ Failed to close this message.", ephemeral=True)
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
@@ -131,6 +135,11 @@ class RaidView(discord.ui.View):
     async def attack_phase(self, interaction: discord.Interaction):
         """Run one attack roll (phase 0-2) or, on phase 3, render the final
         outcome embed with the Close button and the raid summary."""
+        # ✅ Disable Attack button immediately on press
+        for item in self.children:
+            if isinstance(item, AttackButton):
+                item.disabled = True
+                break
         await interaction.response.defer(thinking=True, ephemeral=True)
     
         phase_msgs = [
@@ -224,7 +233,10 @@ class RaidView(discord.ui.View):
             nv.triggered    = self.triggered.copy()
             nv.message      = self.message
             nv.disable_attack_button = True  # 🛑 Disable attack after use
-    
+
+            self.clear_items()
+            self.add_item(AttackButton() if self.phase < 3 else CloseButton())
+
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=nv)
             else:
@@ -235,7 +247,7 @@ class RaidView(discord.ui.View):
         else:
             self.success = self.results.count(True) >= 2
             self.clear_items()
-            self.add_item(CloseButton(disabled=True, style=discord.ButtonStyle.danger))
+            self.add_item(CloseButton())
     
             await self.finalize_results(self.message.embeds[0] if self.message and self.message.embeds else discord.Embed())
     
@@ -271,7 +283,7 @@ class RaidView(discord.ui.View):
                 inline=False
             )
             embed.set_image(url="attachment://final_overlay.gif")
-    
+
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
