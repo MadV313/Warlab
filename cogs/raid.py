@@ -140,22 +140,6 @@ class RaidView(discord.ui.View):
         ]
         base_msg = phase_msgs[self.phase]
     
-        async def countdown_ephemeral(base_msg, followup):
-            try:
-                wait_msg = await followup.send(content=f"{base_msg} *(30s)*", ephemeral=True)
-                for seconds in range(29, 0, -1):
-                    await asyncio.sleep(1)
-                    try:
-                        await wait_msg.edit(content=f"{base_msg} *({seconds}s)*")
-                    except discord.NotFound:
-                        break
-                try:
-                    await wait_msg.delete()
-                except discord.NotFound:
-                    pass
-            except Exception as e:
-                print(f"⛔ Countdown error: {e}")
-    
         asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
         # Phase Logic
