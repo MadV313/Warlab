@@ -5,12 +5,12 @@ from discord import app_commands
 import random
 import os
 from datetime import datetime, timedelta
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
 from cogs.fortify import render_stash_visual, get_skin_visuals
-from stash_image_generator import generate_stash_image
+from stash_image_generator import generate_stash_image  # ← Badge logic moved here
 
 USER_DATA = "data/user_profiles.json"
 COOLDOWN_FILE = "data/raid_cooldowns.json"
@@ -35,18 +35,17 @@ def merge_overlay(base_path, overlay_path, out_path="temp/merged_raid.gif"):
         base = Image.open(base_path).convert("RGBA")
         overlay = Image.open(overlay_path).convert("RGBA").resize(base.size)
         base.paste(overlay, (0, 0), overlay)
-        base = base.convert("RGB")  # GIFs don't support full alpha
+        base = base.convert("RGB")
         base.save(out_path, format="GIF")
         return out_path
     except Exception as e:
         print(f"❌ Failed to merge overlay: {e}")
         return base_path
 
-# --- Custom Buttons ---
+# --- UI Buttons ---
 class AttackButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
-
     async def callback(self, interaction: discord.Interaction):
         view: RaidView = self.view
         await view.attack_phase(interaction)
@@ -54,7 +53,6 @@ class AttackButton(discord.ui.Button):
 class CloseButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary)
-
     async def callback(self, interaction: discord.Interaction):
         await interaction.message.delete()
 
@@ -75,6 +73,7 @@ class RaidView(discord.ui.View):
         self.triggered = []
         self.success = True
         self.stolen_items = []
+        self.results = []
         self.stolen_coins = 0
         self.prestige_earned = 0
         self.coin_loss = 0
@@ -88,61 +87,57 @@ class RaidView(discord.ui.View):
         await interaction.response.defer()
         i = self.phase
         hit = True
+        rtype = None
+        used = 0
 
-        for rtype, chance in REINFORCEMENT_ROLLS.items():
-            if self.reinforcements.get(rtype, 0) > 0 and random.randint(1, 100) <= chance:
+        for rtype_check, chance in REINFORCEMENT_ROLLS.items():
+            if self.reinforcements.get(rtype_check, 0) > 0 and random.randint(1, 100) <= chance:
+                rtype = rtype_check
                 self.triggered.append(rtype)
                 hit = False
-        
-                # Always consume Guard Dog / Claymore Trap
+
                 if rtype in ["Guard Dog", "Claymore Trap"]:
                     self.reinforcements[rtype] -= 1
-        
-                # 50% chance to consume others
+                    used = 1
                 elif rtype in ["Barbed Fence", "Reinforced Gate", "Locked Container"]:
                     if random.random() < 0.5:
                         self.reinforcements[rtype] -= 1
-        
+                        used = 1
                 print(f"💥 {rtype} triggered!")
                 break
+
+        self.results.append(hit)
 
         overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
         overlay_path = f"assets/overlays/{overlay}"
         merged_path = merge_overlay(self.stash_img_path, overlay_path)
         file = discord.File(merged_path, filename="merged_raid.gif")
 
+        phase_title = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
+
         embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab (Phase {i+1})",
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_title[i]}",
             description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
             color=self.visuals["color"]
         )
+
+        result_text = "✅ Attack successful!" if hit else f"💥 {rtype} triggered! Attack blocked. {'(Consumed x1)' if used else '(Not consumed)'}"
+        embed.description += f"\n\n{result_text}"
         embed.set_image(url="attachment://merged_raid.gif")
 
-        if self.phase == 2:
-            self.success = hit
-            self.phase = 3
+        self.phase += 1
+
+        if self.phase == 3:
+            self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
             await self.finalize_results(embed)
-            await interaction.followup.edit_message(
-                message_id=interaction.message.id,
-                embed=embed,
-                attachments=[file],
-                view=self
-            )
-            return
 
-        self.phase += 1
-        new_view = RaidView(
-            self.ctx, self.attacker, self.defender, self.visuals,
-            self.reinforcements, self.stash_visual, self.stash_img_path,
-            self.is_test_mode, phase=self.phase, target=self.target
-        )
         await interaction.followup.edit_message(
             message_id=interaction.message.id,
             embed=embed,
             attachments=[file],
-            view=new_view
+            view=self
         )
 
     async def finalize_results(self, embed: discord.Embed):
