@@ -243,7 +243,7 @@ class RaidView(discord.ui.View):
     
             result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             embed = discord.Embed(
-                title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {result_title}",
+                title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
                 description=f"""```\n{self.stash_visual}\n```""",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
@@ -336,7 +336,7 @@ class Raid(commands.Cog):
 
         file = discord.File(stash_img_path, "raid_stash.png")
         embed = discord.Embed(
-            title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
+            title=f"{visuals['emoji']} {target.display_name}'s Fortified Stash",
             description=f"""```\n{stash_visual}\n```""",
             color=visuals["color"]
         ).set_image(url="attachment://raid_stash.png")
