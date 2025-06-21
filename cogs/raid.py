@@ -45,10 +45,14 @@ def merge_overlay(base_path: str, overlay_path: str,
 
         if overlay.is_animated:
             frames = []
+            scale_factor = 1.15  # Slightly enlarge the overlay
+            new_size = (int(base.width * scale_factor), int(base.height * scale_factor))
+
             for frame in ImageSequence.Iterator(overlay):
-                frame = frame.convert("RGBA").resize(base.size)
+                frame = frame.convert("RGBA").resize(new_size)
                 combined = base.copy()
-                combined.paste(frame, (0, 0), frame)
+                pos = ((base.width - frame.width) // 2, (base.height - frame.height) // 2)
+                combined.paste(frame, pos, frame)
                 frames.append(combined)
             frames[0].save(out_path, save_all=True, append_images=frames[1:], loop=0, duration=overlay.info.get("duration", 100))
         else:
@@ -67,7 +71,6 @@ class AttackButton(discord.ui.Button):
         super().__init__(label="Attack", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        # Grab the actual view instance
         view: RaidView = self.view
         await view.attack_phase(interaction)
 
@@ -85,7 +88,7 @@ class RaidView(discord.ui.View):
         reinforcements, stash_visual, stash_img_path,
         is_test_mode, phase=0, target=None
     ):
-        super().__init__(timeout=60)
+        super().__init__(timeout=None)
         self.ctx            = ctx
         self.attacker       = attacker
         self.defender       = defender
@@ -96,8 +99,8 @@ class RaidView(discord.ui.View):
         self.is_test_mode   = is_test_mode
         self.phase          = phase
         self.target         = target
-        self.results        = []          # hit / miss list
-        self.triggered      = []          # which defences fired
+        self.results        = []
+        self.triggered      = []
         self.success        = True
         self.stolen_items   = []
         self.stolen_coins   = 0
@@ -109,16 +112,14 @@ class RaidView(discord.ui.View):
 
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
-    # -----------------------  Attack Phase  ----------------------- #
     async def attack_phase(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(thinking=True, ephemeral=True)
 
         i          = self.phase
         hit        = True
         rtype      = None
         consumed   = False
 
-        # roll defence checks
         for rtype_check in DEFENCE_TYPES:
             chance = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
             if chance and random.randint(1, 100) <= chance:
@@ -126,17 +127,15 @@ class RaidView(discord.ui.View):
                 hit   = False
                 self.triggered.append(rtype_check)
 
-                # auto / 50 % consumption rules
                 if rtype in ["Guard Dog", "Claymore Trap"]:
                     self.reinforcements[rtype] -= 1; consumed = True
-                else:  # per-unit walls / containers / gates
+                else:
                     if random.random() < 0.5:
                         self.reinforcements[rtype] -= 1; consumed = True
                 break
 
         self.results.append(hit)
 
-        # ----------------  Build updated embed  ---------------- #
         overlay_path = f"assets/overlays/{OVERLAY_GIFS[i] if hit else MISS_GIF}"
         merged_path  = merge_overlay(self.stash_img_path, overlay_path)
         file         = discord.File(merged_path, filename="merged_raid.gif")
@@ -144,7 +143,9 @@ class RaidView(discord.ui.View):
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-            description=f"```\n{render_stash_visual(self.reinforcements)}\n```",
+            description=f"```
+{render_stash_visual(self.reinforcements)}
+```",
             color=self.visuals["color"]
         )
 
@@ -156,19 +157,16 @@ class RaidView(discord.ui.View):
         embed.description += f"\n\n{result_txt}"
         embed.set_image(url="attachment://merged_raid.gif")
 
-        # ---------------  Phase bookkeeping / next step  --------------- #
         self.phase += 1
-        if self.phase == 3:      # raid finished
+        if self.phase == 3:
             self.success = self.results.count(True) >= 2
             self.clear_items(); self.add_item(CloseButton())
             await self.finalize_results(embed)
 
-        # always update the original ephemeral message
         await interaction.followup.edit_message(
             interaction.message.id, embed=embed, attachments=[file], view=self
         )
 
-        # swap the view only if we have another phase
         if self.phase < 3:
             new_view                   = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -179,7 +177,6 @@ class RaidView(discord.ui.View):
             new_view.triggered         = self.triggered.copy()
             await interaction.message.edit(view=new_view)
 
-    # -----------------------  Final tally  ----------------------- #
     async def finalize_results(self, embed: discord.Embed):
         weekend      = is_weekend_boost_active()
         item_bonus   = 1  if weekend else 0
@@ -207,7 +204,7 @@ class RaidView(discord.ui.View):
                 self.attacker.setdefault("labskins", []).append("Dark Ops")
                 summary.append("🌑 **Dark Ops** skin unlocked!")
 
-        else:   # failed raid
+        else:
             self.coin_loss          = random.randint(1, 25)
             self.attacker["coins"]  = max(0, self.attacker.get("coins", 0) - self.coin_loss)
             summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
@@ -220,7 +217,6 @@ class RaidView(discord.ui.View):
                         value="\n".join(summary) if summary else "No rewards gained.",
                         inline=False)
 
-        # ---------------------  Persist data  --------------------- #
         if not self.is_test_mode:
             users      = await load_file(USER_DATA)
             cooldowns  = await load_file(COOLDOWN_FILE)
@@ -245,7 +241,6 @@ class Raid(commands.Cog):
         now           = datetime.utcnow()
         is_test       = target.display_name.lower() == "warlab"
 
-        # -------------  Basic checks / profile load  ------------- #
         users     = await load_file(USER_DATA) or {}
         attacker  = users.get(attacker_id)
         if not attacker:
@@ -264,7 +259,6 @@ class Raid(commands.Cog):
                     f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
                     ephemeral=True)
 
-        # -------------  Defender stub / test mode  ------------- #
         if is_test:
             catalog      = await load_file(CATALOG_PATH) or {}
             skin         = random.choice(list(catalog))
@@ -281,7 +275,6 @@ class Raid(commands.Cog):
                 return await interaction.followup.send(
                     "❌ That player doesn’t have a profile yet.", ephemeral=True)
 
-        # -------------  Prep visuals & view  ------------- #
         reinforcements = defender.get("reinforcements", {})
         catalog        = await load_file(CATALOG_PATH) or {}
         visuals        = get_skin_visuals(defender, catalog)
@@ -295,7 +288,9 @@ class Raid(commands.Cog):
         file  = discord.File(stash_img_path, "raid_stash.png")
         embed = discord.Embed(
             title=f"{visuals['emoji']} {target.display_name}'s Fortified Lab",
-            description=f"```\n{stash_visual}\n```",
+            description=f"```
+{stash_visual}
+```",
             color=visuals["color"]
         ).set_image(url="attachment://raid_stash.png")
 
