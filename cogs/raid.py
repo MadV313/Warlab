@@ -188,61 +188,68 @@ class RaidView(discord.ui.View):
             await interaction.edit_original_response(view=new_view)
 
     async def finalize_results(self, embed: discord.Embed):
-        weekend = is_weekend_boost_active()
-        item_bonus = 1 if weekend else 0
-        coin_mul = 1.3 if weekend else 1.0
-        summary = []
+        weekend      = is_weekend_boost_active()
+        item_bonus   = 1 if weekend else 0
+        coin_mul     = 1.3 if weekend else 1.0
+        summary      = []
 
+        # ---------- outcome processing ----------
         if self.success:
-            stash = self.defender.get("stash", [])
-            steal_limit = min(len(stash), random.randint(1, 3 + item_bonus))
+            stash        = self.defender.get("stash", [])
+            steal_limit  = min(len(stash), random.randint(1, 3 + item_bonus))
             self.stolen_items = random.sample(stash, steal_limit) if stash else []
+
             for item in self.stolen_items:
                 stash.remove(item)
                 self.attacker.setdefault("stash", []).append(item)
             self.defender["stash"] = stash
 
-            self.stolen_coins = int(random.randint(1, 50) * coin_mul)
-            self.defender["coins"] = max(0, self.defender.get("coins", 0) - self.stolen_coins)
-            self.attacker["coins"] = self.attacker.get("coins", 0) + self.stolen_coins
+            self.stolen_coins          = int(random.randint(1, 50) * coin_mul)
+            self.defender["coins"]     = max(0, self.defender.get("coins", 0) - self.stolen_coins)
+            self.attacker["coins"]     = self.attacker.get("coins", 0) + self.stolen_coins
 
             self.attacker["raids_successful"] = self.attacker.get("raids_successful", 0) + 1
-            self.attacker["prestige_points"] = self.attacker.get("prestige_points", 0) + 50
-            self.prestige_earned = 50
+            self.attacker["prestige_points"]  = self.attacker.get("prestige_points", 0) + 50
+            self.prestige_earned              = 50
 
             if self.attacker["raids_successful"] >= 25 and "Dark Ops" not in self.attacker.get("labskins", []):
                 self.attacker.setdefault("labskins", []).append("Dark Ops")
                 summary.append("🌑 **Dark Ops** skin unlocked!")
-
         else:
-            self.coin_loss = random.randint(1, 25)
-            self.attacker["coins"] = max(0, self.attacker.get("coins", 0) - self.coin_loss)
+            self.coin_loss           = random.randint(1, 25)
+            self.attacker["coins"]   = max(0, self.attacker.get("coins", 0) - self.coin_loss)
             summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
 
-        if self.stolen_items: summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
-        if self.stolen_coins: summary.append(f"💰 Coins stolen: {self.stolen_coins}")
-        if self.prestige_earned: summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
+        # ---------- summary embed ----------
+        if self.stolen_items:   summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
+        if self.stolen_coins:   summary.append(f"💰 Coins stolen: {self.stolen_coins}")
+        if self.prestige_earned:summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
 
-        embed.add_field(name="🏁 Raid Summary", value="\n".join(summary) if summary else "No rewards gained.", inline=False)
+        embed.add_field(
+            name   = "🏁 Raid Summary",
+            value  = "\n".join(summary) if summary else "No rewards gained.",
+            inline = False
+        )
 
-        users = await load_file(USER_DATA)
+        # ---------- persistence ----------
+        users     = await load_file(USER_DATA)
         cooldowns = await load_file(COOLDOWN_FILE)
 
-        updated_attacker = users.get(self.attacker_id, {})
-        updated_defender = users.get(self.defender_id, {})
-
-        updated_attacker.update(self.attacker)
-        updated_defender.update(self.defender)
-
-        users[self.attacker_id] = updated_attacker
-        users[self.defender_id] = updated_defender
+        # **Hard-overwrite** profiles to avoid shallow-merge issues
+        users[self.attacker_id] = self.attacker
+        users[self.defender_id] = self.defender
 
         cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
 
         await save_file(USER_DATA, users)
         await save_file(COOLDOWN_FILE, cooldowns)
 
-        print(f"🎯 Final result: {'SUCCESS' if self.success else 'FAIL'} | Items: {self.stolen_items} | Coins: {self.stolen_coins} | Lost: {self.coin_loss}")
+        # ---------- debug ----------
+        print(
+            f"🎯 Raid {'SUCCESS' if self.success else 'FAIL'} | "
+            f"Att coins={self.attacker['coins']} | "
+            f"Items={self.stolen_items} | Lost={self.coin_loss}"
+        )
         pass
         
 # --------------------------  /raid Command  ------------------------------ #
