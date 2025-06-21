@@ -140,6 +140,7 @@ class RaidView(discord.ui.View):
         for item in self.children:
             if isinstance(item, AttackButton):
                 item.disabled = True
+        await interaction.message.edit(view=self)        
         await interaction.response.defer(thinking=True, ephemeral=True)
     
         phase_msgs = [
