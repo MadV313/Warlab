@@ -232,8 +232,10 @@ class RaidView(discord.ui.View):
             self.clear_items()
             self.add_item(CloseButton())
     
-            # ✅ PROPERLY populate results first
-            await self.generate_raid_rewards()  # <- Replace with your internal logic to populate self.stolen_items, etc.
+            # 👇 Await results first BEFORE rendering embed
+            await self.finalize_results(
+                self.message.embeds[0] if self.message and self.message.embeds else discord.Embed()
+            )
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_overlay_{self.attacker_id}.gif"
