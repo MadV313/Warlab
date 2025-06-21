@@ -106,7 +106,13 @@ class RaidView(discord.ui.View):
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
     async def attack_phase(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        phase_msgs = [
+            "🔧 Warlab is recalibrating the targeting system...",
+            "🔋 Reloading heavy munitions...",
+            "💥 Final strike preparing — stand by!"
+        ]
+        await interaction.followup.send(content=phase_msgs[self.phase], ephemeral=True)
+
         i = self.phase
         hit = True
         rtype = None
@@ -145,10 +151,12 @@ class RaidView(discord.ui.View):
 
         file = discord.File(merged_path, filename="merged_raid.gif")
 
-        phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🏁 Final Phase"]
+        phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}",
-            description=f"""```\n{self.stash_visual}\n```""",
+            description=f"""```
+{self.stash_visual}
+```""",
             color=self.visuals["color"]
         )
 
@@ -226,7 +234,8 @@ class RaidView(discord.ui.View):
             await save_file(COOLDOWN_FILE, cooldowns)
 
         print(f"🎯 Final result: {'SUCCESS' if self.success else 'FAIL'} | Items: {self.stolen_items} | Coins: {self.stolen_coins} | Lost: {self.coin_loss}")
-
+        pass
+        
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
     def __init__(self, bot): self.bot = bot
