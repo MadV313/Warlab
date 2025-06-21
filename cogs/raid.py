@@ -97,10 +97,25 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         try:
             await interaction.response.defer()
-            await interaction.message.delete()
+
+            if self.view and hasattr(self.view, 'message'):
+                try:
+                    await self.view.message.delete()
+                    return
+                except Exception as e:
+                    print(f"⚠️ [CloseButton] Tried deleting self.view.message but failed: {e}")
+
+            try:
+                await interaction.message.delete()
+                return
+            except Exception as e:
+                print(f"⚠️ [CloseButton] Tried deleting interaction.message but failed: {e}")
+
+            raise ValueError("No deletable message found.")
+
         except Exception as e:
-            print(f"❌ Failed to delete message: {e}")
-            await interaction.response.send_message("❌ Couldn't close this message.", ephemeral=True)
+            print(f"❌ [CloseButton] Final delete attempt failed: {e}")
+            await interaction.followup.send("❌ Couldn't close this message.", ephemeral=True)
 
 # ---------------------------  Main Raid View  ---------------------------- #
 class RaidView(discord.ui.View):
@@ -263,7 +278,9 @@ class RaidView(discord.ui.View):
                 description=f"```\n{self.stash_visual}\n```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
-    
+
+            await self.finalize_results(embed)  # adds summary to embed
+            
             summary = []
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
@@ -278,7 +295,7 @@ class RaidView(discord.ui.View):
             if reinf_used:
                 summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
 
-            await self.finalize_results(summary)
+            await interaction.edit_original_response(embed=embed, attachments=[file])  # resend embed to show summary
 
             embed.add_field(
                 name="🏁 Raid Summary",
