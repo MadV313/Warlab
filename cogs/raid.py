@@ -273,9 +273,15 @@ class Raid(commands.Cog):
             defender = {
                 "labskins": [skin],
                 "baseImage": catalog[skin]["filename"],
-                "reinforcements": {d: random.randint(0, 2) for d in DEFENCE_TYPES},
-                "stash": [f"TestItem{i}" for i in range(random.randint(1, 5))],
-                "coins": random.randint(10, 75)
+                "reinforcements": {
+                    "Guard Dog": 1,
+                    "Claymore Trap": 1,
+                    "Barbed Fence": 2,
+                    "Reinforced Gate": 1,
+                    "Locked Container": 1
+                },
+                "stash": ["Saw", "Red Dot", "NBC Suit"],
+                "coins": 50
             }
         else:
             defender = users.get(defender_id)
