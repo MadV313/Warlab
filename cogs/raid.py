@@ -199,7 +199,7 @@ class RaidView(discord.ui.View):
     
             phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
             embed = discord.Embed()
-            embed.title = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Lab — {phase_titles[i]}"
+            embed.title = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}"
             embed.description = f"""```\n{self.stash_visual}\n```"""
     
             if hit:
