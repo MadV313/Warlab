@@ -109,9 +109,9 @@ class RaidView(discord.ui.View):
         await interaction.response.defer(thinking=True, ephemeral=True)
         
         phase_msgs = [
-            "🔧 Warlab is recalibrating the targeting system...",
-            "🔋 Reloading heavy munitions...",
-            "💥 Final strike preparing — stand by!"
+            "🔧 Warlab is recalibrating the targeting system... Stand by!",
+            "🔋 Reloading heavy munitions... Stand by!",
+            "💥 Final strike preparing... Stand by!"
         ]
         await interaction.followup.send(content=phase_msgs[self.phase], ephemeral=True)
 
