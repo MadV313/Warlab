@@ -261,26 +261,23 @@ class RaidView(discord.ui.View):
             self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
-    
+        
             await self.finalize_results()
-
+        
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path    = f"temp/final_overlay_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
             file = discord.File(final_path, filename="final_overlay.gif")
-    
+        
             result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
                 description=f"```\n{self.stash_visual}\n```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
-
-            # 1. Finalize results (this populates .stolen_items, .prestige_earned, etc.)
-            await self.finalize_results()
+        
+            # ✅ Build the full summary
             summary = []
-            
-            # 2. Build the full summary field
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
             if self.stolen_coins:
@@ -289,22 +286,22 @@ class RaidView(discord.ui.View):
                 summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
             if not self.success:
                 summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
-            
+        
             reinf_used = [
                 k for k, v in self.reinforcements.items()
                 if v < self.defender.get("reinforcements", {}).get(k, 0)
             ]
             if reinf_used:
                 summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
-            
+        
             embed.add_field(
                 name="🏁 Raid Summary",
                 value="\n".join(summary) if summary else "No rewards gained.",
                 inline=False
             )
             embed.set_image(url="attachment://final_overlay.gif")
-            
-            # 3. Send once
+        
+            # ✅ Send final embed
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
