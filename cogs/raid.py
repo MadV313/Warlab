@@ -372,8 +372,7 @@ class Raid(commands.Cog):
         view = RaidView(interaction, attacker, defender, visuals, reinforcements,
                         stash_visual, stash_img_path, is_test, target=target)
 
-        initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
-        view.message = initial_msg  # ✅ This ensures attack_phase can later update this
+        await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
 
 # ---------------------------  Cog Setup  --------------------------------- #
 async def setup(bot): await bot.add_cog(Raid(bot))
