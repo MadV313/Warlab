@@ -276,8 +276,10 @@ class RaidView(discord.ui.View):
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
 
-            await self.finalize_results(embed)  # adds summary to embed
+            # 1. Finalize results (this populates .stolen_items, .prestige_earned, etc.)
+            await self.finalize_results(embed)
             
+            # 2. Build the full summary field
             summary = []
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
@@ -287,20 +289,22 @@ class RaidView(discord.ui.View):
                 summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
             if not self.success:
                 summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
-    
-            reinf_used = [k for k, v in self.reinforcements.items() if v < self.defender.get("reinforcements", {}).get(k, 0)]
+            
+            reinf_used = [
+                k for k, v in self.reinforcements.items()
+                if v < self.defender.get("reinforcements", {}).get(k, 0)
+            ]
             if reinf_used:
                 summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
-
-            await interaction.edit_original_response(embed=embed, attachments=[file])  # resend embed to show summary
-
+            
             embed.add_field(
                 name="🏁 Raid Summary",
                 value="\n".join(summary) if summary else "No rewards gained.",
                 inline=False
             )
             embed.set_image(url="attachment://final_overlay.gif")
-
+            
+            # 3. Send once (use either self.message.edit or interaction.edit_original_response)
             if self.message:
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
