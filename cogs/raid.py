@@ -249,7 +249,16 @@ class RaidView(discord.ui.View):
         try:
             self.success = self.results.count(True) >= 2
             if self.success:
-                self.stolen_coins = random.randint(5, 25)
+                multiplier = 2 if is_weekend_boost_active() else 1
+                prestige_gain = 50 * multiplier
+                self.stolen_coins = random.randint(5, 25) * multiplier
+            
+                uid = str(self.attacker_id)
+                profiles = await load_file(USER_DATA)
+                user = profiles.get(uid, self.attacker)  # Moved up here
+            
+                user["prestige"] = min(user.get("prestige", 0) + prestige_gain, 200)
+            
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
             
@@ -266,7 +275,6 @@ class RaidView(discord.ui.View):
                 user.setdefault("stash", [])
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
             
-                user["prestige"] = min(user.get("prestige", 0) + 50, 200)
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
@@ -278,7 +286,6 @@ class RaidView(discord.ui.View):
                     self.attacker.setdefault("stash", [])
                     self.attacker["stash"].extend(self.stolen_items)
             
-                profiles[uid] = user
                 await save_file(USER_DATA, profiles)
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
@@ -293,7 +300,7 @@ class RaidView(discord.ui.View):
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
     
-            prestige_line = f"🎖️ Prestige gained: +50" if self.success else "🎖️ Prestige gained: +0"
+            prestige_line = f"🎖️ Prestige gained: +{prestige_gain}" if self.success else "🎖️ Prestige gained: +0"
             summary = [prestige_line]
     
             if self.stolen_items:
