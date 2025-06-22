@@ -325,57 +325,27 @@ class RaidView(discord.ui.View):
                     print(f"⛔ Double fallback failed: {inner}")
 
     # ---------------------- Finalize Raid Results ---------------------- #
-    async def finalize_results(self, embed):
-        """Compute coins/items/prestige. Also inject fallback loot when the
-        defender has nothing so the summary is never empty."""
-        weekend         = is_weekend_boost_active()
-        item_bonus      = 1 if weekend else 0
-        coin_mul        = 1.3 if weekend else 1.0
-        fallback_items  = ["Saw", "Red Dot Sight", "NBC Suit"]
-        fallback_coins  = 15
+    async def finalize_results(self, embed: discord.Embed = None):
+        """Finalize raid outcome, calculate results, and update embed fields."""
+        # ✅ Confirm the function is running
+        print("✅ [DEBUG] finalize_results() has been triggered.")
     
-        summary = []
+        self.stolen_items = []
+        self.stolen_coins = 0
+        self.prestige_earned = 0
+        self.coin_loss = 0
     
+        # Success case — calculate rewards
         if self.success:
-            stash = self.defender.get("stash", [])
-            steal_limit = min(len(stash), random.randint(1, 3 + item_bonus))
-            self.stolen_items = random.sample(stash, steal_limit) if stash else []
-    
-            if not self.stolen_items:
-                self.stolen_items = random.sample(fallback_items, k=1)
-    
-            for itm in self.stolen_items:
-                if itm in stash:
-                    stash.remove(itm)
-                self.attacker.setdefault("stash", []).append(itm)
-            self.defender["stash"] = stash
-    
-            self.stolen_coins = int(random.randint(1, 50) * coin_mul) or fallback_coins
-            self.defender["coins"] = max(0, self.defender.get("coins", 0) - self.stolen_coins)
-            self.attacker["coins"] = self.attacker.get("coins", 0) + self.stolen_coins
-    
-            self.attacker["raids_successful"] = self.attacker.get("raids_successful", 0) + 1
-            self.prestige_earned = 50
-            self.attacker["prestige_points"] = self.attacker.get("prestige_points", 0) + self.prestige_earned
-    
-            if self.attacker["raids_successful"] >= 25 and "Dark Ops" not in self.attacker.get("labskins", []):
-                self.attacker.setdefault("labskins", []).append("Dark Ops")
-                summary.append("🌑 **Dark Ops** skin unlocked!")
+            loot_pool = self.defender.get("stash", {}).get("items", [])
+            if loot_pool:
+                self.stolen_items = random.sample(loot_pool, min(2, len(loot_pool)))
+            self.stolen_coins = random.randint(10, 25)
+            self.prestige_earned = 1
         else:
-            self.coin_loss = random.randint(1, 25)
-            self.attacker["coins"] = max(0, self.attacker.get("coins", 0) - self.coin_loss)
+            self.coin_loss = random.randint(5, 15)
     
-        users     = await load_file(USER_DATA)
-        cooldowns = await load_file(COOLDOWN_FILE)
-    
-        users[self.attacker_id] = self.attacker
-        users[self.defender_id] = self.defender
-        cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
-    
-        await save_file(USER_DATA, users)
-        await save_file(COOLDOWN_FILE, cooldowns)
-    
-        # 🔧 Force print even if summary was empty
+        # ✅ Log debug output with actual values
         print(
             f"\n📒 RAID LOG DEBUG\n"
             f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
@@ -387,6 +357,31 @@ class RaidView(discord.ui.View):
             f"→ Triggers: {self.triggered}\n"
             f"→ Reinforcements Left: {self.reinforcements}\n"
         )
+    
+        # ✅ Build summary for the embed
+        if embed:
+            summary = []
+            if self.stolen_items:
+                summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
+            if self.stolen_coins:
+                summary.append(f"💰 Coins stolen: {self.stolen_coins}")
+            if self.prestige_earned:
+                summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
+            if not self.success:
+                summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
+    
+            reinf_used = [
+                k for k, v in self.reinforcements.items()
+                if v < self.defender.get("reinforcements", {}).get(k, 0)
+            ]
+            if reinf_used:
+                summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
+    
+            embed.add_field(
+                name="🏁 Raid Summary",
+                value="\n".join(summary) if summary else "No rewards gained.",
+                inline=False
+            )
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
