@@ -280,7 +280,7 @@ class RaidView(discord.ui.View):
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)  # attacker profile
 
-                if is_weekend_boost_active() and all(self.results):
+            if is_weekend_boost_active() and all(self.results):
                 user["coins"] += 25
                 bonus_item = await get_random_bonus_item()
                 if bonus_item:
