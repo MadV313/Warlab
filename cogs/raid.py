@@ -256,30 +256,26 @@ class RaidView(discord.ui.View):
                 self.message = await interaction.edit_original_response(
                     embed=embed, attachments=[file], view=nv
                 )
-    
         else:
             self.success = self.results.count(True) >= 2
             self.clear_items()
             self.add_item(CloseButton())
-        
-            await self.finalize_results()
-        
+
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path    = f"temp/final_overlay_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
             file = discord.File(final_path, filename="final_overlay.gif")
-        
+            
             result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
                 description=f"```\n{self.stash_visual}\n```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
+            
+            await self.finalize_results(embed)  # ✅ Moved here so embed is correct
         
-            # ✅ Build the full summary
-            await self.finalize_results()
-
-            # ✅ Explicit Debug Log (move it outside finalize_results to ensure visibility)
+            # ✅ Explicit Debug Log
             print(
                 f"\n📒 RAID LOG DEBUG\n"
                 f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
@@ -291,7 +287,7 @@ class RaidView(discord.ui.View):
                 f"→ Triggers: {self.triggered}\n"
                 f"→ Reinforcements Left: {self.reinforcements}\n"
             )
-
+        
             summary = []
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
@@ -321,9 +317,9 @@ class RaidView(discord.ui.View):
                 await self.message.edit(embed=embed, attachments=[file], view=self)
             else:
                 await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-            
+
     # ---------------------- Finalize Raid Results ---------------------- #
-    async def finalize_results(self):
+    async def finalize_results(self, embed):
         """Compute coins/items/prestige. Also inject fallback loot when the
         defender has nothing so the summary is never empty."""
         weekend         = is_weekend_boost_active()
