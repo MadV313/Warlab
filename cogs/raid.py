@@ -171,7 +171,6 @@ class RaidView(discord.ui.View):
 #   RaidView METHODS – PASTE OVER THE EXISTING ONES IN FULL          #
 # ------------------------------------------------------------------ #
     async def attack_phase(self, interaction: discord.Interaction):
-        # ─────────────── disable button & start countdown ────────────────
         for item in self.children:
             if isinstance(item, AttackButton):
                 item.disabled = True
@@ -180,13 +179,12 @@ class RaidView(discord.ui.View):
                 await self.message.edit(view=self)
         except Exception as e:
             print(f"⚠️ button-disable edit failed: {e}")
-
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         phase_msgs = [
             "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
-            "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!",
+            "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
 
         async def countdown(msg: str):
@@ -199,14 +197,13 @@ class RaidView(discord.ui.View):
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
 
-        countdown_task = asyncio.create_task(countdown(phase_msgs[self.phase]))
+        asyncio.create_task(countdown(phase_msgs[self.phase]))
 
-        # ─────────────── resolve hit / block ────────────────
-        i             = self.phase
-        hit           = True
-        rtype         = None         # blocker type
-        consumed      = False
-        dmg           = None         # damaged reinforcement
+        i = self.phase
+        hit = True
+        rtype = None
+        consumed = False
+        dmg = None
 
         for rtype_check in DEFENCE_TYPES:
             ch = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
@@ -221,41 +218,24 @@ class RaidView(discord.ui.View):
 
         if hit:
             viable = [k for k, v in self.reinforcements.items() if v > 0]
-            dmg    = random.choice(viable) if viable else None
+            dmg = random.choice(viable) if viable else None
             if dmg and random.random() < 0.8:
                 self.reinforcements[dmg] -= 1
                 print("🧱 damaged:", dmg)
 
-        # ─────────────── regenerate stash image if needed ────────────────
-        if i == 0 or consumed or any(v < self.reinforcements_start.get(k, 0) for k, v in self.reinforcements.items()):
+        if any(v < self.reinforcements_start.get(k, 0) for k, v in self.reinforcements.items()):
             self.stash_img_path = generate_stash_image(
-                self.defender_id,
-                self.reinforcements,
+                self.defender_id, self.reinforcements,
                 base_path="assets/stash_layers",
-                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None,
-                draw_badges=True
+                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
             )
 
-        # ─────────────── build phase embed / GIF ────────────────
         self.results.append(hit)
         self.stash_visual = render_stash_visual(self.reinforcements)
 
-        overlay     = OVERLAY_GIFS[i] if hit else MISS_GIF
+        overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
         merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
-
-        try:
-            await asyncio.to_thread(
-                merge_overlay,
-                self.stash_img_path,
-                f"assets/overlays/{overlay}",
-                merged_path
-            )
-        except Exception as e:
-            print(f"❌ Overlay merge failed: {e}")
-            return                    # abort this phase safely
-
-        await countdown_task         # ensure the countdown finishes
-
+        await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{overlay}", merged_path)
         file = discord.File(merged_path, filename="merged.gif")
 
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
@@ -272,19 +252,18 @@ class RaidView(discord.ui.View):
             embed.description += f"\n\n💥 {rtype} triggered — attack blocked {'(Consumed ×1)' if consumed else '(Not consumed)'}"
         embed.set_image(url="attachment://merged.gif")
 
-        # ─────────────── advance to next phase or finish ────────────────
         self.phase += 1
         print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
 
         if self.phase < 3:
-            next_view                 = RaidView(
+            next_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
                 self.reinforcements, self.stash_visual, self.stash_img_path,
                 self.is_test_mode, phase=self.phase, target=self.target
             )
-            next_view.results         = self.results.copy()
-            next_view.triggered       = self.triggered.copy()
-            next_view.message         = self.message
+            next_view.results = self.results.copy()
+            next_view.triggered = self.triggered.copy()
+            next_view.message = self.message
             try:
                 self.message = await self.message.edit(embed=embed, attachments=[file], view=next_view)
             except Exception as e:
@@ -369,11 +348,6 @@ class RaidView(discord.ui.View):
             destroyed = summarize_destroyed(self.reinforcements_start, self.reinforcements, self.triggered)
             if destroyed:
                 summary.append(f"🧱 Defenses destroyed: {destroyed}")
-
-            if triggered:
-                for trap in triggered:
-                    if trap in ("Guard Dog", "Claymore Trap"):
-                        destroyed[trap] = destroyed.get(trap, 0) + 1
     
             fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
             fin_embed.set_image(url="attachment://final.gif")
