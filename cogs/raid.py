@@ -175,8 +175,11 @@ class RaidView(discord.ui.View):
                 except Exception as e:
                     print("⛔ Countdown error:", e)
     
-            asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
-    
+            if self.phase < 2:
+                asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
+            else:
+                await countdown_ephemeral(base_msg, interaction.followup)
+                
             i = self.phase
             hit = True
             rtype = None
