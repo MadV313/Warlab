@@ -264,12 +264,16 @@ class RaidView(discord.ui.View):
                 user = profiles.get(uid, self.attacker)
             
                 user.setdefault("stash", [])
+                user.setdefault("coins", 0)
+                user.setdefault("prestige", 0)
+                user.setdefault("raids_completed", 0)
+            
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
             
-                user["prestige"] = min(user.get("prestige", 0) + 50, 200)
-                user["coins"] = user.get("coins", 0) + self.stolen_coins
+                user["prestige"] = min(user["prestige"] + 50, 200)
+                user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
-                user["raids_completed"] = user.get("raids_completed", 0) + 1
+                user["raids_completed"] += 1
             
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
             
