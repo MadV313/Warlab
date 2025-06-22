@@ -146,13 +146,12 @@ class RaidView(discord.ui.View):
 #   RaidView METHODS – PASTE OVER THE EXISTING ONES IN FULL          #
 # ------------------------------------------------------------------ #
     async def attack_phase(self, interaction: discord.Interaction):
-        """Run one attack roll (phase 0-2) or, on phase 3, render the final
-        outcome embed with the Close button and the raid summary."""
+        """Run one attack roll (phase 0-2) or, on phase 3, render the final outcome embed with Close button and summary."""
         for item in self.children:
             if isinstance(item, AttackButton):
                 item.disabled = True
         if self.message:
-            await self.message.edit(view=self)        
+            await self.message.edit(view=self)
         await interaction.response.defer(thinking=True, ephemeral=True)
     
         phase_msgs = [
@@ -186,8 +185,7 @@ class RaidView(discord.ui.View):
             dmg = None
     
             for rtype_check in DEFENCE_TYPES:
-                if (ch := calculate_block_chance(self.reinforcements, rtype_check, self.attacker)) \
-                   and random.randint(1, 100) <= ch:
+                if (ch := calculate_block_chance(self.reinforcements, rtype_check, self.attacker)) and random.randint(1, 100) <= ch:
                     rtype = rtype_check
                     hit = False
                     self.triggered.append(rtype_check)
@@ -239,90 +237,87 @@ class RaidView(discord.ui.View):
             self.phase += 1
             print(f"📊 Phase {i+1} completed | Hit={hit} | Trigger={rtype} | Consumed={consumed}")
     
-            nv = RaidView(self.ctx, self.attacker, self.defender, self.visuals,
-                          self.reinforcements, self.stash_visual, self.stash_img_path,
-                          self.is_test_mode, phase=self.phase, target=self.target)
-            nv.results = self.results.copy()
-            nv.triggered = self.triggered.copy()
-            nv.message = self.message
-            nv.disable_attack_button = True
+            if self.phase < 3:
+                nv = RaidView(self.ctx, self.attacker, self.defender, self.visuals,
+                              self.reinforcements, self.stash_visual, self.stash_img_path,
+                              self.is_test_mode, phase=self.phase, target=self.target)
+                nv.results = self.results.copy()
+                nv.triggered = self.triggered.copy()
+                nv.message = self.message
+                nv.disable_attack_button = True
     
-            if self.message:
-                await self.message.edit(embed=embed, attachments=[file], view=nv)
-            else:
-                self.message = await interaction.edit_original_response(
-                    embed=embed, attachments=[file], view=nv
-                )
-        else:
-            self.success = self.results.count(True) >= 2
-            self.clear_items()
-            self.add_item(CloseButton())
-    
-            final_overlay = "victory.gif" if self.success else "miss.gif"
-            final_path = f"temp/final_overlay_{self.attacker_id}.gif"
-            await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
-            file = discord.File(final_path, filename="final_overlay.gif")
-    
-            result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
-            embed = discord.Embed(
-                title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
-                description=f"```\n{self.stash_visual}\n```",
-                color=discord.Color.green() if self.success else discord.Color.red()
-            )
-    
-            try:
-                print("🧩 Calling finalize_results() with embed...")
-                await self.finalize_results(embed)
-            except Exception as e:
-                print(f"⛔ finalize_results() failed: {e}")
-    
-            print(
-                f"\n📒 RAID LOG DEBUG\n"
-                f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
-                f"→ Defender: {self.target.display_name} ({self.defender_id})\n"
-                f"→ Result: {'✅ SUCCESS' if self.success else '❌ FAIL'}\n"
-                f"→ Items: {self.stolen_items if self.stolen_items else 'None'}\n"
-                f"→ Coins: +{self.stolen_coins if self.success else 0} / -{self.coin_loss if not self.success else 0}\n"
-                f"→ Prestige: {self.prestige_earned if self.success else 0}\n"
-                f"→ Triggers: {self.triggered}\n"
-                f"→ Reinforcements Left: {self.reinforcements}\n"
-            )
-    
-            summary = []
-            if self.stolen_items:
-                summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
-            if self.stolen_coins:
-                summary.append(f"💰 Coins stolen: {self.stolen_coins}")
-            if self.prestige_earned:
-                summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
-            if not self.success:
-                summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
-    
-            reinf_used = [
-                k for k, v in self.reinforcements.items()
-                if v < self.defender.get("reinforcements", {}).get(k, 0)
-            ]
-            if reinf_used:
-                summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
-    
-            embed.add_field(
-                name="🏁 Raid Summary",
-                value="\n".join(summary) if summary else "No rewards gained.",
-                inline=False
-            )
-            embed.set_image(url="attachment://final_overlay.gif")
-    
-            try:
                 if self.message:
-                    await self.message.edit(embed=embed, attachments=[file], view=self)
+                    await self.message.edit(embed=embed, attachments=[file], view=nv)
                 else:
-                    self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
-            except discord.HTTPException as e:
-                print(f"❌ Final embed edit failed — fallback triggered: {e}")
+                    self.message = await interaction.edit_original_response(embed=embed, attachments=[file], view=nv)
+    
+            else:
+                # ✅ Final Phase: Count hits and calculate results
+                self.success = self.results.count(True) >= 2
+                self.clear_items()
+                self.add_item(CloseButton())
+                await self.finalize_results()
+    
+                final_overlay = "victory.gif" if self.success else "miss.gif"
+                final_path = f"temp/final_overlay_{self.attacker_id}.gif"
+                await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
+                file = discord.File(final_path, filename="final_overlay.gif")
+    
+                result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
+                embed = discord.Embed(
+                    title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
+                    description=f"```\n{self.stash_visual}\n```",
+                    color=discord.Color.green() if self.success else discord.Color.red()
+                )
+    
+                # 🧾 Debug
+                print(
+                    f"\n📒 RAID LOG DEBUG\n"
+                    f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
+                    f"→ Defender: {self.target.display_name} ({self.defender_id})\n"
+                    f"→ Result: {'✅ SUCCESS' if self.success else '❌ FAIL'}\n"
+                    f"→ Items: {self.stolen_items if self.stolen_items else 'None'}\n"
+                    f"→ Coins: +{self.stolen_coins if self.success else 0} / -{self.coin_loss if not self.success else 0}\n"
+                    f"→ Prestige: {self.prestige_earned if self.success else 0}\n"
+                    f"→ Triggers: {self.triggered}\n"
+                    f"→ Reinforcements Left: {self.reinforcements}\n"
+                )
+    
+                # 🧾 Final embed summary
+                summary = []
+                if self.stolen_items:
+                    summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
+                if self.stolen_coins:
+                    summary.append(f"💰 Coins stolen: {self.stolen_coins}")
+                if self.prestige_earned:
+                    summary.append(f"🏅 Prestige gained: {self.prestige_earned}")
+                if not self.success:
+                    summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
+                reinf_used = [
+                    k for k, v in self.reinforcements.items()
+                    if v < self.defender.get("reinforcements", {}).get(k, 0)
+                ]
+                if reinf_used:
+                    summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
+    
+                embed.add_field(
+                    name="🏁 Raid Summary",
+                    value="\n".join(summary) if summary else "No rewards gained.",
+                    inline=False
+                )
+                embed.set_image(url="attachment://final_overlay.gif")
+    
                 try:
-                    self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
-                except Exception as inner:
-                    print(f"⛔ Double fallback failed: {inner}")
+                    if self.message:
+                        await self.message.edit(embed=embed, attachments=[file], view=self)
+                    else:
+                        self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
+                except discord.HTTPException as e:
+                    print(f"❌ Final embed edit failed — fallback triggered: {e}")
+                    try:
+                        self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
+                    except Exception as inner:
+                        print(f"⛔ Double fallback failed: {inner}")
 
     # ---------------------- Finalize Raid Results ---------------------- #
         else:
