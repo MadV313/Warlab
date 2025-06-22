@@ -308,13 +308,9 @@ class RaidView(discord.ui.View):
                     if self.message:
                         await self.message.edit(embed=embed, attachments=[file], view=self)
                     else:
-                        self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
-                except discord.HTTPException as e:
-                    print(f"❌ Final embed edit failed — fallback triggered: {e}")
-                    try:
-                        self.message = await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
-                    except Exception as inner:
-                        print(f"⛔ Double fallback failed: {inner}")
+                        self.message = await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
+                except Exception as e:
+                    print(f"❌ Final embed update failed: {e}")
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
