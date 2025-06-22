@@ -324,11 +324,11 @@ class RaidView(discord.ui.View):
         try:
             profiles = await load_file(USER_DATA)
             uid = str(self.attacker_id)
-            user = profiles.get(uid, {
-                "prestige": 0,
-                "coins": 0,
-                "stash": []
-            })
+            user = profiles.get(uid, {})
+            user.setdefault("prestige", 0)
+            user.setdefault("coins", 0)
+            user.setdefault("stash", [])
+            user.setdefault("raids_completed", 0)
 
             if self.success:
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
