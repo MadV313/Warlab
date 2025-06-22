@@ -223,7 +223,8 @@ class RaidView(discord.ui.View):
                 self.reinforcements[dmg] -= 1
                 print("🧱 damaged:", dmg)
 
-        if any(v < self.reinforcements_start.get(k, 0) for k, v in self.reinforcements.items()):
+        # ✅ Always rebuild stash image if something was consumed OR reinforcement count changed
+        if consumed or any(v < self.reinforcements_start.get(k, 0) for k, v in self.reinforcements.items()):
             self.stash_img_path = generate_stash_image(
                 self.defender_id, self.reinforcements,
                 base_path="assets/stash_layers",
