@@ -139,6 +139,7 @@ class RaidView(discord.ui.View):
         self.attacker_id = str(ctx.user.id)
         self.defender_id = str(target.id)
         self.message = None
+        self.followup_msg = None
         self.add_item(AttackButton() if phase < 3 else CloseButton())
 
 #   RaidView METHODS – PASTE OVER THE EXISTING ONES IN FULL          #
@@ -148,39 +149,13 @@ class RaidView(discord.ui.View):
             if isinstance(item, AttackButton):
                 item.disabled = True
         try:
-            if self.message:
-                await self.message.edit(view=self)
-        except discord.NotFound:
-            print("❌ Attack message not found for editing (already deleted).")
+            if self.followup_msg:
+                await self.followup_msg.edit(view=self)
         except Exception as e:
-            print(f"⚠️ button-disable edit failed: {e}")
-
-        phase_msgs = [
-            "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
-            "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
-            "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
-        ]
-
-        async def countdown(msg: str):
-            try:
-                wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
-                for s in range(24, 0, -1):
-                    await asyncio.sleep(1)
-                    try:
-                        await wait.edit(content=f"{msg} *({s}s)*")
-                    except discord.NotFound:
-                        break
-                await wait.delete()
-            except Exception as e:
-                print(f"⛔ countdown error: {e}")
-
-        asyncio.create_task(countdown(phase_msgs[self.phase]))
+            print(f"⚠️ view button disable failed: {e}")
 
         i = self.phase
-        hit = True
-        rtype = None
-        consumed = False
-        dmg = None
+        hit, rtype, consumed, dmg = True, None, False, None
 
         for rtype_check in DEFENCE_TYPES:
             ch = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
@@ -232,6 +207,23 @@ class RaidView(discord.ui.View):
         self.phase += 1
         print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
 
+        # COUNTDOWN — run non-blocking if followup_msg is valid
+        async def countdown():
+            try:
+                wait_msg = await interaction.followup.send(
+                    content=f"{titles[i]} — targeting... *(25s)*", ephemeral=True)
+                for s in range(24, 0, -1):
+                    await asyncio.sleep(1)
+                    try:
+                        await wait_msg.edit(content=f"{titles[i]} — targeting... *({s}s)*")
+                    except discord.NotFound:
+                        break
+                await wait_msg.delete()
+            except Exception as e:
+                print(f"⛔ countdown error: {e}")
+        if self.followup_msg:
+            asyncio.create_task(countdown())
+
         if self.phase < 3:
             next_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -241,10 +233,11 @@ class RaidView(discord.ui.View):
             next_view.results = self.results.copy()
             next_view.triggered = self.triggered.copy()
             next_view.message = self.message
+            next_view.followup_msg = self.followup_msg
             try:
-                self.message = await self.message.edit(embed=embed, attachments=[file], view=next_view)
+                self.followup_msg = await self.followup_msg.edit(embed=embed, attachments=[file], view=next_view)
             except Exception as e:
-                print(f"❌ phase-{self.phase} edit failed: {e}")
+                print(f"❌ phase-{self.phase} update failed: {e}")
             return
 
         self.success = self.results.count(True) >= 2
@@ -423,7 +416,8 @@ class Raid(commands.Cog):
                         stash_visual, stash_img_path, is_test, target=target)
 
         initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
-        view.message = initial_msg  # ✅ Ensures attack_phase can later update this
+        view.message = initial_msg  # Used for fallback deletions
+        view.followup_msg = await interaction.original_response()  # Used for all future .edit() calls
 
 # ---------------------------  Cog Setup  --------------------------------- #
 async def setup(bot): await bot.add_cog(Raid(bot))
