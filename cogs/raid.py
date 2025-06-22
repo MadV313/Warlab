@@ -253,7 +253,7 @@ class RaidView(discord.ui.View):
                 self.success = self.results.count(True) >= 2
                 self.clear_items()
                 self.add_item(CloseButton())
-                await self.finalize_results()  # ✅ Fully restored reward + summary logic
+                await self.finalize_results()
     
                 final_overlay = "victory.gif" if self.success else "miss.gif"
                 final_path = f"temp/final_overlay_{self.attacker_id}.gif"
@@ -267,7 +267,7 @@ class RaidView(discord.ui.View):
                     color=discord.Color.green() if self.success else discord.Color.red()
                 )
     
-                # 🧾 Debug
+                # 📋 RAID DEBUG LOG
                 print(
                     f"\n📒 RAID LOG DEBUG\n"
                     f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
@@ -280,7 +280,7 @@ class RaidView(discord.ui.View):
                     f"→ Reinforcements Left: {self.reinforcements}\n"
                 )
     
-                # 🧾 Final embed summary
+                # 🧾 FINAL EMBED SUMMARY
                 summary = []
                 if self.stolen_items:
                     summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
