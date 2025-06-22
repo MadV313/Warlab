@@ -416,7 +416,7 @@ class RaidView(discord.ui.View):
                         view=RetaliateButton(self.attacker_id)
                     )
             except Exception as e:
-                print(f\"⚠️ Failed to send retaliation DM: {e}\")
+                print(f\"⚠️ Failed to send retaliation DM: {e}")
         
             print(
                 f"\n📒 RAID LOG DEBUG\n"
