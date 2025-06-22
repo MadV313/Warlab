@@ -267,7 +267,7 @@ class RaidView(discord.ui.View):
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
             
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
-                user["coins"] += self.stolen_coins
+                user["coins"] = user.get("coins", 0) + self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             
@@ -276,14 +276,6 @@ class RaidView(discord.ui.View):
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     self.attacker.setdefault("stash", [])
                     self.attacker["stash"].extend(self.stolen_items)
-            
-                profiles[uid] = user
-                await save_file(USER_DATA, profiles)
-            
-                if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    user_stash = self.attacker.get("stash", [])
-                    user_stash.extend(self.stolen_items)
-                    self.attacker["stash"] = user_stash
             
                 profiles[uid] = user
                 await save_file(USER_DATA, profiles)
