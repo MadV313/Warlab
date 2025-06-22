@@ -197,11 +197,7 @@ class RaidView(discord.ui.View):
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
 
-        # Await countdown only on final phase
-        if self.phase == 2:
-            await countdown(phase_msgs[self.phase])
-        else:
-            asyncio.create_task(countdown(phase_msgs[self.phase]))
+        asyncio.create_task(countdown(phase_msgs[self.phase]))
 
         i = self.phase
         hit = True
@@ -273,7 +269,7 @@ class RaidView(discord.ui.View):
             except Exception as e:
                 print(f"❌ phase-{self.phase} edit failed: {e}")
             return
-
+    
         print("📊 Phase 3 starting")
         try:
             self.success = self.results.count(True) >= 2
@@ -281,16 +277,16 @@ class RaidView(discord.ui.View):
             prestige_gain = 0
             self.stolen_items = []
             self.stolen_coins = 0
-
+    
             if self.success:
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-
+    
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)
-
+    
                 if is_weekend_boost_active() and all(self.results):
                     user["coins"] += 25
                     bonus_item = await get_random_bonus_item()
@@ -298,42 +294,42 @@ class RaidView(discord.ui.View):
                         user["stash"].append(bonus_item)
                         summary.append(f"<a:bonus_item:1370091021958119445> Bonus item: {bonus_item}")
                     summary.append("<a:bonus:1386436403000512694> Tripple Threat Weekend Boost Active! +25 coins")
-
+    
                 user["prestige"] = min(user.get("prestige", 0) + prestige_gain, 200)
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
-
+    
                 if stealable:
                     stolen_count = min(3, len(stealable))
                     self.stolen_items = random.sample(stealable, stolen_count)
                     for item in self.stolen_items:
                         defender_stash.remove(item)
-
+    
                 user.setdefault("stash", [])
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
-
+    
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
-
+    
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
-
+    
                 self.attacker = user
                 profiles[uid] = user
                 await save_file(USER_DATA, profiles)
-
+    
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
             fin_file = discord.File(final_path, filename="final.gif")
-
+    
             fin_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             fin_embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {fin_title}",
                 description=f"```{self.stash_visual}```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
-
+    
             summary.append(f"🎖️ Prestige gained: +{prestige_gain}")
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
@@ -348,22 +344,23 @@ class RaidView(discord.ui.View):
                     summary.append(f"💸 Lost {penalty} coins during the failed raid.")
                 else:
                     summary.append("💸 No further penalty — coin balance already at minimum.")
-
+    
             destroyed = summarize_destroyed(self.reinforcements_start, self.reinforcements, self.triggered)
             if destroyed:
                 summary.append(f"🧱 Defenses destroyed: {destroyed}")
-
+    
             fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
             fin_embed.set_image(url="attachment://final.gif")
-
+    
             final_view = discord.ui.View()
             final_view.add_item(CloseButton())
-
+    
             try:
                 await self.message.delete()
-            except Exception as e:
-                print(f"⚠️ Could not delete Phase 3 message: {e}")
-
+            except:
+                pass
+            self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view, ephemeral=True)
+    
             try:
                 profiles = await load_file(USER_DATA) or {}
                 cooldowns = await load_file(COOLDOWN_FILE) or {}
@@ -378,7 +375,7 @@ class RaidView(discord.ui.View):
                 await save_file(COOLDOWN_FILE, cooldowns)
             except Exception as e:
                 print(f"⚠️ Failed to update user profile after raid: {e}")
-
+    
             try:
                 warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
                 if warlab_channel:
@@ -388,7 +385,7 @@ class RaidView(discord.ui.View):
                         await warlab_channel.send(f"🛡️ <@{self.defender_id}> managed to keep <@{self.attacker_id}> away from their goods... maybe they won't be so lucky next time!")
             except Exception as e:
                 print(f"⚠️ Failed to broadcast raid result to warlab channel: {e}")
-
+    
             try:
                 defender_user = await self.ctx.guild.fetch_member(int(self.defender_id))
                 if defender_user and not defender_user.bot and self.success:
@@ -406,7 +403,7 @@ class RaidView(discord.ui.View):
                     )
             except Exception as e:
                 print(f"⚠️ Failed to send retaliation DM: {e}")
-
+    
             print(
                 f"\n📒 RAID LOG DEBUG\n"
                 f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
@@ -415,7 +412,7 @@ class RaidView(discord.ui.View):
                 f"→ Triggered: {self.triggered}\n"
                 f"→ Reinforcements left: {self.reinforcements}\n"
             )
-
+    
         except Exception as e:
             print(f"🔥 Crash in Phase 3: {e}")
 
