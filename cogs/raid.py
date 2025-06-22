@@ -252,102 +252,99 @@ class RaidView(discord.ui.View):
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-            
+        
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)  # Moved up here
-            
+        
                 user["prestige"] = min(user.get("prestige", 0) + prestige_gain, 200)
-            
+        
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
-            
+        
                 if stealable:
                     stolen_count = min(2, len(stealable))
                     self.stolen_items = random.sample(stealable, stolen_count)
                     for item in self.stolen_items:
                         defender_stash.remove(item)
-            
-                uid = str(self.attacker_id)
-                profiles = await load_file(USER_DATA)
-                user = profiles.get(uid, self.attacker)
-            
+        
                 user.setdefault("stash", [])
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
-            
+        
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
-            
+        
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
-            
+        
+                self.attacker = user  # ✅ Ensure updated data is synced to attacker before save
+        
                 profiles[uid] = user
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     self.attacker.setdefault("stash", [])
                     self.attacker["stash"].extend(self.stolen_items)
-            
+        
                 await save_file(USER_DATA, profiles)
-    
+        
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
             fin_file = discord.File(final_path, filename="final.gif")
-    
+        
             fin_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             fin_embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {fin_title}",
                 description=f"```{self.stash_visual}```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
-    
+        
             prestige_line = f"🎖️ Prestige gained: +{prestige_gain}" if self.success else "🎖️ Prestige gained: +0"
             summary = [prestige_line]
-    
+        
             if self.stolen_items:
                 summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
             if self.stolen_coins:
                 summary.append(f"💰 Coins stolen: {self.stolen_coins}")
             if not self.success:
                 summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
-    
+        
             fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
             fin_embed.set_image(url="attachment://final.gif")
-    
+        
             final_view = discord.ui.View()
             final_view.add_item(CloseButton())
-    
+        
             try:
                 await self.message.delete()
             except:
                 pass
             self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
-    
+        
             try:
                 profiles = await load_file(USER_DATA) or {}
                 cooldowns = await load_file(COOLDOWN_FILE) or {}
-            
+        
                 uid = str(self.attacker_id)
                 user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
                 self.attacker = user  # sync for overwrite
-            
+        
                 if not self.success:
                     user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
                 else:
                     print("✅ Skipping duplicate reward write — already handled above.")
-            
+        
                 profiles[uid] = user
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     profiles[self.defender_id] = self.defender
-            
-                # ✅ Add cooldown tracking now that it's loaded
+        
                 cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
-            
+        
                 await save_file(USER_DATA, profiles)
                 await save_file(COOLDOWN_FILE, cooldowns)
-            
+        
             except Exception as e:
                 print(f"⚠️ Failed to update user profile after raid: {e}")
-    
+        
             try:
                 warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
                 if warlab_channel:
@@ -357,7 +354,7 @@ class RaidView(discord.ui.View):
                         await warlab_channel.send(f"🛡️ <@{self.defender_id}> managed to keep <@{self.attacker_id}> away from their goods... maybe they won't be so lucky next time!")
             except Exception as e:
                 print(f"⚠️ Failed to broadcast raid result to warlab channel: {e}")
-    
+        
             print(
                 f"\n📒 RAID LOG DEBUG\n"
                 f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
@@ -366,7 +363,7 @@ class RaidView(discord.ui.View):
                 f"→ Triggered: {self.triggered}\n"
                 f"→ Reinforcements left: {self.reinforcements}\n"
             )
-    
+        
         except Exception as e:
             print(f"🔥 Crash in Phase 3: {e}")
 
