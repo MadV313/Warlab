@@ -177,11 +177,9 @@ class RaidView(discord.ui.View):
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
     
-        if self.phase < 2:                       # P1 & P2 → non-blocking
-            asyncio.create_task(countdown(phase_msgs[self.phase]))
-        else:                                    # P3 → block until done
-            print("⏳ 25-s final countdown…")
-            await countdown(phase_msgs[self.phase])
+        # FIXED – all phases run countdown concurrently
+        print("⏳ Countdown started (non-blocking)…")
+        asyncio.create_task(countdown(phase_msgs[self.phase]))
     
         # 3️⃣  resolve hit / block ------------------------------------------------------
         i        = self.phase
