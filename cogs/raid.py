@@ -275,17 +275,18 @@ class RaidView(discord.ui.View):
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-            if is_weekend_boost_active() and all(self.results):
-                user["coins"] += 25
-                bonus_item = await get_random_bonus_item()
-                if bonus_item:
-                    user["stash"].append(bonus_item)
-                    summary.append(f"🌞 Bonus item: {bonus_item}")
-                summary.append("🌞 Weekend Boost Active! +25 coins")
         
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)  # attacker profile
+
+                if is_weekend_boost_active() and all(self.results):
+                user["coins"] += 25
+                bonus_item = await get_random_bonus_item()
+                if bonus_item:
+                    user["stash"].append(bonus_item)
+                    summary.append(f"<a:bonus_item:1370091021958119445> Bonus item: {bonus_item}")
+                summary.append("<a:bonus:1386436403000512694> Tripple Threat Weekend Boost Active! +25 coins")
         
                 # Prestige
                 user["prestige"] = min(user.get("prestige", 0) + prestige_gain, 200)
