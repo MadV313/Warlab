@@ -146,116 +146,119 @@ class RaidView(discord.ui.View):
 #   RaidView METHODS – PASTE OVER THE EXISTING ONES IN FULL          #
 # ------------------------------------------------------------------ #
     async def attack_phase(self, interaction: discord.Interaction):
-        for item in self.children:
-            if isinstance(item, AttackButton):
-                item.disabled = True
+    for item in self.children:
+        if isinstance(item, AttackButton):
+            item.disabled = True
+    try:
+        if self.message:
+            await self.message.edit(view=self)
+    except Exception as e:
+        print(f"⚠️ button-disable edit failed: {e}")
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    phase_msgs = [
+        "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
+        "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
+        "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
+    ]
+
+    async def countdown(msg: str):
         try:
-            if self.message:
-                await self.message.edit(view=self)
+            wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
+            for s in range(24, 0, -1):
+                await asyncio.sleep(1)
+                await wait.edit(content=f"{msg} *({s}s)*")
+            await wait.delete()
         except Exception as e:
-            print(f"⚠️ button-disable edit failed: {e}")
-        await interaction.response.defer(thinking=True, ephemeral=True)
+            print(f"⛔ countdown error: {e}")
 
-        phase_msgs = [
-            "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
-            "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
-            "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
-        ]
-        async def countdown(msg: str):
-            try:
-                wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
-                for s in range(24, 0, -1):
-                    await asyncio.sleep(1)
-                    await wait.edit(content=f"{msg} *({s}s)*")
-                await wait.delete()
-            except Exception as e:
-                print(f"⛔ countdown error: {e}")
-        asyncio.create_task(countdown(phase_msgs[self.phase]))
+    asyncio.create_task(countdown(phase_msgs[self.phase]))
 
-        i = self.phase
-        hit = True
-        rtype = None
-        consumed = False
-        dmg = None
+    i = self.phase
+    hit = True
+    rtype = None
+    consumed = False
+    dmg = None
 
-        for rtype_check in DEFENCE_TYPES:
-            ch = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
-            if ch and random.randint(1, 100) <= ch:
-                hit = False
-                rtype = rtype_check
-                self.triggered.append(rtype_check)
-                if rtype in ("Guard Dog", "Claymore Trap") or random.random() < 0.5:
-                    self.reinforcements[rtype] -= 1
-                    consumed = True
-                break
+    for rtype_check in DEFENCE_TYPES:
+        ch = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
+        if ch and random.randint(1, 100) <= ch:
+            hit = False
+            rtype = rtype_check
+            self.triggered.append(rtype_check)
+            if rtype in ("Guard Dog", "Claymore Trap") or random.random() < 0.5:
+                self.reinforcements[rtype] -= 1
+                consumed = True
+            break
 
-        if hit:
-            viable = [k for k, v in self.reinforcements.items() if v > 0]
-            dmg = random.choice(viable) if viable else None
-            if dmg and random.random() < 0.8:
-                self.reinforcements[dmg] -= 1
-                print("🧱 damaged:", dmg)
+    if hit:
+        viable = [k for k, v in self.reinforcements.items() if v > 0]
+        dmg = random.choice(viable) if viable else None
+        if dmg and random.random() < 0.8:
+            self.reinforcements[dmg] -= 1
+            print("🧱 damaged:", dmg)
 
-        if any(v == 0 for v in self.reinforcements.values()):
-            self.stash_img_path = generate_stash_image(
-                self.defender_id, self.reinforcements,
-                base_path="assets/stash_layers",
-                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
-            )
-
-        self.results.append(hit)
-        self.stash_visual = render_stash_visual(self.reinforcements)
-
-        overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
-        merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
-        await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{overlay}", merged_path)
-        file = discord.File(merged_path, filename="merged.gif")
-
-        phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
-        embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
-            description=f"```{self.stash_visual}```"
+    if any(v == 0 for v in self.reinforcements.values()):
+        self.stash_img_path = generate_stash_image(
+            self.defender_id, self.reinforcements,
+            base_path="assets/stash_layers",
+            baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
         )
-        if hit:
-            extra = "✅ Attack successful!"
-            if dmg:
-                extra += f" Destroyed {dmg} ×1."
-            embed.description += f"\n\n{extra}"
-        else:
-            embed.description += f"\n\n💥 {rtype} triggered — attack blocked {'(Consumed ×1)' if consumed else '(Not consumed)'}"
-        embed.set_image(url="attachment://merged.gif")
 
-        self.phase += 1
-        print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
+    self.results.append(hit)
+    self.stash_visual = render_stash_visual(self.reinforcements)
 
-        if self.phase < 3:
-            next_view = RaidView(
-                self.ctx, self.attacker, self.defender, self.visuals,
-                self.reinforcements, self.stash_visual, self.stash_img_path,
-                self.is_test_mode, phase=self.phase, target=self.target
-            )
-            next_view.results = self.results.copy()
-            next_view.triggered = self.triggered.copy()
-            next_view.message = self.message
-            try:
-                self.message = await self.message.edit(embed=embed, attachments=[file], view=next_view)
-            except Exception as e:
-                print(f"❌ phase-{self.phase} edit failed: {e}")
-            return
+    overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
+    merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
+    await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{overlay}", merged_path)
+    file = discord.File(merged_path, filename="merged.gif")
 
-        # Final Phase
+    phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
+    embed = discord.Embed(
+        title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
+        description=f"```{self.stash_visual}```"
+    )
+    if hit:
+        extra = "✅ Attack successful!"
+        if dmg:
+            extra += f" Destroyed {dmg} ×1."
+        embed.description += f"\n\n{extra}"
+    else:
+        embed.description += f"\n\n💥 {rtype} triggered — attack blocked {'(Consumed ×1)' if consumed else '(Not consumed)'}"
+    embed.set_image(url="attachment://merged.gif")
+
+    self.phase += 1
+    print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
+
+    if self.phase < 3:
+        next_view = RaidView(
+            self.ctx, self.attacker, self.defender, self.visuals,
+            self.reinforcements, self.stash_visual, self.stash_img_path,
+            self.is_test_mode, phase=self.phase, target=self.target
+        )
+        next_view.results = self.results.copy()
+        next_view.triggered = self.triggered.copy()
+        next_view.message = self.message
+        try:
+            self.message = await self.message.edit(embed=embed, attachments=[file], view=next_view)
+        except Exception as e:
+            print(f"❌ phase-{self.phase} edit failed: {e}")
+        return
+
+    print("📊 Phase 3 starting")
+    try:
         self.success = self.results.count(True) >= 2
         if self.success:
             self.stolen_coins = random.randint(5, 25)
             defender_stash = self.defender.get("stash", [])
             stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
-        
+
             if stealable:
                 stolen_count = min(2, len(stealable))
                 self.stolen_items = random.sample(stealable, stolen_count)
                 for item in self.stolen_items:
                     defender_stash.remove(item)
-        
+
             if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                 user_stash = self.user.get("stash", [])
                 user_stash.extend(self.stolen_items)
@@ -299,6 +302,8 @@ class RaidView(discord.ui.View):
             profiles = await load_file(USER_DATA)
             uid = str(self.attacker_id)
             user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
+            self.user = user  # sync for overwrite
+
             if self.success:
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
                 user["coins"] += self.stolen_coins
@@ -306,17 +311,17 @@ class RaidView(discord.ui.View):
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             else:
                 user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
+
             profiles[uid] = self.user
+            if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
+                profiles[self.defender_id] = self.defender
+
             await save_file(USER_DATA, profiles)
+            cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
+            await save_file(COOLDOWN_FILE, cooldowns)
+
         except Exception as e:
             print(f"⚠️ Failed to update user profile after raid: {e}")
-
-        if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-            profiles[self.defender_id] = self.defender
-        await save_file(USER_DATA, profiles)
-
-        cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
-        await save_file(COOLDOWN_FILE, cooldowns)
 
         try:
             warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
@@ -336,6 +341,9 @@ class RaidView(discord.ui.View):
             f"→ Triggered: {self.triggered}\n"
             f"→ Reinforcements left: {self.reinforcements}\n"
         )
+
+    except Exception as e:
+        print(f"🔥 Crash in Phase 3: {e}")
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
