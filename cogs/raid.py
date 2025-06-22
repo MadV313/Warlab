@@ -146,7 +146,6 @@ class RaidView(discord.ui.View):
 #   RaidView METHODS – PASTE OVER THE EXISTING ONES IN FULL          #
 # ------------------------------------------------------------------ #
     async def attack_phase(self, interaction: discord.Interaction):
-        """Run one attack roll (phase 0-2) or, on phase 3, render the final outcome embed with Close button and summary."""
         for item in self.children:
             if isinstance(item, AttackButton):
                 item.disabled = True
@@ -233,7 +232,6 @@ class RaidView(discord.ui.View):
                 )
     
             embed.set_image(url="attachment://merged_raid.gif")
-    
             self.phase += 1
             print(f"📊 Phase {i+1} completed | Hit={hit} | Trigger={rtype} | Consumed={consumed}")
     
@@ -252,11 +250,10 @@ class RaidView(discord.ui.View):
                     self.message = await interaction.edit_original_response(embed=embed, attachments=[file], view=nv)
     
             else:
-                # ✅ Final Phase: Count hits and calculate results
                 self.success = self.results.count(True) >= 2
                 self.clear_items()
                 self.add_item(CloseButton())
-                await self.finalize_results()
+                await self.finalize_results()  # ✅ Fully restored reward + summary logic
     
                 final_overlay = "victory.gif" if self.success else "miss.gif"
                 final_path = f"temp/final_overlay_{self.attacker_id}.gif"
