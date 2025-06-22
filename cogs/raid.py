@@ -323,13 +323,10 @@ class RaidView(discord.ui.View):
                 user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
                 self.attacker = user  # sync for overwrite
             
-                if self.success:
-                    user["prestige"] = min(user.get("prestige", 0) + 50, 200)
-                    user["coins"] = user.get("coins", 0) + self.stolen_coins
-                    user["stash"].extend(self.stolen_items)
-                    user["raids_completed"] = user.get("raids_completed", 0) + 1
-                else:
+                if not self.success:
                     user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
+                else:
+                    print("✅ Skipping duplicate reward write — already handled above.")
             
                 profiles[uid] = user
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
