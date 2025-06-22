@@ -124,7 +124,7 @@ class RaidView(discord.ui.View):
         self.ctx = ctx
         self.attacker = attacker
         self.defender = defender
-        solf.user = attacker
+        self.user = attacker
         self.visuals = visuals
         self.reinforcements = reinforcements
         self.stash_visual = stash_visual
