@@ -150,7 +150,7 @@ class RaidView(discord.ui.View):
         self.defender = defender
         self.visuals = visuals
         self.reinforcements = reinforcements
-        self.reinforcements_start = reinforcements.copy()  # track original counts
+        self.reinforcements_start = reinforcements.copy() if phase == 0 else None
         self.stash_visual = stash_visual
         self.stash_img_path = stash_img_path
         self.is_test_mode = is_test_mode
@@ -262,6 +262,7 @@ class RaidView(discord.ui.View):
                 self.is_test_mode, phase=self.phase, target=self.target
             )
             next_view.results = self.results.copy()
+            next_view.reinforcements_start = self.reinforcements_start
             next_view.triggered = self.triggered.copy()
             next_view.message = self.message
             try:
