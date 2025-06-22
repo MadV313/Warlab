@@ -164,7 +164,6 @@ class RaidView(discord.ui.View):
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
-    
         async def countdown(msg: str):
             try:
                 wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
@@ -263,12 +262,13 @@ class RaidView(discord.ui.View):
                 print(f"❌ phase-{self.phase} edit failed: {e}")
             return
     
-        # 6️⃣ Final Phase: Preload Final Overlay Concurrently
-        self.success       = self.results.count(True) >= 2
-        self.stolen_items  = getattr(self, "stolen_items", [])
-        self.stolen_coins  = getattr(self, "stolen_coins", 0)
-        final_overlay      = "victory.gif" if self.success else "miss.gif"
-        final_path         = f"temp/final_{self.attacker_id}.gif"
+        # 6️⃣ Final Phase
+        self.success = self.results.count(True) >= 2
+        self.stolen_items = self.stolen_items if hasattr(self, 'stolen_items') else []
+        self.stolen_coins = self.stolen_coins if hasattr(self, 'stolen_coins') else 0
+    
+        final_overlay = "victory.gif" if self.success else "miss.gif"
+        final_path    = f"temp/final_{self.attacker_id}.gif"
         await asyncio.to_thread(
             merge_overlay,
             self.stash_img_path,
@@ -285,16 +285,12 @@ class RaidView(discord.ui.View):
         )
     
         summary = []
-        if self.stolen_items:
-            summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
-        if self.stolen_coins:
-            summary.append(f"💰 Coins stolen: {self.stolen_coins}")
-        if not self.success:
-            summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
+        if self.stolen_items:      summary.append(f"🎒 Items stolen: {', '.join(self.stolen_items)}")
+        if self.stolen_coins:      summary.append(f"💰 Coins stolen: {self.stolen_coins}")
+        if not self.success:       summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
         reinf_used = [k for k, v in self.reinforcements.items()
                       if v < self.defender.get("reinforcements", {}).get(k, 0)]
-        if reinf_used:
-            summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
+        if reinf_used:             summary.append(f"🔻 Reinforcements destroyed: {', '.join(reinf_used)}")
         fin_embed.add_field(
             name="🏁 Raid Summary",
             value="\n".join(summary) if summary else "No rewards gained.",
@@ -302,6 +298,7 @@ class RaidView(discord.ui.View):
         )
         fin_embed.set_image(url="attachment://final.gif")
     
+        # ✅ Close Button
         final_view = discord.ui.View()
         final_view.add_item(CloseButton())
     
@@ -311,7 +308,7 @@ class RaidView(discord.ui.View):
             pass
         self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
     
-        # 6-B Save Prestige and Rewards
+        # 6-B Save prestige and rewards
         try:
             data = await load_file(USER_DATA)
             attacker_data = data.get(str(self.attacker_id), {
@@ -333,7 +330,7 @@ class RaidView(discord.ui.View):
         except Exception as e:
             print(f"⚠️ finalize_results failed: {e}")
     
-        # 6-C Debug Log
+        # 6-C Debug output
         print(
             f"\n📒 RAID LOG DEBUG\n"
             f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
