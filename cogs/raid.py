@@ -324,7 +324,7 @@ class RaidView(discord.ui.View):
             f"→ Reinforcements left: {self.reinforcements}\n"
             )
     
-            try:
+        try:
                 await self.message.delete()
             except Exception as e:
                 print(f"⚠️ Could not delete old message: {e}")
