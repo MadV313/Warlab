@@ -227,7 +227,8 @@ class RaidView(discord.ui.View):
             self.stash_img_path = generate_stash_image(
                 self.defender_id, self.reinforcements,
                 base_path="assets/stash_layers",
-                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
+                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None,
+                draw_badges=True
             )
 
         self.results.append(hit)
