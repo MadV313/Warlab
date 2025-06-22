@@ -229,9 +229,7 @@ class RaidView(discord.ui.View):
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title       = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
-            description = f"```
-{self.stash_visual}
-```"
+            description = f"```{self.stash_visual}```"
         )
         if hit:
             extra = "✅ Attack successful!"
@@ -282,9 +280,7 @@ class RaidView(discord.ui.View):
         fin_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
         fin_embed = discord.Embed(
             title       = f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {fin_title}",
-            description = f"```
-{self.stash_visual}
-```",
+            description = f"```{self.stash_visual}```",
             color       = discord.Color.green() if self.success else discord.Color.red()
         )
 
