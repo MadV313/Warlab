@@ -249,6 +249,14 @@ class RaidView(discord.ui.View):
         try:
             self.success = self.results.count(True) >= 2
             if self.success:
+                print(f"📦 PRE-UPDATE STASH: {user.get('stash', [])}")
+                
+                user["prestige"] = min(user.get("prestige", 0) + 50, 200)
+                user["coins"] += self.stolen_coins
+                user["stash"].extend(self.stolen_items)
+                user["raids_completed"] = user.get("raids_completed", 0) + 1
+            
+                print(f"📦 POST-UPDATE STASH: {user['stash']}")
                 self.stolen_coins = random.randint(5, 25)
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
@@ -260,9 +268,9 @@ class RaidView(discord.ui.View):
                         defender_stash.remove(item)
     
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    user_stash = user.get("stash", [])
+                    user_stash = self.attacker.get("stash", [])
                     user_stash.extend(self.stolen_items)
-                    user["stash"] = user_stash
+                    self.attacker["stash"] = user_stash
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
@@ -299,27 +307,31 @@ class RaidView(discord.ui.View):
             self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
     
             try:
-                profiles = await load_file(USER_DATA)
+                profiles = await load_file(USER_DATA) or {}
+                cooldowns = await load_file(COOLDOWN_FILE) or {}
+            
                 uid = str(self.attacker_id)
                 user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
                 self.attacker = user  # sync for overwrite
-    
+            
                 if self.success:
                     user["prestige"] = min(user.get("prestige", 0) + 50, 200)
-                    user["coins"] += self.stolen_coins
+                    user["coins"] = user.get("coins", 0) + self.stolen_coins
                     user["stash"].extend(self.stolen_items)
                     user["raids_completed"] = user.get("raids_completed", 0) + 1
                 else:
                     user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
-    
+            
                 profiles[uid] = user
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     profiles[self.defender_id] = self.defender
-    
-                await save_file(USER_DATA, profiles)
+            
+                # ✅ Add cooldown tracking now that it's loaded
                 cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
+            
+                await save_file(USER_DATA, profiles)
                 await save_file(COOLDOWN_FILE, cooldowns)
-    
+            
             except Exception as e:
                 print(f"⚠️ Failed to update user profile after raid: {e}")
     
