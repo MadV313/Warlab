@@ -249,28 +249,37 @@ class RaidView(discord.ui.View):
         try:
             self.success = self.results.count(True) >= 2
             if self.success:
+                self.stolen_coins = random.randint(5, 25)
+                defender_stash = self.defender.get("stash", [])
+                stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
+            
+                if stealable:
+                    stolen_count = min(2, len(stealable))
+                    self.stolen_items = random.sample(stealable, stolen_count)
+                    for item in self.stolen_items:
+                        defender_stash.remove(item)
+            
+                # Load attacker profile reference
+                uid = str(self.attacker_id)
+                profiles = await load_file(USER_DATA)
+                user = profiles.get(uid, self.attacker)
+            
                 print(f"📦 PRE-UPDATE STASH: {user.get('stash', [])}")
-                
+            
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
-                self.stolen_coins = random.randint(5, 25)
-                defender_stash = self.defender.get("stash", [])
-                stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
-    
-                if stealable:
-                    stolen_count = min(2, len(stealable))
-                    self.stolen_items = random.sample(stealable, stolen_count)
-                    for item in self.stolen_items:
-                        defender_stash.remove(item)
-    
+            
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     user_stash = self.attacker.get("stash", [])
                     user_stash.extend(self.stolen_items)
                     self.attacker["stash"] = user_stash
+            
+                profiles[uid] = user
+                await save_file(USER_DATA, profiles)
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
