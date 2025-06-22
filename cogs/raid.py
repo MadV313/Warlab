@@ -16,6 +16,7 @@ COOLDOWN_FILE   = "data/raid_cooldowns.json"
 RAID_LOG_FILE   = "data/raid_log.json"
 CATALOG_PATH    = "data/labskins_catalog.json"
 WARLAB_CHANNEL  = 1382187883590455296
+ITEMS_MASTER    = "data/items_master.json"
 
 FORCE_SAVE_TEST_RAID = True  # 🔧 Set to False later to disable test-mode persistence
 
@@ -83,6 +84,27 @@ def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
         print(f"❌ merge_overlay failed: {e}")
         return base_path
 
+# ---------------------- Reinforcement Summary Tracker -------------------- #
+def summarize_destroyed(reinforcements_before, reinforcements_after):
+    summary = []
+    for rtype in DEFENCE_TYPES:
+        before = reinforcements_before.get(rtype, 0)
+        after = reinforcements_after.get(rtype, 0)
+        if before > after:
+            summary.append(f"{rtype} (-{before - after})")
+    return ", ".join(summary)
+
+# --------------------- Weekend Bonus Item Helper ------------------------ #
+async def get_random_bonus_item():
+    try:
+        items = await load_file(ITEMS_MASTER)
+        if not items:
+            return None
+        return random.choice(list(items.keys()))
+    except Exception as e:
+        print(f"⚠️ Failed to load bonus item: {e}")
+        return None
+
 # ---------------------------  UI Buttons  ------------------------------- #
 class AttackButton(discord.ui.Button):
     def __init__(self):
@@ -126,6 +148,7 @@ class RaidView(discord.ui.View):
         self.defender = defender
         self.visuals = visuals
         self.reinforcements = reinforcements
+        self.reinforcements_start = reinforcements.copy()  # track original counts
         self.stash_visual = stash_visual
         self.stash_img_path = stash_img_path
         self.is_test_mode = is_test_mode
@@ -252,6 +275,13 @@ class RaidView(discord.ui.View):
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
+            if is_weekend_boost_active() and all(self.results):
+                user["coins"] += 25
+                bonus_item = await get_random_bonus_item()
+                if bonus_item:
+                    user["stash"].append(bonus_item)
+                    summary.append(f"🌞 Bonus item: {bonus_item}")
+                summary.append("🌞 Weekend Boost Active! +25 coins")
         
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
@@ -306,7 +336,19 @@ class RaidView(discord.ui.View):
             if self.stolen_coins:
                 summary.append(f"💰 Coins stolen: {self.stolen_coins}")
             if not self.success:
-                summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
+                current_coins = user.get("coins", 0)
+                if current_coins > -100:
+                    penalty = random.randint(1, 25)
+                    user["coins"] = max(current_coins - penalty, -100)
+                    print(f"💸 Coin penalty applied: -{penalty}, New balance: {user['coins']}")
+                    summary.append(f"💸 Lost {penalty} coins during the failed raid.")
+                else:
+                    print("⚠️ User already at max penalty (-100), skipping coin deduction.")
+                    summary.append("💸 No further penalty — coin balance already at minimum.")
+
+            reinforcement_summary = summarize_destroyed(self.reinforcements_start, self.reinforcements)
+            if reinforcement_summary:
+                summary.append(f"🧱 Defenses destroyed: {reinforcement_summary}")
         
             fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
             fin_embed.set_image(url="attachment://final.gif")
@@ -318,7 +360,7 @@ class RaidView(discord.ui.View):
                 await self.message.delete()
             except:
                 pass
-            self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
+            self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view, ephemeral=True)
         
             # Final save and cooldown write
             try:
@@ -355,6 +397,26 @@ class RaidView(discord.ui.View):
                         await warlab_channel.send(f"🛡️ <@{self.defender_id}> managed to keep <@{self.attacker_id}> away from their goods... maybe they won't be so lucky next time!")
             except Exception as e:
                 print(f"⚠️ Failed to broadcast raid result to warlab channel: {e}")
+
+            # Retaliation DM
+            try:
+                defender_user = await self.ctx.guild.fetch_member(int(self.defender_id))
+                if defender_user and self.success:
+                    class RetaliateButton(discord.ui.View):
+                        def __init__(self, attacker_id):
+                            super().__init__(timeout=86400)
+                            self.add_item(discord.ui.Button(
+                                label="🗡 Retaliate",
+                                style=discord.ButtonStyle.danger,
+                                url=f"https://discord.com/channels/{self.ctx.guild.id}/{WARLAB_CHANNEL}"
+                            ))
+            
+                    await defender_user.send(
+                        f"⚠️ You were raided by <@{self.attacker_id}>!\nYou may retaliate within 24 hours.",
+                        view=RetaliateButton(self.attacker_id)
+                    )
+            except Exception as e:
+                print(f\"⚠️ Failed to send retaliation DM: {e}\")
         
             print(
                 f"\n📒 RAID LOG DEBUG\n"
