@@ -150,9 +150,10 @@ class RaidView(discord.ui.View):
         try:
             if self.message:
                 await self.message.edit(view=self)
+        except discord.NotFound:
+            print("❌ Attack message not found for editing (already deleted).")
         except Exception as e:
             print(f"⚠️ button-disable edit failed: {e}")
-        await interaction.response.defer(thinking=True, ephemeral=True)
 
         phase_msgs = [
             "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
@@ -273,8 +274,9 @@ class RaidView(discord.ui.View):
             summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
 
         destroyed = []
-        for k in self.defender.get("reinforcements", {}).keys():
-            old = self.defender["reinforcements"].get(k, 0)
+        old_reinf = self.defender.get("reinforcements", {}).copy()
+        for k in old_reinf:
+            old = old_reinf.get(k, 0)
             new = self.reinforcements.get(k, 0)
             if new < old:
                 destroyed.append(f"{k} ×{old - new}")
@@ -291,19 +293,31 @@ class RaidView(discord.ui.View):
             await self.message.delete()
         except Exception:
             pass
-        self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
+
+        try:
+            self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
+        except Exception as e:
+            print(f"❌ Final message failed to send: {e}")
+            try:
+                await interaction.followup.send("✅ Raid finished, but UI failed to load. Contact admin.", ephemeral=True)
+            except:
+                pass
 
         try:
             profiles = await load_file(USER_DATA)
             uid = str(self.attacker_id)
             user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
+
             if self.success:
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
-                user["coins"] += self.stolen_coins
-                user["stash"].extend(self.stolen_items)
+                user["coins"] = user.get("coins", 0) + self.stolen_coins
+                user_stash = user.get("stash", [])
+                user_stash.extend(self.stolen_items)
+                user["stash"] = user_stash
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             else:
                 user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
+
             profiles[uid] = user
             await save_file(USER_DATA, profiles)
         except Exception as e:
