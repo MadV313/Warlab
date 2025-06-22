@@ -17,6 +17,8 @@ RAID_LOG_FILE   = "data/raid_log.json"
 CATALOG_PATH    = "data/labskins_catalog.json"
 WARLAB_CHANNEL  = 1382187883590455296
 
+FORCE_SAVE_TEST_RAID = True  # 🔧 Set to False later to disable test-mode persistence
+
 DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
@@ -245,9 +247,19 @@ class RaidView(discord.ui.View):
         self.success = self.results.count(True) >= 2
         if self.success:
             self.stolen_coins = random.randint(5, 25)
-            self.stolen_items = ["Random_Item_A", "Random_Item_B"]  # Replace with real logic
-        else:
-            self.coin_loss = random.randint(5, 15)
+            defender_stash = self.defender.get("stash", [])
+            stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
+        
+            if stealable:
+                stolen_count = min(2, len(stealable))
+                self.stolen_items = random.sample(stealable, stolen_count)
+                for item in self.stolen_items:
+                    defender_stash.remove(item)
+        
+            if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
+                user_stash = self.user.get("stash", [])
+                user_stash.extend(self.stolen_items)
+                self.user["stash"] = user_stash
 
         final_overlay = "victory.gif" if self.success else "miss.gif"
         final_path = f"temp/final_{self.attacker_id}.gif"
@@ -294,10 +306,14 @@ class RaidView(discord.ui.View):
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             else:
                 user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
-            profiles[uid] = user
+            profiles[uid] = self.user
             await save_file(USER_DATA, profiles)
         except Exception as e:
             print(f"⚠️ Failed to update user profile after raid: {e}")
+
+        if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
+            profiles[self.defender_id] = self.defender
+        await save_file(USER_DATA, profiles)
 
         cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
         await save_file(COOLDOWN_FILE, cooldowns)
@@ -340,7 +356,6 @@ class Raid(commands.Cog):
         if not attacker:
             return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.",
                                                    ephemeral=True)
-            view.message = initial_msg
 
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
@@ -398,7 +413,7 @@ class Raid(commands.Cog):
                         stash_visual, stash_img_path, is_test, target=target)
 
         initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
-        view.message = initial_msg  # ✅ Ensures attack_phase can later update this
+        view.message = initial_msg
 
 # ---------------------------  Cog Setup  --------------------------------- #
 async def setup(bot): await bot.add_cog(Raid(bot))
