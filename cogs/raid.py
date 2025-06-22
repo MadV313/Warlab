@@ -124,7 +124,6 @@ class RaidView(discord.ui.View):
         self.ctx = ctx
         self.attacker = attacker
         self.defender = defender
-        self.user = attacker
         self.visuals = visuals
         self.reinforcements = reinforcements
         self.stash_visual = stash_visual
@@ -261,9 +260,9 @@ class RaidView(discord.ui.View):
                         defender_stash.remove(item)
     
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    user_stash = self.user.get("stash", [])
+                    user_stash = self.attacker.get("stash", [])
                     user_stash.extend(self.stolen_items)
-                    self.user["stash"] = user_stash
+                    self.attacker["stash"] = user_stash
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
@@ -303,7 +302,7 @@ class RaidView(discord.ui.View):
                 profiles = await load_file(USER_DATA)
                 uid = str(self.attacker_id)
                 user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
-                self.user = user  # sync for overwrite
+                self.attacker = user  # sync for overwrite
     
                 if self.success:
                     user["prestige"] = min(user.get("prestige", 0) + 50, 200)
@@ -313,7 +312,7 @@ class RaidView(discord.ui.View):
                 else:
                     user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
     
-                profiles[uid] = self.user
+                profiles[uid] = user
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     profiles[self.defender_id] = self.defender
     
