@@ -84,6 +84,32 @@ def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
         print(f"❌ merge_overlay failed: {e}")
         return base_path
 
+# 🔧 Add this helper function near the top of raid.py (below constants is fine)
+
+def format_defense_status(reinforcements: dict) -> str:
+    emoji_map = {
+        "Barbed Fence": "🧱",
+        "Locked Container": "🔐",
+        "Reinforced Gate": "🚪",
+        "Claymore Trap": "💣",
+        "Guard Dog": "🐕"
+    }
+    max_counts = {
+        "Barbed Fence": 9,
+        "Locked Container": 5,
+        "Reinforced Gate": 5,
+        "Claymore Trap": 1,
+        "Guard Dog": 1
+    }
+
+    lines = ["🛡️ **Defense Status**"]
+    for key in DEFENCE_TYPES:
+        emoji = emoji_map.get(key, "")
+        current = reinforcements.get(key, 0)
+        max_val = max_counts.get(key, "?")
+        lines.append(f"{emoji} {key}: {current}/{max_val}")
+    return "\n".join(lines)
+
 # ---------------------- Reinforcement Summary Tracker -------------------- #
 def summarize_destroyed(start, end, triggered):
     destroyed = []
@@ -241,7 +267,7 @@ class RaidView(discord.ui.View):
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
-            description=f"```{self.stash_visual}```"
+            description = f"```{self.stash_visual}```\n\n{format_defense_status(self.reinforcements)}"
         )
         if hit:
             extra = "✅ Attack successful!"
@@ -327,7 +353,7 @@ class RaidView(discord.ui.View):
             fin_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             fin_embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {fin_title}",
-                description=f"```{self.stash_visual}```",
+                description = f"```{self.stash_visual}```\n\n{format_defense_status(self.reinforcements)}",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
     
