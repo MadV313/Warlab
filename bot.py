@@ -53,7 +53,7 @@ async def check_weekend_boosts():
             if not boost_announcement_sent:
                 channel = bot.get_channel(WARLAB_CHANNEL_ID)
                 if channel:
-                    await channel.send("@everyone 🔥 **Weekend Boosts are in effect for Scavenge, Tasks, and Raids!**\nLoot and rewards are increased all weekend long — make the most of it!")
+                    await channel.send("@everyone <a:bonus:1386436403000512694> **Weekend Boosts are in effect for Scavenge, Tasks, and Raids!**\nLoot and rewards are increased all weekend long — make the most of it!")
                     boost_announcement_sent = True
             return
     boost_announcement_sent = False
