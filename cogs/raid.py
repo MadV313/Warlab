@@ -267,7 +267,7 @@ class RaidView(discord.ui.View):
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
-            description = f"```{self.stash_visual}```\n\n{format_defense_status(self.reinforcements)}"
+            description=f"```{self.stash_visual}```\n\n{format_defense_status(self.reinforcements)}",
         )
         if hit:
             extra = "✅ Attack successful!"
