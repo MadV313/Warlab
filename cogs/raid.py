@@ -255,10 +255,12 @@ class RaidView(discord.ui.View):
         
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
-                user = profiles.get(uid, self.attacker)  # Moved up here
+                user = profiles.get(uid, self.attacker)  # attacker profile
         
+                # Prestige
                 user["prestige"] = min(user.get("prestige", 0) + prestige_gain, 200)
         
+                # Steal items
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
         
@@ -268,6 +270,7 @@ class RaidView(discord.ui.View):
                     for item in self.stolen_items:
                         defender_stash.remove(item)
         
+                # Update attacker's stash and coins
                 user.setdefault("stash", [])
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
         
@@ -277,15 +280,12 @@ class RaidView(discord.ui.View):
         
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
         
-                self.attacker = user  # ✅ Ensure updated data is synced to attacker before save
+                self.attacker = user  # Sync for later reference
         
                 profiles[uid] = user
-                if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    self.attacker.setdefault("stash", [])
-                    self.attacker["stash"].extend(self.stolen_items)
-        
                 await save_file(USER_DATA, profiles)
         
+            # Final raid summary
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
@@ -320,13 +320,14 @@ class RaidView(discord.ui.View):
                 pass
             self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
         
+            # Final save and cooldown write
             try:
                 profiles = await load_file(USER_DATA) or {}
                 cooldowns = await load_file(COOLDOWN_FILE) or {}
         
                 uid = str(self.attacker_id)
                 user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
-                self.attacker = user  # sync for overwrite
+                self.attacker = user  # sync overwrite
         
                 if not self.success:
                     user["coins"] = max(user.get("coins", 0) - self.coin_loss, 0)
