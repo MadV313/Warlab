@@ -179,17 +179,17 @@ class RaidView(discord.ui.View):
     
             asyncio.create_task(countdown_ephemeral(base_msg, interaction.followup))
     
-            i           = self.phase
-            hit         = True
-            rtype       = None
-            consumed    = False
-            dmg         = None
+            i = self.phase
+            hit = True
+            rtype = None
+            consumed = False
+            dmg = None
     
             for rtype_check in DEFENCE_TYPES:
                 if (ch := calculate_block_chance(self.reinforcements, rtype_check, self.attacker)) \
                    and random.randint(1, 100) <= ch:
-                    rtype   = rtype_check
-                    hit     = False
+                    rtype = rtype_check
+                    hit = False
                     self.triggered.append(rtype_check)
                     if rtype in ("Guard Dog", "Claymore Trap") or random.random() < 0.5:
                         self.reinforcements[rtype] -= 1
@@ -198,7 +198,7 @@ class RaidView(discord.ui.View):
     
             if hit:
                 viable = [k for k, v in self.reinforcements.items() if v > 0]
-                dmg    = random.choice(viable) if viable else None
+                dmg = random.choice(viable) if viable else None
                 if dmg and random.random() < 0.8:
                     self.reinforcements[dmg] -= 1
                     print("🧱 Reinforcement damaged due to success:", dmg)
@@ -214,7 +214,7 @@ class RaidView(discord.ui.View):
             self.stash_visual = render_stash_visual(self.reinforcements)
     
             overlay_path = f"assets/overlays/{OVERLAY_GIFS[i] if hit else MISS_GIF}"
-            merged_path  = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
+            merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, overlay_path, merged_path)
             file = discord.File(merged_path, filename="merged_raid.gif")
     
@@ -239,12 +239,12 @@ class RaidView(discord.ui.View):
             self.phase += 1
             print(f"📊 Phase {i+1} completed | Hit={hit} | Trigger={rtype} | Consumed={consumed}")
     
-            nv              = RaidView(self.ctx, self.attacker, self.defender, self.visuals,
-                                       self.reinforcements, self.stash_visual, self.stash_img_path,
-                                       self.is_test_mode, phase=self.phase, target=self.target)
-            nv.results      = self.results.copy()
-            nv.triggered    = self.triggered.copy()
-            nv.message      = self.message
+            nv = RaidView(self.ctx, self.attacker, self.defender, self.visuals,
+                          self.reinforcements, self.stash_visual, self.stash_img_path,
+                          self.is_test_mode, phase=self.phase, target=self.target)
+            nv.results = self.results.copy()
+            nv.triggered = self.triggered.copy()
+            nv.message = self.message
             nv.disable_attack_button = True
     
             if self.message:
@@ -259,20 +259,23 @@ class RaidView(discord.ui.View):
             self.add_item(CloseButton())
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
-            final_path    = f"temp/final_overlay_{self.attacker_id}.gif"
+            final_path = f"temp/final_overlay_{self.attacker_id}.gif"
             await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{final_overlay}", final_path)
             file = discord.File(final_path, filename="final_overlay.gif")
-            
+    
             result_title = "🏆 Raid Concluded — Success!" if self.success else "❌ Raid Concluded — Failed"
             embed = discord.Embed(
                 title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {result_title}",
                 description=f"```\n{self.stash_visual}\n```",
                 color=discord.Color.green() if self.success else discord.Color.red()
             )
-            
-            await self.finalize_results(embed)
     
-            # ✅ Moved debug print out of finalize_results
+            try:
+                print("🧩 Calling finalize_results() with embed...")
+                await self.finalize_results(embed)
+            except Exception as e:
+                print(f"⛔ finalize_results() failed: {e}")
+    
             print(
                 f"\n📒 RAID LOG DEBUG\n"
                 f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
