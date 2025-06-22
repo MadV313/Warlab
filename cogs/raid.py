@@ -159,15 +159,20 @@ class RaidView(discord.ui.View):
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
+
         async def countdown(msg: str):
             try:
                 wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
                 for s in range(24, 0, -1):
                     await asyncio.sleep(1)
-                    await wait.edit(content=f"{msg} *({s}s)*")
+                    try:
+                        await wait.edit(content=f"{msg} *({s}s)*")
+                    except discord.NotFound:
+                        break
                 await wait.delete()
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
+
         asyncio.create_task(countdown(phase_msgs[self.phase]))
 
         i = self.phase
@@ -198,7 +203,7 @@ class RaidView(discord.ui.View):
             self.stash_img_path = generate_stash_image(
                 self.defender_id, self.reinforcements,
                 base_path="assets/stash_layers",
-                baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
+                baseImagePath=self.defender.get("baseImage")
             )
 
         self.results.append(hit)
@@ -209,9 +214,9 @@ class RaidView(discord.ui.View):
         await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{overlay}", merged_path)
         file = discord.File(merged_path, filename="merged.gif")
 
-        phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
+        titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
-            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
+            title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {titles[i]}",
             description=f"```{self.stash_visual}```"
         )
         if hit:
@@ -241,13 +246,9 @@ class RaidView(discord.ui.View):
                 print(f"❌ phase-{self.phase} edit failed: {e}")
             return
 
-        # Final Phase
         self.success = self.results.count(True) >= 2
-        if self.success:
-            self.stolen_coins = random.randint(5, 25)
-            self.stolen_items = ["Random_Item_A", "Random_Item_B"]  # Replace with real logic
-        else:
-            self.coin_loss = random.randint(5, 15)
+        self.stolen_items = getattr(self, 'stolen_items', [])
+        self.stolen_coins = getattr(self, 'stolen_coins', 0)
 
         final_overlay = "victory.gif" if self.success else "miss.gif"
         final_path = f"temp/final_{self.attacker_id}.gif"
@@ -261,7 +262,7 @@ class RaidView(discord.ui.View):
             color=discord.Color.green() if self.success else discord.Color.red()
         )
 
-        prestige_line = f"🎖️ Prestige gained: +50" if self.success else "🎖️ Prestige gained: +0"
+        prestige_line = f"🎖️ Prestige gained: +50" if self.success else ""
         summary = [prestige_line]
 
         if self.stolen_items:
@@ -271,6 +272,15 @@ class RaidView(discord.ui.View):
         if not self.success:
             summary.append(f"💸 Lost **{self.coin_loss} coins** during the failed raid.")
 
+        destroyed = []
+        for k in self.defender.get("reinforcements", {}).keys():
+            old = self.defender["reinforcements"].get(k, 0)
+            new = self.reinforcements.get(k, 0)
+            if new < old:
+                destroyed.append(f"{k} ×{old - new}")
+        if destroyed:
+            summary.append("🔻 Reinforcements destroyed:\n• " + "\n• ".join(destroyed))
+
         fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
         fin_embed.set_image(url="attachment://final.gif")
 
@@ -279,7 +289,7 @@ class RaidView(discord.ui.View):
 
         try:
             await self.message.delete()
-        except:
+        except Exception:
             pass
         self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
 
@@ -299,6 +309,7 @@ class RaidView(discord.ui.View):
         except Exception as e:
             print(f"⚠️ Failed to update user profile after raid: {e}")
 
+        cooldowns = await load_file(COOLDOWN_FILE)
         cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
         await save_file(COOLDOWN_FILE, cooldowns)
 
