@@ -197,7 +197,11 @@ class RaidView(discord.ui.View):
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
 
-        asyncio.create_task(countdown(phase_msgs[self.phase]))
+        # Await countdown only on final phase
+        if self.phase == 2:
+            await countdown(phase_msgs[self.phase])
+        else:
+            asyncio.create_task(countdown(phase_msgs[self.phase]))
 
         i = self.phase
         hit = True
@@ -357,9 +361,8 @@ class RaidView(discord.ui.View):
 
             try:
                 await self.message.delete()
-            except:
-                pass
-            self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view, ephemeral=True)
+            except Exception as e:
+                print(f"⚠️ Could not delete Phase 3 message: {e}")
 
             try:
                 profiles = await load_file(USER_DATA) or {}
