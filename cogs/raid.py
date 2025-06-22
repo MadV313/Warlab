@@ -260,9 +260,9 @@ class RaidView(discord.ui.View):
                         defender_stash.remove(item)
     
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    user_stash = self.attacker.get("stash", [])
+                    user_stash = user.get("stash", [])
                     user_stash.extend(self.stolen_items)
-                    self.attacker["stash"] = user_stash
+                    user["stash"] = user_stash
     
             final_overlay = "victory.gif" if self.success else "miss.gif"
             final_path = f"temp/final_{self.attacker_id}.gif"
