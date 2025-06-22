@@ -309,13 +309,14 @@ class RaidView(discord.ui.View):
             )
     
             try:
-                await self.message.edit(embed=embed, attachments=[file], view=self)
+                await self.message.delete()
             except Exception as e:
-                print(f"❌ Final embed update failed: {e}")
-                try:
-                    await interaction.followup.send(embed=embed, file=file, view=self, ephemeral=True)
-                except Exception as inner:
-                    print(f"⛔ Double fallback failed: {inner}")
+                print(f"⚠️ Could not delete old message: {e}")
+            
+            try:
+                self.message = await interaction.followup.send(embed=embed, file=file, view=self)
+            except Exception as e:
+                print(f"❌ Could not send final phase message: {e}")
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
