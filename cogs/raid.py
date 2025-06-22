@@ -246,7 +246,7 @@ class RaidView(discord.ui.View):
         self.phase += 1
         print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
     
-        # 5️⃣ Update view for Phase 1 or 2
+        # 5️⃣ More phases?
         if self.phase < 3:
             next_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -264,6 +264,8 @@ class RaidView(discord.ui.View):
     
         # 6️⃣ Final Phase
         self.success = self.results.count(True) >= 2
+        self.stolen_items = self.stolen_items if hasattr(self, 'stolen_items') else []
+        self.stolen_coins = self.stolen_coins if hasattr(self, 'stolen_coins') else 0
     
         final_overlay = "victory.gif" if self.success else "miss.gif"
         final_path    = f"temp/final_{self.attacker_id}.gif"
@@ -306,24 +308,29 @@ class RaidView(discord.ui.View):
             pass
         self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view)
     
-        # 6-B Prestige, coins, cooldown, logs
+        # 6-B Save prestige and rewards (after embed)
         try:
-            data = load_file(USER_DATA)
-            attacker_data = data.get(str(self.attacker_id), {})
+            data = await load_file(USER_DATA)
+            attacker_data = data.get(str(self.attacker_id), {
+                "prestige_progress": 0,
+                "coins": 0,
+                "inventory": []
+            })
     
             if self.success:
                 current = attacker_data.get("prestige_progress", 0)
-                new_total = min(current + 50, 200)
-                attacker_data["prestige_progress"] = new_total
-                print(f"🎖️ Prestige updated: {current} ➜ {new_total}")
+                attacker_data["prestige_progress"] = min(current + 50, 200)
+                attacker_data["coins"] += self.stolen_coins
+                attacker_data["inventory"].extend(self.stolen_items)
+                print(f"🎖️ Prestige updated: {current} ➜ {attacker_data['prestige_progress']}")
     
             data[str(self.attacker_id)] = attacker_data
-            save_file(USER_DATA, data)
+            await save_file(USER_DATA, data)
     
         except Exception as e:
             print(f"⚠️ finalize_results failed: {e}")
     
-        # 6-C Debug log
+        # 6-C Debug output
         print(
             f"\n📒 RAID LOG DEBUG\n"
             f"→ Attacker: {self.ctx.user.display_name} ({self.attacker_id})\n"
