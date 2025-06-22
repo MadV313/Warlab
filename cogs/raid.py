@@ -325,14 +325,14 @@ class RaidView(discord.ui.View):
             )
     
         try:
-                await self.message.delete()
-            except Exception as e:
-                print(f"⚠️ Could not delete old message: {e}")
+            await self.message.delete()
+        except Exception as e:
+            print(f"⚠️ Could not delete old message: {e}")
             
-            try:
-                self.message = await interaction.followup.send(embed=embed, file=file, view=self)
-            except Exception as e:
-                print(f"❌ Could not send final phase message: {e}")
+        try:
+            self.message = await interaction.followup.send(embed=embed, file=file, view=self)
+        except Exception as e:
+            print(f"❌ Could not send final phase message: {e}")
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
