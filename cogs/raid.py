@@ -259,12 +259,12 @@ class RaidView(discord.ui.View):
                     for item in self.stolen_items:
                         defender_stash.remove(item)
             
-                # Load attacker profile reference
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)
             
-                print(f"📦 PRE-UPDATE STASH: {user.get('stash', [])}")
+                user.setdefault("stash", [])
+                print(f"📦 PRE-UPDATE STASH: {user['stash']}")
             
                 user["prestige"] = min(user.get("prestige", 0) + 50, 200)
                 user["coins"] += self.stolen_coins
@@ -272,6 +272,13 @@ class RaidView(discord.ui.View):
                 user["raids_completed"] = user.get("raids_completed", 0) + 1
             
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
+            
+                if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
+                    self.attacker.setdefault("stash", [])
+                    self.attacker["stash"].extend(self.stolen_items)
+            
+                profiles[uid] = user
+                await save_file(USER_DATA, profiles)
             
                 if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
                     user_stash = self.attacker.get("stash", [])
