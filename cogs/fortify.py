@@ -177,7 +177,7 @@ class CloseButton(discord.ui.Button):
 
 class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
-        super().__init__(timeout=90)
+        super().__init__(timeout=300)
         self.main_msg = None
         stash = profile.get("stash", [])
         reinforcements = profile.get("reinforcements", {})
