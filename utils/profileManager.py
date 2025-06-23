@@ -1,25 +1,28 @@
-import json, os
+# utils/profileManager.py — Fully remote with persistent storage and debug logs
+
+import time
+from utils.fileIO import load_file, save_file
 
 PROFILE_PATH = "data/user_profiles.json"
 
-def _load():
-    if not os.path.exists(PROFILE_PATH):
-        return {}
-    with open(PROFILE_PATH, "r") as f:
-        return json.load(f)
+async def _load():
+    print(f"📥 [ProfileManager] Loading all profiles from: {PROFILE_PATH}")
+    return await load_file(PROFILE_PATH)
 
-def _save(data):
-    with open(PROFILE_PATH, "w") as f:
-        json.dump(data, f, indent=2)
+async def _save(data):
+    print(f"📤 [ProfileManager] Saving all profiles to: {PROFILE_PATH}")
+    await save_file(PROFILE_PATH, data)
 
-def get_profile(uid: str):
+async def get_profile(uid: str):
     """Return profile dict or None if the user never registered."""
-    return _load().get(uid)
+    data = await _load()
+    return data.get(uid)
 
-def create_profile(uid: str, username: str):
-    data = _load()
+async def create_profile(uid: str, username: str):
+    data = await _load()
     if uid in data:
-        return data[uid]  # Already exists
+        print(f"ℹ️ [ProfileManager] Profile already exists for UID: {uid}")
+        return data[uid]
 
     data[uid] = {
         "username": username,
@@ -34,15 +37,18 @@ def create_profile(uid: str, username: str):
         "boosts": {},
         "reinforcements": {},  # e.g., {"Barbed Fence": 2, "Guard Dog": 1}
         "task_status": "not_started",
-        "created": str(os.path.getmtime(PROFILE_PATH)) if os.path.exists(PROFILE_PATH) else ""
+        "created": str(int(time.time()))  # UTC timestamp fallback instead of file mtime
     }
-    _save(data)
+
+    await _save(data)
+    print(f"✅ [ProfileManager] Created new profile for UID: {uid}")
     return data[uid]
 
-def update_profile(uid: str, updates: dict):
+async def update_profile(uid: str, updates: dict):
     """Safely update a user profile with new data."""
-    data = _load()
+    data = await _load()
     if uid not in data:
+        print(f"❌ [ProfileManager] No profile found for UID: {uid}")
         return None
 
     profile = data[uid]
@@ -53,5 +59,6 @@ def update_profile(uid: str, updates: dict):
 
     profile.update(updates)
     data[uid] = profile
-    _save(data)
+    await _save(data)
+    print(f"🛠️ [ProfileManager] Updated profile for UID: {uid}")
     return profile
