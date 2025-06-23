@@ -169,7 +169,8 @@ class CloseButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            await self.view.main_msg.edit(content="❌ Fortification UI closed.", embed=None, view=None)
+            # Properly clear embed and attached image
+            await self.view.main_msg.edit(content="❌ Fortification UI closed.", embed=None, attachments=[], view=None)
         except Exception as e:
             print(f"❌ Failed to close fortify UI: {e}")
         await interaction.response.defer()
