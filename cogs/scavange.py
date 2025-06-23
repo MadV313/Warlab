@@ -1,7 +1,7 @@
 # cogs/scavenge.py — WARLAB daily gathering logic (3-hour cooldown + boost-aware + counter)
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import app_commands
 import json
 import random
@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from utils.fileIO import load_file, save_file
 from utils.inventory import weighted_choice
-from utils.boosts import is_weekend_boost_active  # ✅ Boost helper
+from utils.boosts import is_weekend_boost_active
 
 USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
@@ -43,9 +43,10 @@ class Scavenge(commands.Cog):
             now = datetime.utcnow()
 
             profiles = await load_file(USER_DATA) or {}
-            print(f"📁 Loaded user_profiles.json: {list(profiles.keys())}")
+            print(f"📁 Loaded user_profiles.json — {len(profiles)} profiles loaded")
 
             if user_id not in profiles:
+                print(f"❌ User {user_id} not registered")
                 await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
                 return
 
@@ -60,10 +61,13 @@ class Scavenge(commands.Cog):
             boosts = user["boosts"]
             pulls = random.randint(2, 5)
             boost_msgs = []
+            print(f"🔍 Base pulls: {pulls}")
 
             if boosts.get("perm_loot_boost"):
                 pulls += 1
                 boost_msgs.append("💠 Permanent Loot Boost activated!")
+                print("✅ perm_loot_boost applied: +1 pull")
+
             if boosts.get("daily_loot_boost"):
                 last_used = user.get("daily_loot_boost_used", "1970-01-01")
                 today = now.strftime("%Y-%m-%d")
@@ -71,38 +75,44 @@ class Scavenge(commands.Cog):
                     pulls += 1
                     user["daily_loot_boost_used"] = today
                     boost_msgs.append("🔄 Daily Loot Boost activated!")
+                    print("✅ daily_loot_boost applied: +1 pull")
+                else:
+                    print("❌ daily_loot_boost already used today")
 
-            # Cooldown check (3h)
             cooldown_min = 180
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
                     remaining = (last_time + timedelta(minutes=cooldown_min)) - now
                     mins = int(remaining.total_seconds() // 60)
+                    print(f"⏳ Cooldown active — {mins}m remaining")
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
-            # Load loot pool and filter
             item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
             owned_blueprints = set(user["blueprints"])
+            print(f"📦 Loaded {len(item_catalog)} items")
 
             loot_pool = []
             for name, data in item_catalog.items():
                 if not isinstance(data, dict) or "rarity" not in data:
                     continue
                 if data.get("type") == "crafted" and f"{name} Blueprint" in owned_blueprints:
-                    continue  # Skip crafted item if its blueprint is already owned
+                    continue
                 loot_pool.append({"item": name, "rarity": data["rarity"]})
+
+            print(f"🎯 Final loot pool: {len(loot_pool)} entries")
 
             found = []
             crafted_found = []
             attempts = 0
-            max_attempts = 15  # Avoid infinite loops
+            max_attempts = 15
 
             while len(found) < pulls and attempts < max_attempts:
                 item = weighted_choice(loot_pool, rarity_weights)
                 if not item:
+                    print("⚠️ weighted_choice returned None")
                     break
                 name = item["item"]
                 if name not in found:
@@ -111,7 +121,9 @@ class Scavenge(commands.Cog):
                         crafted_found.append(name)
                 attempts += 1
 
-            # Weekend bonus
+            print(f"🎒 Items found: {found}")
+            print(f"🧰 Crafted items pulled: {crafted_found}")
+
             if is_weekend_boost_active():
                 bonus = weighted_choice(loot_pool, rarity_weights)
                 if bonus:
@@ -121,11 +133,13 @@ class Scavenge(commands.Cog):
                         boost_msgs.append("🎁 Weekend Boost activated!")
                         if item_catalog.get(name, {}).get("type") == "crafted":
                             crafted_found.append(name)
+                        print(f"🎉 Weekend bonus pulled: {name}")
 
             coins_found = random.randint(5, 25)
             if boosts.get("coin_doubler"):
                 coins_found *= 2
                 boost_msgs.append("💸 Coin Doubler applied!")
+                print("💵 coin_doubler applied: coins doubled")
 
             user["stash"].extend(found)
             user["coins"] += coins_found
@@ -133,6 +147,7 @@ class Scavenge(commands.Cog):
             user["scavenges"] += 1
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
+            print(f"✅ Saved updated profile for {user_id}")
 
             loot_display = [f"🧰 {x}" if x in crafted_found else x for x in found]
             summary_text = (
