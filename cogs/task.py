@@ -1,4 +1,4 @@
-# cogs/task.py — Daily Warlab mission with crafted item highlights
+# cogs/task.py — Daily Warlab mission with crafted item highlights + boost announcements + task counter
 
 import discord
 from discord.ext import commands
@@ -84,21 +84,32 @@ class Task(commands.Cog):
         rare_pool = list(black_market.keys())
 
         base_coins = random.randint(40, 80)
-        if user.get("boosts", {}).get("coin_doubler"):
+        boosts     = user.get("boosts", {})
+        active_boosts = []
+
+        if boosts.get("coin_doubler"):
             base_coins *= 2
-        user["coins"] = user.get("coins", 0) + base_coins
+            active_boosts.append("💰 Coin Doubler")
+
+        # Mark task complete and increment counter
         user["last_task"] = today_str
+        user["coins"] = user.get("coins", 0) + base_coins
+        user["tasks_completed"] = user.get("tasks_completed", 0) + 1
 
+        # Bonus Loot Boosts
         bonus_rolls = 0
-        boosts      = user.get("boosts", {})
-
         if boosts.get("perm_loot_boost"):
             bonus_rolls += 1
+            active_boosts.append("📦 Loot Boost (Permanent)")
+
         if boosts.get("daily_loot_boost") and user.get("daily_task_loot_used") != today_str:
             bonus_rolls += 1
+            active_boosts.append("📦 Loot Boost (Daily)")
             user["daily_task_loot_used"] = today_str
+
         if is_weekend_boost_active():
             bonus_rolls += 1
+            active_boosts.append("📆 Weekend Boost")
 
         total_rolls = 1 + bonus_rolls
         guaranteed_tool = random.choice(TOOL_POOL)
@@ -127,6 +138,14 @@ class Task(commands.Cog):
             value="\n".join([f"{'🧰' if itm in crafted_set else '🔧'} {itm}" for itm in item_rewards]),
             inline=False
         )
+        embed.add_field(name="✅ Tasks Completed", value=str(user["tasks_completed"]), inline=True)
+
+        if active_boosts:
+            embed.add_field(
+                name="🔥 Active Boosts",
+                value="\n".join(active_boosts),
+                inline=False
+            )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
