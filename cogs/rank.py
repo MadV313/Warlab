@@ -69,7 +69,6 @@ class RankView(discord.ui.View):
             await itx.response.send_message("🔒 You need **200 prestige points** to prestige.\nEarn 50 per build or successful raid.", ephemeral=True)
             return
 
-        # Determine eligible class
         skin = self.user_data.get("active_skin", "")
         raids = self.user_data.get("successful_raids", 0)
         stash = self.user_data.get("stash", [])
@@ -88,9 +87,9 @@ class RankView(discord.ui.View):
         else:
             self.user_data["special_class"] = None
 
-        # Reset for prestige
+        # Reset for prestige — allow point rollover
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
-        self.user_data["prestige_points"] -= 200  # Allow rollover
+        self.user_data["prestige_points"] -= 200
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
         self.user_data["stash"] = []
@@ -211,16 +210,10 @@ class Rank(commands.Cog):
             await itx.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        # Accumulate prestige points
         builds = user.get("builds_completed", 0)
         raids = user.get("successful_raids", 0)
-        scav = user.get("scavenges", 0)
-        turnins = user.get("turnins_completed", 0)
-        tasks = user.get("tasks_completed", 0)
-        coins = user.get("coins", 0)
-        boosts = user.get("boosts", {})
 
-        earned = builds * 50 * (100 if is_weekend() else 50) + raids * (100 if is_weekend() else 50)
+        earned = (builds + raids) * (100 if is_weekend() else 50)
         user["prestige_points"] = earned
         self._update_user(uid, user)
 
@@ -232,16 +225,16 @@ class Rank(commands.Cog):
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank", color=color)
         emb.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(prestige, "Unknown Survivor"), inline=False)
         emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {user['prestige_points']}/200", inline=False)
-        emb.add_field(name="💰 Coins", value=str(coins))
-        emb.add_field(name="📦 Turn-ins", value=str(turnins))
+        emb.add_field(name="💰 Coins", value=str(user.get("coins", 0)))
+        emb.add_field(name="📦 Turn-ins", value=str(user.get("turnins_completed", 0)))
         emb.add_field(name="🔁 Builds Completed", value=str(builds))
         emb.add_field(name="🪖 Raids Won", value=str(raids))
-        emb.add_field(name="🔍 Scavenges", value=str(scav))
-        emb.add_field(name="📝 Tasks Done", value=str(tasks))
+        emb.add_field(name="🔍 Scavenges", value=str(user.get("scavenges", 0)))
+        emb.add_field(name="📝 Tasks Done", value=str(user.get("tasks_completed", 0)))
 
         lines = []
         for k, meta in BOOST_CATALOG.items():
-            owned = boosts.get(k, False)
+            owned = user.get("boosts", {}).get(k, False)
             status = "✅" if owned else "❌"
             lines.append(f"{status} {meta['label']} — {meta['cost']} coins")
         emb.add_field(name="⚡ Boosts", value="\n".join(lines), inline=False)
