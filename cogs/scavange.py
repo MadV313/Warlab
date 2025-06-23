@@ -84,9 +84,15 @@ class Scavenge(commands.Cog):
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
                     remaining = (last_time + timedelta(minutes=cooldown_min)) - now
-                    mins = int(remaining.total_seconds() // 60)
-                    print(f"⏳ Cooldown active — {mins}m remaining")
-                    await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
+                    total_seconds = int(remaining.total_seconds())
+                    hrs, rem = divmod(total_seconds, 3600)
+                    mins = rem // 60
+                    formatted_time = f"**{hrs}h {mins}m**" if hrs else f"**{mins}m**"
+                    print(f"⏳ Cooldown active — {formatted_time} remaining")
+                    await interaction.followup.send(
+                        f"⏳ You must wait {formatted_time} more before scavenging again.",
+                        ephemeral=True
+                    )
                     return
 
             item_catalog = await load_file(ITEMS_MASTER)
@@ -153,7 +159,8 @@ class Scavenge(commands.Cog):
             summary_text = (
                 f"📋 {random.choice(SCAVENGE_MISSIONS)}\n\n"
                 f"🔎 You scavenged and found: **{', '.join(loot_display)}**\n"
-                f"💰 You also found **{coins_found} coins!**"
+                f"💰 You also found **{coins_found} coins!**\n"
+                f"☑️ Scavenges Completed: **{user['scavenges']}**"
             )
             if boost_msgs:
                 summary_text += "\n\n" + "\n".join(boost_msgs)
