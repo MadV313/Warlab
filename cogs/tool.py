@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools (persistent stash logic) + debug prints
+# cogs/tool.py — Admin: Give or remove tools (persistent stash logic) + debug prints + validated removals
 
 import discord
 from discord.ext import commands
@@ -65,6 +65,12 @@ class ToolManager(commands.Cog):
 
             # ── REMOVE ─────────────────────
             else:
+                if stash.count(item) < quantity:
+                    msg = f"⚠️ {user.mention} does not have **{quantity} × {item}** to remove."
+                    print(f"⚠️ Not enough {item} in stash to remove from {user.display_name}")
+                    await interaction.followup.send(msg, ephemeral=True)
+                    return
+
                 removed = 0
                 new_stash = []
                 for s in stash:
@@ -74,12 +80,8 @@ class ToolManager(commands.Cog):
                     new_stash.append(s)
 
                 stash = new_stash
-                if removed:
-                    msg = f"🗑 Removed **{removed} × {item}** from {user.mention}."
-                    print(f"🗑 {removed} × {item} removed from {user.display_name}'s stash")
-                else:
-                    msg = f"⚠️ {user.mention} doesn't have that many **{item}**."
-                    print(f"⚠️ Not enough {item} to remove from {user.display_name}")
+                msg = f"🗑 Removed **{removed} × {item}** from {user.mention}."
+                print(f"🗑 {removed} × {item} removed from {user.display_name}'s stash")
 
             profile["stash"] = stash
             profiles[uid] = profile
