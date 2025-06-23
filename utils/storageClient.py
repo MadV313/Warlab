@@ -59,12 +59,18 @@ async def save_file(filename, data):
 
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.put(url, data=json_data, headers={"Content-Type": "application/json"}) as resp:
-                if resp.status == 200:
+            async with session.put(
+                url,
+                data=json_data,
+                headers={"Content-Type": "application/json"}
+            ) as resp:
+                if resp.status in (200, 201):
                     print(f"✅ [storageClient] Save successful: {filename}")
                     return True
                 else:
                     print(f"⚠️ [storageClient] Save failed for {filename}: HTTP {resp.status}")
+                    response_text = await resp.text()
+                    print(f"🧾 [storageClient] Response: {response_text}")
                     return False
         except Exception as e:
             print(f"❌ [storageClient] Save error for {filename}: {e}")
