@@ -1,4 +1,4 @@
-# cogs/fortify.py — WARLAB stash fortification system (with badge counts, skin themes, dynamic buttons)
+# cogs/fortify.py — WARLAB stash fortification system (with emoji status and dynamic button logic)
 
 import discord
 from discord.ext import commands
@@ -30,6 +30,7 @@ REINFORCEMENT_COSTS = {
 
 TOOL_NAMES = ["Hammer", "Saw", "Nails", "Pliers"]
 SPECIAL_NAMES = ["Guard Dog", "Claymore Trap"]
+DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
 def render_stash_visual(reinforcements):
     bf = reinforcements.get("Barbed Fence", 0)
@@ -51,6 +52,22 @@ def render_stash_visual(reinforcements):
     row5 = f"  {dog}       {clay}"
     return f"{row1}\n{row2}\n{row3}\n{row4}\n{row5}"
 
+def format_defense_status(reinforcements):
+    emoji_map = {
+        "Barbed Fence": "🧱",
+        "Locked Container": "🔐",
+        "Reinforced Gate": "🚪",
+        "Claymore Trap": "💣",
+        "Guard Dog": "🐕"
+    }
+    lines = ["🛡️ **Defense Status**"]
+    for key in DEFENCE_TYPES:
+        emoji = emoji_map.get(key, "")
+        current = reinforcements.get(key, 0)
+        max_val = MAX_REINFORCEMENTS.get(key, "?")
+        lines.append(f"{emoji} {key}: {current}/{max_val}")
+    return "\n".join(lines)
+
 def get_skin_visuals(profile, catalog):
     skin = profile.get("activeSkin", "default")
     skin_data = catalog.get(skin, {})
@@ -61,8 +78,8 @@ def get_skin_visuals(profile, catalog):
     }
 
 class ReinforceButton(discord.ui.Button):
-    def __init__(self, rtype, disabled=False):
-        super().__init__(label=rtype, style=discord.ButtonStyle.blurple, disabled=disabled)
+    def __init__(self, rtype):
+        super().__init__(label=rtype, style=discord.ButtonStyle.blurple)
         self.rtype = rtype
 
     async def callback(self, interaction: discord.Interaction):
@@ -109,6 +126,7 @@ class ReinforceButton(discord.ui.Button):
 
         visuals = get_skin_visuals(profile, catalog)
         visual_text = render_stash_visual(reinforcements)
+        defense_status = format_defense_status(reinforcements)
 
         remaining_tools = {t: stash.count(t) for t in TOOL_NAMES if t in stash}
         remaining_specials = {s: stash.count(s) for s in SPECIAL_NAMES if s in stash}
@@ -127,7 +145,7 @@ class ReinforceButton(discord.ui.Button):
 
             embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```\n{visual_text}\n```",
+                description=f"```\n{visual_text}\n```\n{defense_status}",
                 color=visuals['color']
             )
             embed.add_field(name="✅ Installed", value=self.rtype, inline=False)
@@ -163,13 +181,14 @@ class ReinforcementView(discord.ui.View):
         stash = profile.get("stash", [])
         reinforcements = profile.get("reinforcements", {})
 
-        for rtype, cost in REINFORCEMENT_COSTS.items():
+        for rtype in REINFORCEMENT_COSTS:
             current = reinforcements.get(rtype, 0)
-            maxed = current >= MAX_REINFORCEMENTS[rtype]
-            tools_ok = all(stash.count(t) >= 1 for t in cost.get("tools", []))
-            specials_ok = all(stash.count(s) >= 1 for s in cost.get("special", []))
-            has_parts = tools_ok and specials_ok
-            self.add_item(ReinforceButton(rtype, disabled=(not has_parts or maxed)))
+            max_count = MAX_REINFORCEMENTS.get(rtype, 0)
+            cost = REINFORCEMENT_COSTS[rtype]
+            has_all = all(stash.count(t) > 0 for t in cost.get("tools", [])) and all(stash.count(s) > 0 for s in cost.get("special", []))
+
+            if current < max_count and has_all:
+                self.add_item(ReinforceButton(rtype))
 
         self.add_item(CloseButton())
 
@@ -200,6 +219,8 @@ class Fortify(commands.Cog):
 
             visuals = get_skin_visuals(profile, catalog)
             visual_text = render_stash_visual(profile["reinforcements"])
+            defense_status = format_defense_status(profile["reinforcements"])
+
             stash_img_path = generate_stash_image(
                 user_id,
                 profile["reinforcements"],
@@ -210,7 +231,7 @@ class Fortify(commands.Cog):
 
             embed = discord.Embed(
                 title=f"{visuals['emoji']} Stash Layout",
-                description=f"```\n{visual_text}\n```",
+                description=f"```\n{visual_text}\n```\n{defense_status}",
                 color=visuals["color"]
             )
             embed.set_image(url="attachment://stash.png")
