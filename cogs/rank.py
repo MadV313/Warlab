@@ -35,7 +35,7 @@ PRESTIGE_ROLES = {
 BOOST_CATALOG = {
     "daily_loot_boost": {"label": "Daily Loot Boost (24 h)", "cost": 100},
     "perm_loot_boost": {"label": "Permanent Loot Boost", "cost": 5000},
-    "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 1000}
+    "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 5000}
 }
 
 class CloseButton(discord.ui.Button):
