@@ -9,8 +9,8 @@ import os
 from utils.storageClient import load_file, save_file
 from stash_image_generator import generate_stash_image
 
-USER_DATA = "user_profiles.json"
-CATALOG_PATH = "labskin_catalog.json"
+USER_DATA = "data/user_profiles.json"
+CATALOG_PATH = "data/labskin_catalog.json"
 
 MAX_REINFORCEMENTS = {
     "Barbed Fence": 9,
