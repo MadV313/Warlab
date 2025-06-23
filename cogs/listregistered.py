@@ -1,4 +1,4 @@
-# cogs/listregistered.py — Paginated list of registered players with progress overview
+# cogs/listregistered.py — Registered Player Overview with Reinforcements Added
 
 import discord
 from discord.ext import commands
@@ -9,6 +9,22 @@ from utils.fileIO import load_file
 
 USER_DATA = "data/user_profiles.json"
 ENTRIES_PER_PAGE = 10
+
+PRESTIGE_TITLES = {
+    0: "Unranked Survivor",
+    1: "Field Engineer",
+    2: "Weapon Tech",
+    3: "Shadow Engineer",
+    4: "Warlab Veteran",
+    5: "Legendary Craftsman",
+    6: "Legend",
+    7: "Apex",
+    8: "Ghost",
+    9: "Mythic",
+    10: "Master Chief"
+}
+
+DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
 class RegisteredListView(discord.ui.View):
     def __init__(self, pages, user):
@@ -71,28 +87,37 @@ class ListRegistered(commands.Cog):
             except:
                 name = "[Unknown User]"
 
+            prestige = profile.get("prestige", 0)
+            prestige_pts = profile.get("prestige_points", 0)
+            rank = profile.get("rank_level", 0)
             stash = Counter(profile.get("stash", []))
             reinforcements = profile.get("reinforcements", {})
             blueprints = profile.get("blueprints", [])
-            prestige = profile.get("prestige", 0)
+            scavenges = profile.get("scavenges_completed", 0)
+            tasks = profile.get("tasks_completed", 0)
+            raids = profile.get("raids_won", 0)
+            turnins = profile.get("turnins_completed", 0)
+            coins = profile.get("coins", 0)
+            boosts = profile.get("boosts", [])
+            boosts_owned = len(boosts)
+            reinforce_total = sum(reinforcements.get(t, 0) for t in DEFENCE_TYPES)
 
             entries.append(
                 f"• **{name}** (`{uid}`)\n"
-                f"   - 🎒 Stash: {sum(stash.values())} items\n"
-                f"   - 🛡️ Defenses: {sum(reinforcements.values())} active\n"
-                f"   - 🧰 Builds: {len(blueprints)} completed\n"
-                f"   - 🏅 Rank: Prestige {prestige}\n"
+                f"   - 🧬 Prestige: {prestige} ({prestige_pts}/200 pts)\n"
+                f"   - 🔁 Builds: {len(blueprints)} | 📦 Turn-ins: {turnins} | 🪖 Raids: {raids}\n"
+                f"   - 🔍 Scavenges: {scavenges} | 📝 Tasks: {tasks}\n"
+                f"   - ⚡ Boosts: {boosts_owned}/3 | 💰 Coins: {coins} | 🛡️ Reinforcements: {reinforce_total}"
             )
 
-        # Paginate every 10 entries
         pages = [
-            "\n".join(entries[i:i + ENTRIES_PER_PAGE])
+            "\n\n".join(entries[i:i + ENTRIES_PER_PAGE])
             for i in range(0, len(entries), ENTRIES_PER_PAGE)
         ]
 
         embed = discord.Embed(
             title="📋 Registered Player Overview",
-            description=pages[0],
+            description=pages[0] if pages else "No registered users found.",
             color=0x2ecc71
         )
         embed.set_footer(text=f"Page 1 of {len(pages)}")
