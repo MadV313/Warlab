@@ -1,10 +1,10 @@
-# cogs/stash.py — Updated with 📦 Crafted Items group for crafted weapons/gear
+# cogs/stash.py — Updated with 📦 Crafted Items group for crafted weapons/gear + persistent storage
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json
 from collections import Counter
+from utils.fileIO import load_file
 
 USER_DATA_FILE = "data/user_profiles.json"
 ITEMS_MASTER_FILE = "data/items_master.json"
@@ -40,25 +40,29 @@ class Stash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def load_json(self, path):
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except:
-            return {}
-
     @app_commands.command(name="stash", description="View your stash, coins, skins, and buildable items.")
     async def stash(self, interaction: discord.Interaction):
         uid = str(interaction.user.id)
-        profiles = self.load_json(USER_DATA_FILE)
-        items_master = self.load_json(ITEMS_MASTER_FILE)
-        recipes = self.load_json(ITEM_RECIPES_FILE)
-        armor_recipes = self.load_json(ARMOR_RECIPES_FILE)
-        explosive_recipes = self.load_json(EXPLOSIVE_RECIPES_FILE)
 
-        # merge all recipes
+        profiles = await load_file(USER_DATA_FILE)
+        items_master = await load_file(ITEMS_MASTER_FILE)
+        recipes = await load_file(ITEM_RECIPES_FILE)
+        armor_recipes = await load_file(ARMOR_RECIPES_FILE)
+        explosive_recipes = await load_file(EXPLOSIVE_RECIPES_FILE)
+
+        if not profiles or uid not in profiles:
+            await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
+            return
+
+        user = profiles[uid]
+        stash_items = Counter(user.get("stash", []))
+        blueprints = user.get("blueprints", [])
+        active_skin = user.get("activeSkin", "None")
+        coins = user.get("coins", 0)
+
         all_recipes = {}
         produced_lookup = {}
+
         for source in (recipes, armor_recipes, explosive_recipes):
             for key, data in source.items():
                 all_recipes[key.lower()] = data
@@ -66,23 +70,13 @@ class Stash(commands.Cog):
                 if produced:
                     produced_lookup[produced] = key
 
-        user = profiles.get(uid)
-        if not user:
-            await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
-            return
-
-        stash_items = Counter(user.get("stash", []))
-        blueprints = user.get("blueprints", [])
-        active_skin = user.get("activeSkin", "None")
-        coins = user.get("coins", 0)
-
         grouped = {
             "🔫 Gun Parts"       : [],
             "🪖 Armor Parts"     : [],
             "💣 Explosives"      : [],
             "🛠️ Tools"          : [],
             "🏚️ Workshop Skins" : [],
-            "📦 Crafted Items"   : [],  # ✅ NEW GROUP
+            "📦 Crafted Items"   : [],
             "🎒 Misc"            : []
         }
 
@@ -91,7 +85,6 @@ class Stash(commands.Cog):
             item_type = info.get("type", "").lower()
             label = f"{item} x{qty}"
 
-            # Recognize completed crafted items
             is_completed = item in produced_lookup or item in TURNIN_ELIGIBLE
 
             if is_completed:
@@ -144,10 +137,10 @@ class Stash(commands.Cog):
             )
 
         embed.add_field(name="💰 Coins", value=str(coins), inline=True)
-        embed.add_field(name="🏚️ Equipped Workshop Skin", value=equipped_skin, inline=True)
+        embed.add_field(name="🏚️ Equipped Workshop Skin", value=active_skin, inline=True)
 
         view = StashView()
-        msg = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         sent = await interaction.original_response()
         view.stored_messages = [sent]
 
