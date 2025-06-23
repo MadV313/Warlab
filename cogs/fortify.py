@@ -61,8 +61,8 @@ def get_skin_visuals(profile, catalog):
     }
 
 class ReinforceButton(discord.ui.Button):
-    def __init__(self, rtype):
-        super().__init__(label=rtype, style=discord.ButtonStyle.blurple)
+    def __init__(self, rtype, disabled=False):
+        super().__init__(label=rtype, style=discord.ButtonStyle.blurple, disabled=disabled)
         self.rtype = rtype
 
     async def callback(self, interaction: discord.Interaction):
@@ -160,10 +160,17 @@ class ReinforcementView(discord.ui.View):
     def __init__(self, profile):
         super().__init__(timeout=90)
         self.main_msg = None
-        for rtype in REINFORCEMENT_COSTS:
-            current = profile.get("reinforcements", {}).get(rtype, 0)
-            if current < MAX_REINFORCEMENTS.get(rtype, 0):
-                self.add_item(ReinforceButton(rtype))
+        stash = profile.get("stash", [])
+        reinforcements = profile.get("reinforcements", {})
+
+        for rtype, cost in REINFORCEMENT_COSTS.items():
+            current = reinforcements.get(rtype, 0)
+            maxed = current >= MAX_REINFORCEMENTS[rtype]
+            tools_ok = all(stash.count(t) >= 1 for t in cost.get("tools", []))
+            specials_ok = all(stash.count(s) >= 1 for s in cost.get("special", []))
+            has_parts = tools_ok and specials_ok
+            self.add_item(ReinforceButton(rtype, disabled=(not has_parts or maxed)))
+
         self.add_item(CloseButton())
 
 class Fortify(commands.Cog):
