@@ -16,7 +16,12 @@ RANK_TITLES = {
     2: "Weapon Tech",
     3: "Shadow Engineer",
     4: "Warlab Veteran",
-    5: "Legendary Craftsman"
+    5: "Legendary Craftsman",
+    6: "Legend",
+    7: "Apex",
+    8: "Ghost",
+    9: "Mythic",
+    10: "Master Chief"
 }
 
 SPECIAL_REWARDS = {
@@ -49,7 +54,15 @@ class AdjustPrestige(commands.Cog):
 
         user_id = str(user.id)
         profiles = await load_file(USER_DATA) or {}
-        profile = profiles.get(user_id, {"prestige": 0})
+
+        if user_id not in profiles:
+            await interaction.response.send_message(
+                f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        profile = profiles[user_id]
         current_prestige = profile.get("prestige", 0)
 
         if action == "take":
