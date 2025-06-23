@@ -62,7 +62,11 @@ class Task(commands.Cog):
             return
 
         if user.get("last_task") == today_str:
-            await interaction.response.send_message("🕒 You’ve already completed your daily task. Try again **tomorrow**.", ephemeral=True)
+            remaining_hours = 24 - datetime.utcnow().hour
+            await interaction.response.send_message(
+                f"🕒 You’ve already completed your daily task. Try again **tomorrow** (**{remaining_hours}h left**).",
+                ephemeral=True
+            )
             return
 
         print(f"📅 New task triggered for user {uid} — {interaction.user.display_name}")
