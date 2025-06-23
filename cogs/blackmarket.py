@@ -1,4 +1,4 @@
-# cogs/blackmarket.py — WARLAB rotating black market shop (now with suffix-fixed blueprint storage)
+# cogs/blackmarket.py — WARLAB rotating black market shop (updated to block duplicates + daily limits)
 
 import discord
 from discord.ext import commands
@@ -31,8 +31,12 @@ RARITY_EMOJIS = {
 }
 
 class BuyButton(discord.ui.Button):
-    def __init__(self, label, cost, item_name, rarity):
-        super().__init__(label=f"Buy {label} — {cost}🪙", style=discord.ButtonStyle.green)
+    def __init__(self, label, cost, item_name, rarity, disabled=False):
+        super().__init__(
+            label=f"Buy {label} — {cost}🪙",
+            style=discord.ButtonStyle.green,
+            disabled=disabled
+        )
         self.item_name = item_name
         self.cost = cost
         self.rarity = rarity
@@ -40,21 +44,27 @@ class BuyButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         profiles = await load_file(USER_DATA) or {}
-        user = profiles.get(user_id, {"coins": 0, "stash": [], "blueprints": []})
+        user = profiles.get(user_id, {"coins": 0, "stash": [], "blueprints": [], "purchasedToday": []})
+
+        if self.item_name in user.get("purchasedToday", []):
+            await interaction.response.send_message("❌ You’ve already purchased this item during the current rotation.", ephemeral=True)
+            return
 
         if user.get("coins", 0) < self.cost:
             await interaction.response.send_message("❌ You don’t have enough coins.", ephemeral=True)
             return
 
-        user["coins"] -= self.cost
-
         if self.item_name in ["Guard Dog", "Claymore Trap"]:
             user.setdefault("stash", []).append(self.item_name)
         else:
             blueprint_name = f"{self.item_name} Blueprint"
-            user.setdefault("blueprints", [])
-            if blueprint_name not in user["blueprints"]:
-                user["blueprints"].append(blueprint_name)
+            if blueprint_name in user.get("blueprints", []):
+                await interaction.response.send_message("❌ You already own this blueprint.", ephemeral=True)
+                return
+            user.setdefault("blueprints", []).append(blueprint_name)
+
+        user["coins"] -= self.cost
+        user.setdefault("purchasedToday", []).append(self.item_name)
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
@@ -81,11 +91,27 @@ class MarketView(discord.ui.View):
     def __init__(self, user, offers):
         super().__init__(timeout=90)
         self.stored_messages = []
+        owned_blueprints = user.get("blueprints", [])
+        stash = user.get("stash", [])
+        purchased = user.get("purchasedToday", [])
+
         for item in offers:
             name = item["name"]
             rarity = item["rarity"]
             cost = ITEM_COSTS.get(rarity, 999)
-            self.add_item(BuyButton(name, cost, name, rarity))
+
+            # Check if already owned or already purchased
+            blueprint_name = f"{name} Blueprint"
+            already_owned = (
+                blueprint_name in owned_blueprints
+                if name not in ["Guard Dog", "Claymore Trap"]
+                else name in stash
+            )
+            already_bought = name in purchased
+
+            disabled = already_owned or already_bought
+            self.add_item(BuyButton(name, cost, name, rarity, disabled=disabled))
+
         self.add_item(CloseButton())
 
 class BlackMarket(commands.Cog):
@@ -111,6 +137,12 @@ class BlackMarket(commands.Cog):
         if not market or market.get("expires", "") < datetime.utcnow().isoformat():
             market = await self.generate_market()
             await save_file(MARKET_FILE, market)
+
+            # Reset everyone's purchasedToday list
+            for uid in profiles:
+                profiles[uid]["purchasedToday"] = []
+            await save_file(USER_DATA, profiles)
+            user = profiles.get(user_id)  # Refresh user's reset profile
 
         offers = market["offers"]
 
