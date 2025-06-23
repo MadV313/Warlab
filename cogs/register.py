@@ -25,7 +25,7 @@ class RegisterCog(commands.Cog):
             )
             return
 
-        create_profile(uid, interaction.user.display_name)
+        await create_profile(uid, interaction.user.display_name)
         print(f"🆕 [/register] Created new profile for {uid} — {interaction.user.display_name}")
         await interaction.response.send_message(
             "🔗 Profile created! You can now use all other /warlab commands like /scavenge, /rank, etc.",
