@@ -67,9 +67,16 @@ class RollBlueprint(commands.Cog):
             await interaction.followup.send("✅ You’ve already unlocked all available blueprints!", ephemeral=True)
             return
 
-        selected = weighted_choice(all_items, rarity_weights)
+        max_attempts = 10
+        selected = None
+        for _ in range(max_attempts):
+            candidate = weighted_choice(all_items, rarity_weights)
+            if candidate and candidate["item"] not in current_blueprints:
+                selected = candidate
+                break
+
         if not selected:
-            await interaction.followup.send("❌ Failed to roll a blueprint. Please try again later.", ephemeral=True)
+            await interaction.followup.send("❌ Failed to roll a unique blueprint. Please try again later.", ephemeral=True)
             return
 
         # Update user profile
