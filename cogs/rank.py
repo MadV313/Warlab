@@ -18,7 +18,12 @@ RANK_TITLES = {
     2: "Weapon Tech",
     3: "Shadow Engineer",
     4: "Warlab Veteran",
-    5: "Legendary Craftsman"
+    5: "Legendary Craftsman",
+    6: "Legend",
+    7: "Apex",
+    8: "Ghost",
+    9: "Mythic",
+    10: "Master Chief"
 }
 
 SPECIAL_REWARDS = {
@@ -49,7 +54,7 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary, row=1)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.delete()
+        await interaction.message.edit(content="❌ Rank view closed", embed=None, view=None)
 
 class RankView(discord.ui.View):
     def __init__(self, user_id: str, user_data: dict, update_callback):
@@ -90,7 +95,6 @@ class RankView(discord.ui.View):
         else:
             self.user_data["special_class"] = None
 
-        # Reset for prestige
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
         self.user_data["prestige_points"] -= 200
         self.user_data["builds_completed"] = 0
@@ -118,7 +122,6 @@ class RankView(discord.ui.View):
             emb.set_thumbnail(url=itx.user.display_avatar.url)
             await ch.send(embed=emb)
 
-        # Role assignment
         guild = itx.guild
         roleID = PRESTIGE_ROLES.get(self.user_data["prestige"])
         if guild and roleID:
