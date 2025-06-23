@@ -1,4 +1,4 @@
-# cogs/turnin.py — Visual Turn-In UI with buttons (robust + counters)
+# cogs/turnin.py — Visual Turn-In UI with buttons (robust + counters + admin confirmation ping)
 
 import discord
 from discord.ext import commands
@@ -57,14 +57,12 @@ class TurnInButton(discord.ui.Button):
                 prestige += REWARD_VALUES["tactical_bonus"]
             coins = REWARD_VALUES["coin_bonus"] if REWARD_VALUES["coin_enabled"] else 0
 
-            # 🔧 Update profile
             user_data["crafted"].remove(self.item_name)
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
             user_data["coins"]    += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
-            # 🪵 Remove crafted item from stash as well
             if self.item_name in user_data.get("stash", []):
                 user_data["stash"].remove(self.item_name)
 
@@ -79,7 +77,6 @@ class TurnInButton(discord.ui.Button):
             await save_file(USER_DATA,  profiles)
             await save_file(TURNIN_LOG, logs)
 
-            # ✅ Success Embed First
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
                 description=(f"**{self.item_name}** submitted! Please stand by for further rewards!\n\n"
@@ -89,7 +86,6 @@ class TurnInButton(discord.ui.Button):
             )
             await interaction.response.edit_message(embed=success_embed, view=None)
 
-            # 👮 Admin Ping (after UI update)
             try:
                 channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
                 if channel:
