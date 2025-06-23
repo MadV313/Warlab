@@ -73,7 +73,7 @@ class Stash(commands.Cog):
 
         stash_items = Counter(user.get("stash", []))
         blueprints = user.get("blueprints", [])
-        equipped_skin = user.get("equipped_skin", "None")
+        active_skin = user.get("activeSkin", "None")
         coins = user.get("coins", 0)
 
         grouped = {
