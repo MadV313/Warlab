@@ -89,7 +89,6 @@ class Market(commands.Cog):
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        # Check/refresh market rotation
         market = await load_file(MARKET_FILE)
         if not market or market.get("expires", "") < datetime.utcnow().isoformat():
             print("🔁 [market.py] Market expired or missing. Generating new rotation...")
@@ -116,7 +115,7 @@ class Market(commands.Cog):
             color=0x1abc9c
         ).set_footer(text=f"Stock rotates every {ROTATION_HOURS} h")
 
-        view = discord.ui.View()
+        view = discord.ui.View(timeout=300)  # 🕒 Extended session timeout here
         for item in offers:
             name     = item["name"]
             category = item["category"]
@@ -136,10 +135,6 @@ class Market(commands.Cog):
 
     # ──────────────────────────────────────────────────────────────────────
     async def generate_market(self):
-        """
-        Pick 2 tools + 3 random parts for the next rotation and
-        timestamp expiry ROTATION_HOURS ahead.
-        """
         full_pool = await load_file(ITEM_POOL_FILE) or {}
 
         if not isinstance(full_pool, dict):
