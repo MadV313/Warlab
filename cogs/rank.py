@@ -1,4 +1,4 @@
-# cogs/rank.py
+# cogs/rank.py — Fixed Prestige Display + Rank Sync
 
 import discord
 from discord.ext import commands
@@ -35,7 +35,7 @@ PRESTIGE_ROLES = {
 BOOST_CATALOG = {
     "daily_loot_boost": {"label": "Daily Loot Boost (24 h)", "cost": 100},
     "perm_loot_boost": {"label": "Permanent Loot Boost", "cost": 5000},
-    "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 5000}
+    "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 1000}
 }
 
 class CloseButton(discord.ui.Button):
@@ -69,6 +69,7 @@ class RankView(discord.ui.View):
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
+        self.user_data["prestige_points"] = 0
         self.user_data["stash"] = []
         self.user_data["boosts"] = {}
         self.update_callback(self.user_id, self.user_data)
@@ -80,11 +81,9 @@ class RankView(discord.ui.View):
         if ch:
             emb = discord.Embed(
                 title="🧬 Prestige Unlocked!",
-                description=(
-                    f"{itx.user.mention} reached **Prestige {self.user_data['prestige']}**\n"
-                    f"🎖 Prestige Class: **{reward['title']}**\n\n"
-                    "🎲 Use `/rollblueprint` to try for a new schematic!"
-                ),
+                description=(f"{itx.user.mention} reached **Prestige {self.user_data['prestige']}**\n"
+                             f"🎖 Prestige Class: **{reward['title']}**\n\n"
+                             "🎲 Use `/rollblueprint` to try for a new schematic!"),
                 color=reward["color"], timestamp=datetime.utcnow()
             )
             emb.set_thumbnail(url=itx.user.display_avatar.url)
@@ -198,8 +197,6 @@ class Rank(commands.Cog):
 
         prestige = user.get("prestige", 0)
         prestige_points = user.get("prestige_points", 0)
-        next_threshold = 200
-        level = user.get("rank_level", 0)
         coins = user.get("coins", 0)
         builds = user.get("builds_completed", 0)
         turnins = user.get("turnins_completed", 0)
@@ -215,7 +212,7 @@ class Rank(commands.Cog):
 
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank", color=color)
         emb.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(prestige, "Unknown Survivor"), inline=False)
-        emb.add_field(name="🧬 Prestige", value=f"{prestige} — {prestige_points}/{next_threshold}", inline=False)
+        emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {prestige_points}/200", inline=False)
         emb.add_field(name="💰 Coins", value=str(coins))
         emb.add_field(name="📦 Turn-ins", value=str(turnins))
         emb.add_field(name="🔁 Builds Completed", value=str(builds))
