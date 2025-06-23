@@ -6,7 +6,7 @@ from discord import app_commands
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-CATALOG_PATH = "data/labskin_catalog.json"
+CATALOG_PATH = "data/labskins_catalog.json"
 
 SKIN_IMAGE_PATHS = {
     "Rust Bucket": "assets/stash_layers/base_house_prestige1.PNG",
