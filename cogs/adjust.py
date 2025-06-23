@@ -5,7 +5,9 @@ from discord.ext import commands
 from discord import app_commands
 from typing import Literal
 from datetime import datetime
+
 from utils.fileIO import load_file, save_file
+from utils.prestigeUtils import broadcast_prestige_announcement  # ✅ NEW
 
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # ✅ WARLAB broadcast channel
@@ -76,35 +78,12 @@ class AdjustPrestige(commands.Cog):
                     ephemeral=True)
                 return
             profile["prestige"] = current_prestige - amount
-            new_rank = profile["prestige"]
             result = f"🗑 Removed **{amount} prestige** from {user.mention}."
 
         elif action == "give":
             profile["prestige"] = current_prestige + amount
-            new_rank = profile["prestige"]
             result = f"✅ Gave **{amount} prestige** to {user.mention}."
-
-            # Send broadcast embed to WARLAB
-            rolled_id = profile.get("special_class") or 1
-            reward = SPECIAL_REWARDS.get(rolled_id, SPECIAL_REWARDS[1])
-            rank_title = RANK_TITLES.get(new_rank, "Prestige Specialist")
-
-            emb = discord.Embed(
-                title="🧬 Prestige Unlocked!",
-                description=(
-                    f"{user.mention} reached **Prestige {new_rank}**\n"
-                    f"🎖 Rank Title: **{rank_title}**\n"
-                    f"📛 Prestige Class: **{reward['title']}**\n\n"
-                    "🎲 Use /rollblueprint to try for a new schematic!"
-                ),
-                color=reward["color"],
-                timestamp=datetime.utcnow()
-            )
-            emb.set_thumbnail(url=user.display_avatar.url)
-
-            ch = interaction.client.get_channel(WARLAB_CHANNEL_ID)
-            if ch:
-                await ch.send(embed=emb)
+            await broadcast_prestige_announcement(interaction.client, user, profile)  # ✅ NEW CENTRAL LOGIC
 
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
