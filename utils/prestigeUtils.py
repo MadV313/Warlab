@@ -1,6 +1,7 @@
-# utils/prestigeUtils.py — Centralized Prestige Rank System
+# utils/prestigeUtils.py — Centralized Prestige Rank System (Remote-persistent ready)
 
 from utils.boosts import is_weekend_boost_active
+from utils.fileIO import load_file, save_file  # Ready for future persistence support
 import discord
 from datetime import datetime
 
