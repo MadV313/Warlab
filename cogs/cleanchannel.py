@@ -22,23 +22,32 @@ class CleanChannel(commands.Cog):
             return
 
         class ConfirmView(discord.ui.View):
-            def __init__(self):
+            def __init__(self, author: discord.Member):
                 super().__init__(timeout=30)
+                self.author = author
 
-            @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
+            async def interaction_check(self, i: discord.Interaction) -> bool:
+                if i.user.id != self.author.id:
+                    await i.response.send_message("❌ Only the command invoker can use these buttons.", ephemeral=True)
+                    return False
+                return True
+
+            @discord.ui.button(label="✅ Confirm", style=discord.ButtonStyle.danger)
             async def confirm(self, i: discord.Interaction, _):
-                await interaction.channel.purge(limit=100)
-                await i.response.send_message("🧹 Channel cleaned.", ephemeral=True)
+                await i.response.defer(ephemeral=True)
+                deleted = await i.channel.purge(limit=100)
+                print(f"🧹 [cleanchannel] Deleted {len(deleted)} messages in {i.channel.name}")
+                await i.followup.send(f"🧹 Channel cleaned. `{len(deleted)}` messages purged.", ephemeral=True)
                 self.stop()
 
-            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+            @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
             async def cancel(self, i: discord.Interaction, _):
                 await i.response.send_message("❌ Cleanup cancelled.", ephemeral=True)
                 self.stop()
 
         await interaction.response.send_message(
             "⚠️ Are you sure you want to clean this channel? This will delete up to 100 messages.",
-            view=ConfirmView(),
+            view=ConfirmView(interaction.user),
             ephemeral=True
         )
 
