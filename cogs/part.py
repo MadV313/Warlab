@@ -1,4 +1,4 @@
-# cogs/part.py — Fully Inline /part Command with Master Reference Lookup
+# cogs/part.py — Fully Inline /part Command with Master Reference Lookup + Registration Check
 
 import discord
 from discord.ext import commands
@@ -56,7 +56,15 @@ class PartManager(commands.Cog):
 
         profiles = await load_file(USER_DATA) or {}
         uid = str(user.id)
-        profile = profiles.get(uid, {})
+
+        if uid not in profiles:
+            await interaction.followup.send(
+                f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        profile = profiles[uid]
         stash = profile.get("stash", [])
         if not isinstance(stash, list):
             stash = []
