@@ -1,7 +1,8 @@
-# utils/inventory.py
+# utils/inventory.py — With persistent-ready structure
 
 from collections import Counter
 import random
+from utils.fileIO import load_file, save_file  # 📦 Add persistent support if needed later
 
 def has_required_parts(user_parts: dict, requirements: dict) -> bool:
     """
