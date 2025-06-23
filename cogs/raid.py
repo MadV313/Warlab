@@ -6,7 +6,7 @@ import random, os, asyncio
 from datetime import datetime, timedelta
 from PIL import Image, ImageSequence
 
-from utils.fileIO import load_file, save_file
+from utils.storageClient import load_file, save_file
 from utils.boosts import is_weekend_boost_active
 from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS     # ← unchanged import
 from cogs.fortify import render_stash_visual, get_skin_visuals
