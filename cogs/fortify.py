@@ -6,11 +6,11 @@ from discord import app_commands
 import json
 import os
 
-from utils.fileIO import load_file, save_file
+from utils.storageClient import load_file, save_file
 from stash_image_generator import generate_stash_image
 
-USER_DATA = "data/user_profiles.json"
-CATALOG_PATH = "data/labskin_catalog.json"
+USER_DATA = "user_profiles.json"
+CATALOG_PATH = "labskin_catalog.json"
 
 MAX_REINFORCEMENTS = {
     "Barbed Fence": 9,
@@ -73,7 +73,7 @@ def get_skin_visuals(profile, catalog):
     skin_data = catalog.get(skin, {})
     return {
         "skin": skin,
-        "emoji": skin_data.get("emoji", "🏚️"),
+        "emoji": skin_data.get("emoji", "🏣"),
         "color": skin_data.get("color", 0x8e44ad)
     }
 
