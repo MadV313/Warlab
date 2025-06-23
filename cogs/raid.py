@@ -200,7 +200,7 @@ class CloseButton(discord.ui.Button):
 class RaidView(discord.ui.View):
     def __init__(self, ctx, attacker, defender, visuals, reinforcements,
                  stash_visual, stash_img_path, is_test_mode, phase=0, target=None):
-        super().__init__(timeout=None)
+        super().__init__(timeout=300)
         self.ctx = ctx
         self.attacker = attacker
         self.defender = defender
