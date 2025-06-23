@@ -1,21 +1,16 @@
-# utils/adminLogger.py
+# utils/adminLogger.py — Remote persistent logging
 
-import json
 from datetime import datetime
-from pathlib import Path
+from utils.fileIO import load_file, save_file
 
-LOG_PATH = Path("logs/admin_actions.json")
-LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-
+LOG_PATH = "logs/admin_actions.json"
 MAX_LOG_ENTRIES = 500  # Optional cap
 
-def log_admin_action(admin_user, target_user, action_type, details, note=None):
+async def log_admin_action(admin_user, target_user, action_type, details, note=None):
     try:
-        # Load existing log
-        if LOG_PATH.exists():
-            with open(LOG_PATH, "r") as f:
-                logs = json.load(f)
-        else:
+        # Load existing log from remote
+        logs = await load_file(LOG_PATH)
+        if not isinstance(logs, list):
             logs = []
 
         log_entry = {
@@ -41,8 +36,9 @@ def log_admin_action(admin_user, target_user, action_type, details, note=None):
         if len(logs) > MAX_LOG_ENTRIES:
             logs = logs[-MAX_LOG_ENTRIES:]
 
-        with open(LOG_PATH, "w") as f:
-            json.dump(logs, f, indent=2)
+        await save_file(LOG_PATH, logs)
+
+        print(f"📝 [AdminLogger] Logged admin action: {action_type} -> {target_user.name}")
 
     except Exception as e:
-        print(f"[LOGGER ERROR] Failed to log admin action: {e}")
+        print(f"❌ [LOGGER ERROR] Failed to log admin action: {e}")
