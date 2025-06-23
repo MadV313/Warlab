@@ -134,7 +134,9 @@ class BlackMarket(commands.Cog):
 
         print("📦 [BlackMarket] Checking current rotation...")
         market = await load_file(MARKET_FILE)
-        if not market or market.get("expires", "") < datetime.utcnow().isoformat():
+
+        # ✅ PATCH: Handle missing file or empty fallback
+        if not market or not isinstance(market, dict) or market.get("expires", "") < datetime.utcnow().isoformat():
             print("🔁 [BlackMarket] Generating new rotation...")
             market = await self.generate_market()
             await save_file(MARKET_FILE, market)
