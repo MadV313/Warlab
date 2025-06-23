@@ -1,13 +1,14 @@
-# cogs/rank.py — Fixed Prestige Display + Rank Sync with Task Counter
+# cogs/rank.py — Fixed Prestige Display + Proper Prestige Class Logic
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json, random
 from datetime import datetime
+import pytz
 
-USER_DATA_FILE      = "data/user_profiles.json"
-WARLAB_CHANNEL_ID   = 1382187883590455296
+USER_DATA_FILE = "data/user_profiles.json"
+WARLAB_CHANNEL_ID = 1382187883590455296
 
 RANK_TITLES = {
     0: "Unranked Survivor",
@@ -38,6 +39,9 @@ BOOST_CATALOG = {
     "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 1000}
 }
 
+def is_weekend():
+    return datetime.now(pytz.utc).weekday() in [4, 5, 6]
+
 class CloseButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary, row=1)
@@ -52,7 +56,6 @@ class RankView(discord.ui.View):
         self.user_data = user_data
         self.update_callback = update_callback
 
-        self.prestige_button.disabled = self.user_data.get("builds_completed", 0) < 5
         self.add_item(CloseButton())
 
     @discord.ui.button(label="🧬 Prestige", style=discord.ButtonStyle.danger, custom_id="prestige_button")
@@ -60,31 +63,53 @@ class RankView(discord.ui.View):
         if str(itx.user.id) != self.user_id:
             await itx.response.send_message("❌ You can’t use another player’s UI.", ephemeral=True)
             return
-        if self.user_data.get("builds_completed", 0) < 5:
-            await itx.response.send_message("🔒 You need at least 5 full builds to prestige.", ephemeral=True)
+
+        points = self.user_data.get("prestige_points", 0)
+        if points < 200:
+            await itx.response.send_message("🔒 You need **200 prestige points** to prestige.\nEarn 50 per build or successful raid.", ephemeral=True)
             return
 
-        rolled_id = random.choice(list(SPECIAL_REWARDS))
-        self.user_data["special_class"] = rolled_id
+        # Determine eligible class
+        skin = self.user_data.get("active_skin", "")
+        raids = self.user_data.get("successful_raids", 0)
+        stash = self.user_data.get("stash", [])
+        scavenges = self.user_data.get("scavenges", 0)
+
+        reward = None
+        if skin == "Dark Ops" and raids >= 25:
+            reward = SPECIAL_REWARDS[1]
+            self.user_data["special_class"] = 1
+        elif skin == "Architect's Vault" and len([b for b in stash if "Blueprint" in b]) >= 12:
+            reward = SPECIAL_REWARDS[2]
+            self.user_data["special_class"] = 2
+        elif skin == "Scavenger's Haven" and scavenges >= 100:
+            reward = SPECIAL_REWARDS[3]
+            self.user_data["special_class"] = 3
+        else:
+            self.user_data["special_class"] = None
+
+        # Reset for prestige
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
+        self.user_data["prestige_points"] -= 200  # Allow rollover
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
-        self.user_data["prestige_points"] = 0
         self.user_data["stash"] = []
         self.user_data["boosts"] = {}
         self.update_callback(self.user_id, self.user_data)
 
-        reward = SPECIAL_REWARDS[rolled_id]
-        await itx.response.send_message(f"🌟 Prestige successful! You rolled **{reward['title']}**.", ephemeral=True)
+        title = reward['title'] if reward else "No Prestige Class — equip a qualifying Lab Skin and meet requirements to unlock one."
+        color = reward["color"] if reward else 0x5865f2
+
+        await itx.response.send_message(f"🌟 Prestige successful!\n🎖 **{title}**", ephemeral=True)
 
         ch = itx.client.get_channel(WARLAB_CHANNEL_ID)
         if ch:
             emb = discord.Embed(
                 title="🧬 Prestige Unlocked!",
                 description=(f"{itx.user.mention} reached **Prestige {self.user_data['prestige']}**\n"
-                             f"🎖 Prestige Class: **{reward['title']}**\n\n"
+                             f"🎖 Prestige Class: **{title}**\n\n"
                              "🎲 Use `/rollblueprint` to try for a new schematic!"),
-                color=reward["color"], timestamp=datetime.utcnow()
+                color=color, timestamp=datetime.utcnow()
             )
             emb.set_thumbnail(url=itx.user.display_avatar.url)
             await ch.send(embed=emb)
@@ -95,10 +120,10 @@ class RankView(discord.ui.View):
             for r_id in PRESTIGE_ROLES.values():
                 role = guild.get_role(r_id)
                 if role and role in itx.user.roles and role.id != roleID:
-                    await itx.user.remove_roles(role, reason="Old prestige role removed")
+                    await itx.user.remove_roles(role)
             new_role = guild.get_role(roleID)
             if new_role:
-                await itx.user.add_roles(new_role, reason="Prestige reward role")
+                await itx.user.add_roles(new_role)
 
     @discord.ui.button(label="⚡ Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
     async def buy_boost_button(self, itx: discord.Interaction, _):
@@ -176,15 +201,6 @@ class Rank(commands.Cog):
         all_d[uid] = data
         self._save(all_d)
 
-    def _determine_special_reward(self, ud: dict):
-        if ud.get("blueprints_complete"):
-            return SPECIAL_REWARDS[1]
-        if ud.get("scavenges", 0) >= 100:
-            return SPECIAL_REWARDS[2]
-        if ud.get("successful_raids", 0) >= 25:
-            return SPECIAL_REWARDS[3]
-        return None
-
     @app_commands.command(name="rank", description="View rank, prestige & buy boosts.")
     async def rank(self, itx: discord.Interaction):
         uid = str(itx.user.id)
@@ -195,23 +211,27 @@ class Rank(commands.Cog):
             await itx.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        prestige = user.get("prestige", 0)
-        prestige_points = user.get("prestige_points", 0)
-        coins = user.get("coins", 0)
+        # Accumulate prestige points
         builds = user.get("builds_completed", 0)
-        turnins = user.get("turnins_completed", 0)
         raids = user.get("successful_raids", 0)
         scav = user.get("scavenges", 0)
+        turnins = user.get("turnins_completed", 0)
         tasks = user.get("tasks_completed", 0)
+        coins = user.get("coins", 0)
         boosts = user.get("boosts", {})
-        class_id = user.get("special_class")
 
-        reward = self._determine_special_reward(user) or SPECIAL_REWARDS.get(class_id)
+        earned = builds * 50 * (100 if is_weekend() else 50) + raids * (100 if is_weekend() else 50)
+        user["prestige_points"] = earned
+        self._update_user(uid, user)
+
+        prestige = user.get("prestige", 0)
+        class_id = user.get("special_class")
+        reward = SPECIAL_REWARDS.get(class_id)
         color = reward["color"] if reward else 0x88e0ef
 
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank", color=color)
         emb.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(prestige, "Unknown Survivor"), inline=False)
-        emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {prestige_points}/200", inline=False)
+        emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {user['prestige_points']}/200", inline=False)
         emb.add_field(name="💰 Coins", value=str(coins))
         emb.add_field(name="📦 Turn-ins", value=str(turnins))
         emb.add_field(name="🔁 Builds Completed", value=str(builds))
