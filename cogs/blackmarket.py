@@ -1,4 +1,4 @@
-# cogs/blackmarket.py — WARLAB rotating black market shop (final logic: Guard Dog/Trap disable after purchase only)
+# cogs/blackmarket.py — WARLAB rotating black market shop (remote storage + debug)
 
 import discord
 from discord.ext import commands
@@ -43,6 +43,7 @@ class BuyButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
+        print(f"🛒 [BlackMarket] {interaction.user.name} clicked Buy for: {self.item_name}")
         profiles = await load_file(USER_DATA) or {}
         user = profiles.get(user_id, {"coins": 0, "stash": [], "blueprints": [], "purchasedToday": []})
 
@@ -68,6 +69,7 @@ class BuyButton(discord.ui.Button):
 
         profiles[user_id] = user
         await save_file(USER_DATA, profiles)
+        print(f"💾 [BlackMarket] Purchase saved for {interaction.user.name} — {self.item_name}")
 
         await interaction.response.send_message(
             f"✅ You purchased **{self.item_name}**!\n"
@@ -84,7 +86,7 @@ class CloseButton(discord.ui.Button):
             for msg in getattr(self.view, "stored_messages", []):
                 await msg.edit(content="❌ Black Market closed.", embed=None, view=None)
         except Exception as e:
-            print(f"❌ Failed to close Black Market UI: {e}")
+            print(f"❌ [BlackMarket] Failed to close UI: {e}")
         await interaction.response.defer()
 
 class MarketView(discord.ui.View):
@@ -119,6 +121,7 @@ class BlackMarket(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
+        print(f"📡 [BlackMarket] Loading profile for: {interaction.user.name}")
         profiles = await load_file(USER_DATA) or {}
         user = profiles.get(user_id)
 
@@ -129,8 +132,10 @@ class BlackMarket(commands.Cog):
             )
             return
 
+        print("📦 [BlackMarket] Checking current rotation...")
         market = await load_file(MARKET_FILE)
         if not market or market.get("expires", "") < datetime.utcnow().isoformat():
+            print("🔁 [BlackMarket] Generating new rotation...")
             market = await self.generate_market()
             await save_file(MARKET_FILE, market)
 
@@ -163,6 +168,7 @@ class BlackMarket(commands.Cog):
         view.stored_messages = [embed_msg]
 
     async def generate_market(self):
+        print("🎲 [BlackMarket] Building new item pool from recipes...")
         all_items = []
         for src in (WEAPONS, ARMOR, EXPLOSIVES):
             pool = await load_file(src)
@@ -178,9 +184,11 @@ class BlackMarket(commands.Cog):
             {"name": "Claymore Trap", "rarity": "Special"}
         ]
 
+        expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        print(f"📅 [BlackMarket] Rotation expires at: {expires_at}")
         return {
             "offers": rotation,
-            "expires": (datetime.utcnow() + timedelta(hours=24)).isoformat()
+            "expires": expires_at
         }
 
 async def setup(bot):
