@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (duplicate prevention + profile check)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with remote storage + debug)
 
 import discord
 from discord.ext import commands
@@ -18,6 +18,7 @@ class BlueprintManager(commands.Cog):
         self.bot = bot
 
     async def get_all_blueprints(self):
+        print("📦 [BlueprintManager] Fetching all blueprint names from recipe files...")
         blueprints = set()
         for path in RECIPE_FILES:
             data = await load_file(path) or {}
@@ -54,6 +55,8 @@ class BlueprintManager(commands.Cog):
 
         item = item.replace(" Blueprint", "").strip()
         full_item = f"{item} Blueprint"
+
+        print(f"📋 [BlueprintManager] Validating blueprint: {full_item}")
         valid_blueprints = await self.get_all_blueprints()
         if item not in valid_blueprints:
             await interaction.followup.send(
@@ -62,6 +65,7 @@ class BlueprintManager(commands.Cog):
             )
             return
 
+        print(f"📡 [BlueprintManager] Loading user profiles from: {USER_DATA}")
         profiles = await load_file(USER_DATA) or {}
         user_id = str(user.id)
 
@@ -70,6 +74,7 @@ class BlueprintManager(commands.Cog):
                 f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
                 ephemeral=True
             )
+            print(f"❌ [BlueprintManager] Profile not found for UID: {user_id}")
             return
 
         profile = profiles.get(user_id)
@@ -81,12 +86,14 @@ class BlueprintManager(commands.Cog):
                     f"⚠️ {user.mention} already has blueprint **{full_item}**.",
                     ephemeral=True
                 )
+                print(f"⚠️ [BlueprintManager] Duplicate blueprint not added for UID: {user_id}")
             else:
                 blueprints.append(full_item)
                 await interaction.followup.send(
                     f"✅ Blueprint **{full_item}** unlocked for {user.mention}.",
                     ephemeral=True
                 )
+                print(f"✅ [BlueprintManager] Added blueprint '{full_item}' to UID: {user_id}")
 
         elif action == "remove":
             if full_item in blueprints:
@@ -95,20 +102,25 @@ class BlueprintManager(commands.Cog):
                     f"🗑 Blueprint **{full_item}** removed from {user.mention}.",
                     ephemeral=True
                 )
+                print(f"🗑 [BlueprintManager] Removed blueprint '{full_item}' from UID: {user_id}")
             else:
                 await interaction.followup.send(
                     f"⚠️ {user.mention} does not have that blueprint.",
                     ephemeral=True
                 )
+                print(f"⚠️ [BlueprintManager] Tried to remove non-existent blueprint for UID: {user_id}")
                 return
 
         profile["blueprints"] = blueprints
         profiles[user_id] = profile
+
+        print(f"📤 [BlueprintManager] Saving updated profile for UID: {user_id}")
         await save_file(USER_DATA, profiles)
 
     @blueprint.autocomplete("item")
     async def autocomplete_item(self, interaction: discord.Interaction, current: str):
         all_items = await self.get_all_blueprints()
+        print(f"🔍 [BlueprintManager] Autocomplete lookup for: {current}")
         return [
             app_commands.Choice(name=bp + " Blueprint", value=bp + " Blueprint")
             for bp in all_items if current.lower() in bp.lower()
