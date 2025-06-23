@@ -8,6 +8,7 @@ from PIL import Image, ImageSequence
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
+from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS
 from cogs.fortify import render_stash_visual, get_skin_visuals
 from stash_image_generator import generate_stash_image
 
@@ -338,8 +339,22 @@ class RaidView(discord.ui.View):
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["successful_raids"] = user.get("successful_raids", 0) + 1
+
+                user, ranked_up = apply_prestige_xp(user, xp_gain=prestige_gain)
+
+                # Prestige info for embed
+                prestige_rank = user.get("prestige", 0)
+                prestige_points = user.get("prestige_points", 0)
+                next_threshold = PRESTIGE_TIERS.get(prestige_rank + 1, None)
+                if next_threshold:
+                    summary.append(f"🧬 Prestige: {prestige_rank} — {prestige_points}/{next_threshold}")
+                else:
+                    summary.append(f"🧬 Prestige: {prestige_rank} — MAX")
     
-                print(f"📦 POST-UPDATE STASH: {user['stash']}")
+                if ranked_up:
+                    summary.append(f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
+                    
+                    print(f"📦 POST-UPDATE STASH: {user['stash']}")
     
                 self.attacker = user
                 profiles[uid] = user
