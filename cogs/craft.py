@@ -8,13 +8,13 @@ from collections import Counter
 from utils.fileIO import load_file, save_file
 from utils.inventory import has_required_parts, remove_parts
 from utils.prestigeBonusHandler import can_craft_tactical, can_craft_explosives
+from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS  # 🧬 Prestige import
 
 USER_DATA       = "data/user_profiles.json"
 RECIPE_DATA     = "data/item_recipes.json"
 ARMOR_DATA      = "data/armor_blueprints.json"
 EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 
-# ✅ Items that are eligible for /turnin
 TURNIN_ELIGIBLE = [
     "Mlock", "M4", "Mosin", "USG45", "BK-133",
     "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grenade",
@@ -93,6 +93,9 @@ class CraftButton(discord.ui.Button):
                 user.setdefault("crafted", []).append(crafted)
 
             user["builds_completed"] = user.get("builds_completed", 0) + 1
+
+            # 🧬 Prestige XP Gain
+            user, ranked_up = apply_prestige_xp(user, xp_gain=25)
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
 
@@ -103,15 +106,78 @@ class CraftButton(discord.ui.Button):
             )
             embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
             embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
-            embed.set_footer(text="WARLAB | SV13 Bot")
 
+            # 🧬 Add Prestige Progress
+            prestige_rank = user.get("prestige", 0)
+            prestige_points = user.get("prestige_points", 0)
+            next_threshold = PRESTIGE_TIERS.get(prestige_rank + 1, None)
+            if next_threshold:
+                embed.add_field(name="🧬 Prestige", value=f"{prestige_rank} — {prestige_points}/{next_threshold}", inline=False)
+            else:
+                embed.add_field(name="🧬 Prestige", value=f"{prestige_rank} — MAX", inline=False)
+
+            if ranked_up:
+                embed.description += f"\n🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!"
+
+            embed.set_footer(text="WARLAB | SV13 Bot")
             await interaction.followup.send(embed=embed, ephemeral=True)
 
             if hasattr(self.view, "stored_messages"):
                 updated_stash = Counter(user["stash"])
                 updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
                 updated_view.stored_messages = self.view.stored_messages
-                await self.view.stored_messages[0].edit(view=updated_view)
+            
+                # Rebuild embed to reflect updated parts
+                grouped_buildables = {
+                    "🔫 Weapons": [],
+                    "🪖 Armor": [],
+                    "💣 Explosives": []
+                }
+            
+                for bp in user.get("blueprints", []):
+                    core_name = bp.replace(" Blueprint", "").strip()
+                    key = core_name.lower()
+                    recipe = all_recipes.get(key)
+                    if not recipe:
+                        continue
+            
+                    reqs = recipe.get("requirements", {})
+                    can_build = all(updated_stash.get(p, 0) >= q for p, q in reqs.items())
+                    if can_build:
+                        line = f"{recipe['produces']} — ✅ Build Ready"
+                    else:
+                        missing = [
+                            f"{q - updated_stash.get(p, 0)}× {p}"
+                            for p, q in reqs.items()
+                            if updated_stash.get(p, 0) < q
+                        ]
+                        line = f"{recipe['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
+            
+                    if key in explosives:
+                        grouped_buildables["💣 Explosives"].append(line)
+                    elif key in armor:
+                        grouped_buildables["🪖 Armor"].append(line)
+                    else:
+                        grouped_buildables["🔫 Weapons"].append(line)
+            
+                updated_embed = discord.Embed(
+                    title="🔧 Blueprint Workshop (Updated)",
+                    description="Click an item below to craft it if you have the parts.",
+                    color=0xf1c40f
+                )
+                updated_embed.set_footer(text="WARLAB | SV13 Bot")
+            
+                updated_embed.add_field(
+                    name="📘 Blueprints Owned",
+                    value="\n".join(f"• {bp}" for bp in user.get("blueprints", [])),
+                    inline=False
+                )
+            
+                for group_name, items in grouped_buildables.items():
+                    if items:
+                        updated_embed.add_field(name=group_name, value="\n".join(items), inline=False)
+            
+                await self.view.stored_messages[0].edit(embed=updated_embed, view=updated_view)
 
         except Exception as e:
             print(f"❌ [CraftButton] Exception occurred: {e}")
