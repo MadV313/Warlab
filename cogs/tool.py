@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools (flat list stash logic to match scavenge/task)
+# cogs/tool.py — Admin: Give or remove tools (flat list stash logic to match scavenge/task) + Registration Check
 
 import discord
 from discord.ext import commands
@@ -42,9 +42,15 @@ class ToolManager(commands.Cog):
 
             profiles = await load_file(USER_DATA) or {}
             uid = str(user.id)
-            profile = profiles.get(uid, {})
 
-            # Ensure stash is a flat list
+            if uid not in profiles:
+                await interaction.followup.send(
+                    f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                    ephemeral=True
+                )
+                return
+
+            profile = profiles[uid]
             stash = profile.get("stash", [])
             if not isinstance(stash, list):
                 stash = []
