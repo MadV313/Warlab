@@ -1,4 +1,4 @@
-# cogs/coin.py — Admin: Give or take coins from a player (persistent + debug logging)
+# cogs/coin.py — Admin: Give or take coins from a player (persistent + debug logging + floor = -100)
 
 import discord
 from discord.ext import commands
@@ -50,26 +50,21 @@ class CoinManager(commands.Cog):
         print(f"💰 [CoinManager] Current coins: {current_coins}")
 
         if action == "take":
-            if current_coins <= 0:
+            new_total = current_coins - amount
+            if new_total < -100:
                 await interaction.response.send_message(
-                    f"⚠️ {user.mention} already has **0 coins**.",
+                    f"❌ Cannot reduce coins below **-100**.\nCurrent: **{current_coins}**, Requested: **-{amount}**",
                     ephemeral=True
                 )
                 return
-            if amount > current_coins:
-                await interaction.response.send_message(
-                    f"❌ Cannot remove **{amount} coins** — {user.mention} only has **{current_coins} coins**.",
-                    ephemeral=True
-                )
-                return
-            profile["coins"] = current_coins - amount
+            profile["coins"] = new_total
             result = f"🗑 Removed **{amount} coins** from {user.mention}."
-            print(f"🧾 [CoinManager] Removed {amount} coins from UID: {user_id}")
+            print(f"🧾 [CoinManager] Removed {amount} coins from UID: {user_id}, New Total: {new_total}")
 
         elif action == "give":
             profile["coins"] = current_coins + amount
             result = f"✅ Gave **{amount} coins** to {user.mention}."
-            print(f"🧾 [CoinManager] Gave {amount} coins to UID: {user_id}")
+            print(f"🧾 [CoinManager] Gave {amount} coins to UID: {user_id}, New Total: {profile['coins']}")
 
         profiles[user_id] = profile
         print(f"📤 [CoinManager] Saving profile update for UID: {user_id}")
