@@ -1,4 +1,4 @@
-# cogs/coin.py — Admin: Give or take coins from a player (with registration check)
+# cogs/coin.py — Admin: Give or take coins from a player (persistent + debug logging)
 
 import discord
 from discord.ext import commands
@@ -34,9 +34,11 @@ class CoinManager(commands.Cog):
             return
 
         user_id = str(user.id)
+        print(f"📥 [CoinManager] Loading profiles for coin update: {user_id}")
         profiles = await load_file(USER_DATA) or {}
 
         if user_id not in profiles:
+            print(f"❌ [CoinManager] No profile found for {user_id}")
             await interaction.response.send_message(
                 f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
                 ephemeral=True
@@ -45,6 +47,7 @@ class CoinManager(commands.Cog):
 
         profile = profiles[user_id]
         current_coins = profile.get("coins", 0)
+        print(f"💰 [CoinManager] Current coins: {current_coins}")
 
         if action == "take":
             if current_coins <= 0:
@@ -61,12 +64,15 @@ class CoinManager(commands.Cog):
                 return
             profile["coins"] = current_coins - amount
             result = f"🗑 Removed **{amount} coins** from {user.mention}."
+            print(f"🧾 [CoinManager] Removed {amount} coins from UID: {user_id}")
 
         elif action == "give":
             profile["coins"] = current_coins + amount
             result = f"✅ Gave **{amount} coins** to {user.mention}."
+            print(f"🧾 [CoinManager] Gave {amount} coins to UID: {user_id}")
 
         profiles[user_id] = profile
+        print(f"📤 [CoinManager] Saving profile update for UID: {user_id}")
         await save_file(USER_DATA, profiles)
 
         await interaction.response.send_message(
