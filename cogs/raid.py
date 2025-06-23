@@ -236,13 +236,13 @@ class RaidView(discord.ui.View):
         except Exception as e:
             print(f"⚠️ button-disable edit failed: {e}")
         await interaction.response.defer(thinking=True, ephemeral=True)
-
+    
         phase_msgs = [
             "<a:ezgif:1385822657852735499> Warlab is recalibrating the targeting system... Stand by!",
             "<a:ezgif:1385822657852735499> Reloading heavy munitions... Stand by!",
             "<a:ezgif:1385822657852735499> Final strike preparing... Stand by!"
         ]
-
+    
         async def countdown(msg: str):
             try:
                 wait = await interaction.followup.send(f"{msg} *(25s)*", ephemeral=True)
@@ -252,15 +252,15 @@ class RaidView(discord.ui.View):
                 await wait.delete()
             except Exception as e:
                 print(f"⛔ countdown error: {e}")
-
+    
         asyncio.create_task(countdown(phase_msgs[self.phase]))
-
+    
         i = self.phase
         hit = True
         rtype = None
         consumed = False
         dmg = None
-
+    
         for rtype_check in DEFENCE_TYPES:
             ch = calculate_block_chance(self.reinforcements, rtype_check, self.attacker)
             if ch and random.randint(1, 100) <= ch:
@@ -271,29 +271,29 @@ class RaidView(discord.ui.View):
                     self.reinforcements[rtype] -= 1
                     consumed = True
                 break
-
+    
         if hit:
             viable = [k for k, v in self.reinforcements.items() if v > 0]
             dmg = random.choice(viable) if viable else None
             if dmg and random.random() < 0.8:
                 self.reinforcements[dmg] -= 1
                 print("🧱 damaged:", dmg)
-
+    
         if any(v < self.reinforcements_start.get(k, 0) for k, v in self.reinforcements.items()):
             self.stash_img_path = generate_stash_image(
                 self.defender_id, self.reinforcements,
                 base_path="assets/stash_layers",
                 baseImagePath=self.defender.get("baseImage") if isinstance(self.defender, dict) else None
             )
-
+    
         self.results.append(hit)
         self.stash_visual = render_stash_visual(self.reinforcements)
-
+    
         overlay = OVERLAY_GIFS[i] if hit else MISS_GIF
         merged_path = f"temp/merged_phase{i+1}_{self.attacker_id}.gif"
         await asyncio.to_thread(merge_overlay, self.stash_img_path, f"assets/overlays/{overlay}", merged_path)
         file = discord.File(merged_path, filename="merged.gif")
-
+    
         phase_titles = ["🔸 Phase 1", "🔸 Phase 2", "🌟 Final Phase"]
         embed = discord.Embed(
             title=f"{self.visuals['emoji']} {self.target.display_name}'s Fortified Stash — {phase_titles[i]}",
@@ -307,10 +307,10 @@ class RaidView(discord.ui.View):
         else:
             embed.description += f"\n\n💥 {rtype} triggered — attack blocked {'(Consumed ×1)' if consumed else '(Not consumed)'}"
         embed.set_image(url="attachment://merged.gif")
-
+    
         self.phase += 1
         print(f"📊 Phase {i+1} done — Hit={hit}  Trigger={rtype}  Consumed={consumed}")
-
+    
         if self.phase < 3:
             next_view = RaidView(
                 self.ctx, self.attacker, self.defender, self.visuals,
@@ -334,12 +334,12 @@ class RaidView(discord.ui.View):
             prestige_gain = 0
             self.stolen_items = []
             self.stolen_coins = 0
-
+    
             if self.success:
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-
+    
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)
@@ -367,12 +367,9 @@ class RaidView(discord.ui.View):
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["successful_raids"] = user.get("successful_raids", 0) + 1
-
-                user, ranked_up = apply_prestige_xp(user, xp_gain=prestige_gain)
-
-                # Prestige info for embed
+    
                 user, ranked_up, rank_msg = apply_prestige_xp(user, xp_gain=prestige_gain)
-
+    
                 prestige_rank    = user.get("prestige", 0)
                 prestige_points  = user.get("prestige_points", 0)
                 next_threshold   = PRESTIGE_TIERS.get(prestige_rank + 1)
@@ -382,7 +379,6 @@ class RaidView(discord.ui.View):
                 )
                 if ranked_up:
                     summary.append(rank_msg or f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
-                    
                     print(f"📦 POST-UPDATE STASH: {user['stash']}")
     
                 self.attacker = user
@@ -416,9 +412,12 @@ class RaidView(discord.ui.View):
                 else:
                     summary.append("💸 No further penalty — coin balance already at minimum.")
     
-            destroyed = summarize_destroyed(self.reinforcements_start, self.reinforcements, self.triggered)
-            if destroyed:
-                summary.append(f"🧱 Defenses destroyed: {destroyed}")
+            try:
+                destroyed = summarize_destroyed(self.reinforcements_start, self.reinforcements, self.triggered)
+                if destroyed:
+                    summary.append(f"🧱 Defenses destroyed: {destroyed}")
+            except Exception as e:
+                print(f"⚠️ Failed to summarize destroyed defenses: {e}")
     
             fin_embed.add_field(name="🏁 Raid Summary", value="\n".join(summary), inline=False)
             fin_embed.set_image(url="attachment://final.gif")
