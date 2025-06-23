@@ -1,4 +1,4 @@
-# cogs/adjust.py — Admin: Adjust prestige rank (give/take levels)
+# cogs/adjust.py — Admin: Adjust prestige rank (give/take levels) [Persistent + Debug Ready]
 
 import discord
 from discord.ext import commands
@@ -7,10 +7,10 @@ from typing import Literal
 from datetime import datetime
 
 from utils.fileIO import load_file, save_file
-from utils.prestigeUtils import broadcast_prestige_announcement  # ✅ NEW
+from utils.prestigeUtils import broadcast_prestige_announcement  # ✅ WARLAB rank-up alerts
 
 USER_DATA = "data/user_profiles.json"
-WARLAB_CHANNEL_ID = 1382187883590455296  # ✅ WARLAB broadcast channel
+WARLAB_CHANNEL_ID = 1382187883590455296  # Warlab broadcast target
 
 RANK_TITLES = {
     0: "Unranked Survivor",
@@ -55,9 +55,11 @@ class AdjustPrestige(commands.Cog):
             return
 
         user_id = str(user.id)
+        print(f"📡 [Adjust] Loading profiles from {USER_DATA}")
         profiles = await load_file(USER_DATA) or {}
 
         if user_id not in profiles:
+            print(f"❌ [Adjust] Profile not found for UID {user_id}")
             await interaction.response.send_message(
                 f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
                 ephemeral=True
@@ -69,23 +71,28 @@ class AdjustPrestige(commands.Cog):
 
         if action == "take":
             if current_prestige <= 0:
+                print(f"⚠️ [Adjust] {user.display_name} already at 0 prestige.")
                 await interaction.response.send_message(
                     f"⚠️ {user.mention} is already at **0 prestige**.", ephemeral=True)
                 return
             if amount > current_prestige:
+                print(f"❌ [Adjust] Cannot remove {amount} from {current_prestige}")
                 await interaction.response.send_message(
                     f"❌ Cannot remove **{amount} prestige** — {user.mention} only has **{current_prestige}**.",
                     ephemeral=True)
                 return
             profile["prestige"] = current_prestige - amount
             result = f"🗑 Removed **{amount} prestige** from {user.mention}."
+            print(f"✅ [Adjust] {result}")
 
         elif action == "give":
             profile["prestige"] = current_prestige + amount
             result = f"✅ Gave **{amount} prestige** to {user.mention}."
-            await broadcast_prestige_announcement(interaction.client, user, profile)  # ✅ NEW CENTRAL LOGIC
+            print(f"✅ [Adjust] {result}")
+            await broadcast_prestige_announcement(interaction.client, user, profile)
 
         profiles[user_id] = profile
+        print(f"📤 [Adjust] Saving profile for UID {user_id}")
         await save_file(USER_DATA, profiles)
 
         rank_title = RANK_TITLES.get(profile["prestige"], "Prestige Specialist")
