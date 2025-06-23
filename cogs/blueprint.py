@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage + suffix applied)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage + suffix applied, now prevents duplicates)
 
 import discord
 from discord.ext import commands
@@ -68,19 +68,15 @@ class BlueprintManager(commands.Cog):
         blueprints = profile.get("blueprints", [])
 
         if action == "give":
-            added = False
-            for _ in range(quantity):
-                if full_item not in blueprints:
-                    blueprints.append(full_item)
-                    added = True
-            if added:
+            if full_item in blueprints:
                 await interaction.followup.send(
-                    f"✅ Blueprint **{full_item}** unlocked for {user.mention}.",
+                    f"⚠️ {user.mention} already has blueprint **{full_item}**.",
                     ephemeral=True
                 )
             else:
+                blueprints.append(full_item)
                 await interaction.followup.send(
-                    f"⚠️ {user.mention} already has blueprint **{full_item}**.",
+                    f"✅ Blueprint **{full_item}** unlocked for {user.mention}.",
                     ephemeral=True
                 )
 
