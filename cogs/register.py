@@ -13,7 +13,7 @@ class RegisterCog(commands.Cog):
     @app_commands.command(name="register", description="Create your Warlab profile.")
     async def register(self, interaction: Interaction):
         uid = str(interaction.user.id)
-        existing = get_profile(uid)
+        existing = await get_profile(uid)
 
         print(f"📥 [/register] Called by: {interaction.user} ({uid})")
 
