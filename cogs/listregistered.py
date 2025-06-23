@@ -1,13 +1,14 @@
-# cogs/listregistered.py — Paginated list of registered players with navigation buttons
+# cogs/listregistered.py — Paginated list of registered players with progress overview
 
 import discord
 from discord.ext import commands
 from discord import app_commands
+from collections import Counter
 
 from utils.fileIO import load_file
 
 USER_DATA = "data/user_profiles.json"
-ENTRIES_PER_PAGE = 20
+ENTRIES_PER_PAGE = 10
 
 class RegisteredListView(discord.ui.View):
     def __init__(self, pages, user):
@@ -16,14 +17,13 @@ class RegisteredListView(discord.ui.View):
         self.current_page = 0
         self.user = user
 
-        # Disable previous on first page
         self.previous_button.disabled = True
         if len(pages) == 1:
             self.next_button.disabled = True
 
     async def update_embed(self, interaction):
         embed = discord.Embed(
-            title="📋 Registered Player List",
+            title="📋 Registered Player Overview",
             description=self.pages[self.current_page],
             color=0x2ecc71
         )
@@ -54,41 +54,50 @@ class ListRegistered(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="listregistered", description="Show all currently registered players.")
+    @app_commands.command(name="listregistered", description="Show all currently registered players and progress.")
     async def listregistered(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
         profiles = await load_file(USER_DATA) or {}
         guild = interaction.guild
         user_ids = list(profiles.keys())
-        total = len(user_ids)
-
         entries = []
-        unresolved = 0
 
         for uid in user_ids:
+            profile = profiles[uid]
             try:
                 member = guild.get_member(int(uid)) or await guild.fetch_member(int(uid))
-                entries.append(f"• {member.display_name} ({uid})")
+                name = member.display_name
             except:
-                entries.append(f"• [Unknown User] ({uid})")
-                unresolved += 1
+                name = "[Unknown User]"
 
-        # Split into pages of 20
+            stash = Counter(profile.get("stash", []))
+            reinforcements = profile.get("reinforcements", {})
+            blueprints = profile.get("blueprints", [])
+            prestige = profile.get("prestige", 0)
+
+            entries.append(
+                f"• **{name}** (`{uid}`)\n"
+                f"   - 🎒 Stash: {sum(stash.values())} items\n"
+                f"   - 🛡️ Defenses: {sum(reinforcements.values())} active\n"
+                f"   - 🧰 Builds: {len(blueprints)} completed\n"
+                f"   - 🏅 Rank: Prestige {prestige}\n"
+            )
+
+        # Paginate every 10 entries
         pages = [
             "\n".join(entries[i:i + ENTRIES_PER_PAGE])
             for i in range(0, len(entries), ENTRIES_PER_PAGE)
         ]
 
-        # Send first embed and navigation view
         embed = discord.Embed(
-            title="📋 Registered Player List",
+            title="📋 Registered Player Overview",
             description=pages[0],
             color=0x2ecc71
         )
         embed.set_footer(text=f"Page 1 of {len(pages)}")
-        view = RegisteredListView(pages, interaction.user)
 
+        view = RegisteredListView(pages, interaction.user)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 async def setup(bot):
