@@ -34,7 +34,7 @@ PRESTIGE_ROLES = {
 
 BOOST_CATALOG = {
     "daily_loot_boost": {"label": "Daily Loot Boost (24 h)", "cost": 100},
-    "perm_loot_boost": {"label": "Permanent Loot Boost", "cost": 5000},  # updated
+    "perm_loot_boost": {"label": "Permanent Loot Boost", "cost": 5000},
     "coin_doubler": {"label": "Permanent Coin Doubler", "cost": 1000}
 }
 
@@ -197,6 +197,8 @@ class Rank(commands.Cog):
             return
 
         prestige = user.get("prestige", 0)
+        prestige_points = user.get("prestige_points", 0)
+        next_threshold = 200
         level = user.get("rank_level", 0)
         coins = user.get("coins", 0)
         builds = user.get("builds_completed", 0)
@@ -213,13 +215,11 @@ class Rank(commands.Cog):
 
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank", color=color)
         emb.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(prestige, "Unknown Survivor"), inline=False)
-        if reward:
-            emb.add_field(name="🧬 Prestige Class", value=reward["title"], inline=False)
-        emb.add_field(name="🧬 Prestige", value=f"{prestige} — {builds}/200", inline=False)
+        emb.add_field(name="🧬 Prestige", value=f"{prestige} — {prestige_points}/{next_threshold}", inline=False)
         emb.add_field(name="💰 Coins", value=str(coins))
         emb.add_field(name="📦 Turn-ins", value=str(turnins))
-        emb.add_field(name="🔁 Builds", value=str(builds))
-        emb.add_field(name="☣️ Raids Won", value=str(raids))
+        emb.add_field(name="🔁 Builds Completed", value=str(builds))
+        emb.add_field(name="🪖 Raids Won", value=str(raids))
         emb.add_field(name="🔍 Scavenges", value=str(scav))
         emb.add_field(name="📝 Tasks Done", value=str(tasks))
 
