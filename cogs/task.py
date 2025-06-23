@@ -79,9 +79,10 @@ class Task(commands.Cog):
         items_master = self._load(ITEMS_MASTER_FILE)
         black_market = self._load(BLACKMARKET_FILE)
         crafted_set  = self._load_all_crafted_items()
+        blueprint_list = user.get("blueprints", [])
 
-        std_pool  = list(items_master.keys())
-        rare_pool = list(black_market.keys())
+        std_pool  = [item for item in items_master.keys() if item not in blueprint_list]
+        rare_pool = [item for item in black_market.keys() if item not in blueprint_list]
 
         base_coins = random.randint(40, 80)
         boosts     = user.get("boosts", {})
@@ -91,12 +92,10 @@ class Task(commands.Cog):
             base_coins *= 2
             active_boosts.append("💰 Coin Doubler")
 
-        # Mark task complete and increment counter
         user["last_task"] = today_str
         user["coins"] = user.get("coins", 0) + base_coins
         user["tasks_completed"] = user.get("tasks_completed", 0) + 1
 
-        # Bonus Loot Boosts
         bonus_rolls = 0
         if boosts.get("perm_loot_boost"):
             bonus_rolls += 1
@@ -120,7 +119,10 @@ class Task(commands.Cog):
 
         for _ in range(total_rolls):
             is_rare = random.randint(1, 100) <= 5
-            loot    = random.choice(rare_pool) if (is_rare and rare_pool) else random.choice(std_pool)
+            loot_pool = rare_pool if (is_rare and rare_pool) else std_pool
+            if not loot_pool:
+                continue
+            loot = random.choice(loot_pool)
             item_rewards.append(loot)
             user["stash"].append(loot)
             if loot in crafted_set:
@@ -149,7 +151,6 @@ class Task(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        # 🔔 Bonus crafted item follow-up
         if crafted_rewards:
             crafted_line = ", ".join([f"**{itm}**" for itm in crafted_rewards])
             await interaction.followup.send(
