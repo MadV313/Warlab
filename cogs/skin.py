@@ -1,4 +1,4 @@
-# cogs/skin.py — Admin: Give or remove Lab Skins using dynamic catalog
+# cogs/skin.py — Admin: Give or remove Lab Skins using dynamic catalog + Registration Check
 
 import discord
 from discord.ext import commands
@@ -81,7 +81,15 @@ class LabSkinManager(commands.Cog):
 
         profiles = await load_file(USER_DATA) or {}
         uid = str(user.id)
-        profile = profiles.get(uid, {"labskins": []})
+
+        if uid not in profiles:
+            await interaction.response.send_message(
+                f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        profile = profiles[uid]
         owned_skins = profile.get("labskins", [])
 
         if action == "give":
