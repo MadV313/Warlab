@@ -1,4 +1,4 @@
-# cogs/listregistered.py — Registered Player Overview with Reinforcements Added
+# cogs/listregistered.py — Registered Player Overview with Reinforcements Added + Remote Storage + Debug Prints
 
 import discord
 from discord.ext import commands
@@ -45,6 +45,7 @@ class RegisteredListView(discord.ui.View):
         )
         embed.set_footer(text=f"Page {self.current_page + 1} of {len(self.pages)}")
         await interaction.response.edit_message(embed=embed, view=self)
+        print(f"🔁 [listregistered.py] Page changed to {self.current_page + 1}")
 
     @discord.ui.button(label="⏪ Previous", style=discord.ButtonStyle.secondary)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -72,20 +73,22 @@ class ListRegistered(commands.Cog):
 
     @app_commands.command(name="listregistered", description="Show all currently registered players and progress.")
     async def listregistered(self, interaction: discord.Interaction):
+        print(f"📥 [listregistered.py] /listregistered called by {interaction.user} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=True)
 
         profiles = await load_file(USER_DATA) or {}
+        print(f"📊 [listregistered.py] Loaded {len(profiles)} profiles from remote storage")
         guild = interaction.guild
-        user_ids = list(profiles.keys())
         entries = []
 
-        for uid in user_ids:
+        for uid in profiles:
             profile = profiles[uid]
             try:
                 member = guild.get_member(int(uid)) or await guild.fetch_member(int(uid))
                 name = member.display_name
             except:
                 name = "[Unknown User]"
+                print(f"⚠️ [listregistered.py] Could not fetch member name for ID: {uid}")
 
             prestige = profile.get("prestige", 0)
             prestige_pts = profile.get("prestige_points", 0)
@@ -110,6 +113,11 @@ class ListRegistered(commands.Cog):
                 f"   - ⚡ Boosts: {boosts_owned}/3 | 💰 Coins: {coins} | 🛡️ Reinforcements: {reinforce_total}"
             )
 
+        if not entries:
+            print("❌ [listregistered.py] No profiles found to display")
+            await interaction.followup.send("❌ No registered users found.", ephemeral=True)
+            return
+
         pages = [
             "\n\n".join(entries[i:i + ENTRIES_PER_PAGE])
             for i in range(0, len(entries), ENTRIES_PER_PAGE)
@@ -117,13 +125,14 @@ class ListRegistered(commands.Cog):
 
         embed = discord.Embed(
             title="📋 Registered Player Overview",
-            description=pages[0] if pages else "No registered users found.",
+            description=pages[0],
             color=0x2ecc71
         )
         embed.set_footer(text=f"Page 1 of {len(pages)}")
 
         view = RegisteredListView(pages, interaction.user)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        print(f"✅ [listregistered.py] Sent player list with {len(pages)} pages to {interaction.user}")
 
 async def setup(bot):
     await bot.add_cog(ListRegistered(bot))
