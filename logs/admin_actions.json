@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2025-06-23T17:15:45Z",
+    "admin_id": "1173049392371085392",
+    "admin_tag": "AdminUser#1234",
+    "action": "Gave 10 coins",
+    "target_user_id": "123456789012345678",
+    "target_tag": "PlayerOne#0001",
+    "details": {
+      "command": "/givecoins",
+      "amount": 10,
+      "reason": "Event prize payout"
+    }
+  }
+]
