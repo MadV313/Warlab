@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from utils.storageClient import load_file, save_file
+from utils.profileManager import get_profile  # ✅ Consistent with registration logic
 
 USER_DATA = "data/user_profiles.json"
 ADMIN_ROLE_ID = 1173049392371085392
@@ -19,15 +20,26 @@ class ForceUnregister(commands.Cog):
     @is_admin()
     async def forceunregister(self, interaction: discord.Interaction, target: discord.Member):
         user_id = str(target.id)
-        profiles = await load_file(USER_DATA) or {}
+        print(f"📥 [/forceunregister] Called by {interaction.user} to remove {target} ({user_id})")
 
-        if user_id not in profiles:
-            await interaction.response.send_message(f"⚠️ `{target.display_name}` is not registered.", ephemeral=True)
+        profiles = await load_file(USER_DATA) or {}
+        existing = await get_profile(user_id)
+
+        if not existing:
+            print(f"⚠️ [forceunregister] {target.display_name} has no profile.")
+            await interaction.response.send_message(
+                f"⚠️ `{target.display_name}` is not registered.",
+                ephemeral=True
+            )
             return
 
         del profiles[user_id]
         await save_file(USER_DATA, profiles)
-        await interaction.response.send_message(f"🗑️ `{target.display_name}` has been unregistered.", ephemeral=True)
+        print(f"🗑️ [forceunregister] Removed profile for {target.display_name}")
+        await interaction.response.send_message(
+            f"🗑️ `{target.display_name}` has been unregistered.",
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(ForceUnregister(bot))
