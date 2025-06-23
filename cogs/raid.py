@@ -337,7 +337,7 @@ class RaidView(discord.ui.View):
     
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
-                user["raids_completed"] = user.get("raids_completed", 0) + 1
+                user["successful_raids"] = user.get("successful_raids", 0) + 1
     
                 print(f"📦 POST-UPDATE STASH: {user['stash']}")
     
