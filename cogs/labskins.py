@@ -1,4 +1,4 @@
-# cogs/labskins.py — Lab skin equip command with unlock validation and hardcoded descriptions
+# cogs/labskins.py — Lab skin equip command with unlock validation and debug logging
 
 import discord
 from discord.ext import commands
@@ -8,7 +8,6 @@ from utils.fileIO import load_file, save_file
 USER_DATA = "data/user_profiles.json"
 CATALOG_PATH = "data/labskin_catalog.json"
 
-# 🧱 Mapping of lab skin names to base image paths
 SKIN_IMAGE_PATHS = {
     "Rust Bucket": "assets/stash_layers/base_house_prestige1.PNG",
     "Field Technician": "assets/stash_layers/base_house_prestige2.png",
@@ -20,7 +19,6 @@ SKIN_IMAGE_PATHS = {
     "Scavenger's Haven": "assets/stash_layers/base_house_scavenge_master.png"
 }
 
-# 📝 Hardcoded descriptions for dropdown clarity
 SKIN_DESCRIPTIONS = {
     "Rust Bucket": "Corroded, rusty old lab setup. Basic, no frills.",
     "Field Technician": "Tactical repair station used by survivors in the field.",
@@ -88,6 +86,7 @@ class LabSkinSelect(discord.ui.Select):
 
         selected = self.values[0]
         if not self.meets_unlock_conditions(selected):
+            print(f"🔒 [labskins.py] Skin not unlocked: {selected}")
             await interaction.response.send_message("🔒 You haven't unlocked that skin yet.", ephemeral=True)
             return
 
@@ -99,6 +98,7 @@ class LabSkinSelect(discord.ui.Select):
 
         profiles[self.user_id] = profile
         await save_file(USER_DATA, profiles)
+        print(f"✅ [labskins.py] {self.user_id} set active skin to {selected}")
 
         await interaction.response.send_message(f"✅ Lab skin set to **{selected}**.", ephemeral=True)
 
@@ -113,6 +113,7 @@ class LabSkins(commands.Cog):
 
     @app_commands.command(name="labskins", description="Equip a visual theme for your lab (Prestige I required)")
     async def labskins(self, interaction: discord.Interaction):
+        print(f"📥 [labskins.py] /labskins triggered by {interaction.user} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=True)
 
         user_id = str(interaction.user.id)
@@ -120,10 +121,12 @@ class LabSkins(commands.Cog):
         profile = profiles.get(user_id)
 
         if not profile:
+            print(f"❌ [labskins.py] Profile not found for {user_id}")
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
         if profile.get("prestige", 0) < 1:
+            print(f"🔒 [labskins.py] User {user_id} has insufficient prestige.")
             await interaction.followup.send("🔒 Prestige I required to use lab skins.", ephemeral=True)
             return
 
@@ -155,6 +158,7 @@ class LabSkins(commands.Cog):
         unlocked_skins += [s for s in profile.get("labskins", []) if s not in unlocked_skins]
 
         if not unlocked_skins:
+            print(f"⚠️ [labskins.py] No skins unlocked for {user_id}")
             await interaction.followup.send("⚠️ You have not unlocked any lab skins yet.", ephemeral=True)
             return
 
@@ -170,6 +174,7 @@ class LabSkins(commands.Cog):
 
         view = LabSkinView(user_id, unlocked_skins, catalog, profile)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        print(f"📤 [labskins.py] Sent skin selection UI to {user_id}")
 
 async def setup(bot):
     await bot.add_cog(LabSkins(bot))
