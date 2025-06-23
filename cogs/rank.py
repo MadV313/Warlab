@@ -1,4 +1,4 @@
-# cogs/rank.py — Fixed Prestige Display + Rank Sync
+# cogs/rank.py — Fixed Prestige Display + Rank Sync with Task Counter
 
 import discord
 from discord.ext import commands
@@ -200,12 +200,11 @@ class Rank(commands.Cog):
         coins = user.get("coins", 0)
         builds = user.get("builds_completed", 0)
         turnins = user.get("turnins_completed", 0)
-        boosts = user.get("boosts", {})
-        class_id = user.get("special_class")
-
         raids = user.get("successful_raids", 0)
         scav = user.get("scavenges", 0)
         tasks = user.get("tasks_completed", 0)
+        boosts = user.get("boosts", {})
+        class_id = user.get("special_class")
 
         reward = self._determine_special_reward(user) or SPECIAL_REWARDS.get(class_id)
         color = reward["color"] if reward else 0x88e0ef
