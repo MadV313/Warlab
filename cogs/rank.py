@@ -9,7 +9,7 @@ import pytz
 
 from utils.storageClient import load_file, save_file
 
-USER_DATA_FILE = "user_profiles.json"
+USER_DATA_FILE = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296
 
 RANK_TITLES = {
