@@ -10,10 +10,10 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA      = "data/user_profiles.json"
 
-# ── Corrected: daily cache / rotation file =========
-MARKET_FILE    = "data/market_rotation.json"          # holds today’s offers + expires
+# ── Daily cache / rotation file (unchanged) ───────────────────────────────
+MARKET_FILE    = "data/market_rotation.json"          # holds current offers + expiry
 
-# ── Corrected: master item pool =====================
+# ── Master item pool ──────────────────────────────────────────────────────
 ITEM_POOL_FILE = "data/market_items_master.json"      # full catalog used to generate offers
 
 # Flat pricing by simplified type/category
@@ -31,7 +31,11 @@ ITEM_EMOJIS = {
     "mod"        : "🎯"
 }
 
-# ─────────────────────────────────────────────────────────────────────
+# How long each rotation lasts (⏱ 12 hours)
+ROTATION_HOURS = 12
+ROTATION_DELTA = timedelta(hours=ROTATION_HOURS)
+
+# ──────────────────────────────────────────────────────────────────────────
 class BuyButton(discord.ui.Button):
     def __init__(self, label, cost, item_name, category):
         super().__init__(label=f"Buy {label} — {cost}🪙", style=discord.ButtonStyle.green)
@@ -61,7 +65,7 @@ class BuyButton(discord.ui.Button):
             ephemeral=True
         )
 
-# ─────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 class CloseButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="Close", style=discord.ButtonStyle.danger)
@@ -69,12 +73,12 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.edit_message(content="❌ Market closed.", embed=None, view=None)
 
-# ─────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 class Market(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="market", description="Browse today's rotating market")
+    @app_commands.command(name="market", description="Browse today’s rotating market")
     async def market(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
@@ -90,7 +94,7 @@ class Market(commands.Cog):
             )
             return
 
-        # Load or refresh rotation (3-hour window)
+        # Load or refresh rotation (⏱ 12-hour window)
         market = await load_file(MARKET_FILE)
         if not market or market.get("expires", "") < datetime.utcnow().isoformat():
             try:
@@ -102,14 +106,14 @@ class Market(commands.Cog):
 
         offers = market.get("offers", [])
         if not offers:
-            await interaction.followup.send("⚠️ No items available in today’s market.", ephemeral=True)
+            await interaction.followup.send("⚠️ No items available in the current market rotation.", ephemeral=True)
             return
 
         embed = discord.Embed(
             title="🛒 WARLAB Market — Tools & Parts",
             description=f"Your Balance: **{user.get('coins', 0)} coins**",
             color=0x1abc9c
-        ).set_footer(text="Stock rotates every 3 h")
+        ).set_footer(text=f"Stock rotates every {ROTATION_HOURS} h")
 
         view = discord.ui.View()
         for item in offers:
@@ -120,7 +124,7 @@ class Market(commands.Cog):
 
             embed.add_field(
                 name=f"{emoji} {name}",
-                value=f"Type: **{category.title()}**\nCost: **{cost} coins**",
+                value=f"Type: **{category.replace('_', ' ').title()}**\nCost: **{cost} coins**",
                 inline=False
             )
             view.add_item(BuyButton(name, cost, name, category))
@@ -128,8 +132,12 @@ class Market(commands.Cog):
         view.add_item(CloseButton())
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
-    # ─────────────────────────────────────────────────────────────────
+    # ──────────────────────────────────────────────────────────────────────
     async def generate_market(self):
+        """
+        Pick 2 random tools + 3 random parts for the next rotation and
+        timestamp expiry ROTATION_HOURS ahead.
+        """
         full_pool = await load_file(ITEM_POOL_FILE) or {}
 
         if not isinstance(full_pool, dict):
@@ -140,8 +148,8 @@ class Market(commands.Cog):
         parts = [name for name, data in full_pool.items()
                  if isinstance(data, dict) and data.get("type") != "tool"]
 
-        selected_tools = random.sample(tools, k=2) if len(tools) >= 2 else tools
-        selected_parts = random.sample(parts, k=3) if len(parts) >= 3 else parts
+        selected_tools = random.sample(tools, k=min(2, len(tools)))
+        selected_parts = random.sample(parts, k=min(3, len(parts)))
 
         offers = []
         for name in selected_tools + selected_parts:
@@ -155,9 +163,9 @@ class Market(commands.Cog):
 
         return {
             "offers": offers,
-            "expires": (datetime.utcnow() + timedelta(hours=3)).isoformat()
+            "expires": (datetime.utcnow() + ROTATION_DELTA).isoformat()
         }
 
-# ─────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 async def setup(bot):
     await bot.add_cog(Market(bot))
