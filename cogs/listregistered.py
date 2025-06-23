@@ -32,12 +32,17 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         try:
             if self.ephemeral:
-                await interaction.message.edit(content="❌ Registered users view closed.", embed=None, view=None)
+                await interaction.response.edit_message(
+                    content="❌ Registered users view closed.",
+                    embed=None,
+                    view=None
+                )
             else:
                 await interaction.message.delete()
+            print(f"❎ [listregistered.py] Closed view successfully.")
         except Exception as e:
             print(f"❌ [listregistered.py] Failed to close view: {e}")
-        await interaction.response.defer()
+        self.view.stop()
 
 class RegisteredListView(discord.ui.View):
     def __init__(self, pages, user, ephemeral: bool):
@@ -45,6 +50,7 @@ class RegisteredListView(discord.ui.View):
         self.pages = pages
         self.current_page = 0
         self.user = user
+        self.ephemeral = ephemeral
 
         self.previous_button.disabled = True
         if len(pages) == 1:
