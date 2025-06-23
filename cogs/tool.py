@@ -1,4 +1,4 @@
-# cogs/tool.py — Admin: Give or remove tools (flat list stash logic to match scavenge/task) + Registration Check
+# cogs/tool.py — Admin: Give or remove tools (persistent stash logic) + debug prints
 
 import discord
 from discord.ext import commands
@@ -34,7 +34,7 @@ class ToolManager(commands.Cog):
     ):
         try:
             await interaction.response.defer(ephemeral=True)
-            print(f"📥 /tool: {interaction.user.display_name} {action} {quantity}×{item} → {user.display_name}")
+            print(f"🛠️ /tool used by {interaction.user.display_name} → {action.upper()} {quantity} × {item} for {user.display_name}")
 
             if quantity <= 0:
                 await interaction.followup.send("⚠️ Quantity must be greater than **0**.", ephemeral=True)
@@ -44,6 +44,7 @@ class ToolManager(commands.Cog):
             uid = str(user.id)
 
             if uid not in profiles:
+                print(f"❌ Profile missing for UID {uid} — {user.display_name}")
                 await interaction.followup.send(
                     f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
                     ephemeral=True
@@ -53,12 +54,14 @@ class ToolManager(commands.Cog):
             profile = profiles[uid]
             stash = profile.get("stash", [])
             if not isinstance(stash, list):
+                print(f"⚠️ Stash was not a list. Resetting stash for UID {uid}")
                 stash = []
 
             # ── GIVE ───────────────────────
             if action == "give":
                 stash.extend([item] * quantity)
                 msg = f"✅ Gave **{quantity} × {item}** to {user.mention}."
+                print(f"✅ {quantity} × {item} added to {user.display_name}'s stash")
 
             # ── REMOVE ─────────────────────
             else:
@@ -71,15 +74,17 @@ class ToolManager(commands.Cog):
                     new_stash.append(s)
 
                 stash = new_stash
-                msg = (
-                    f"🗑 Removed **{removed} × {item}** from {user.mention}."
-                    if removed else
-                    f"⚠️ {user.mention} doesn't have that many **{item}**."
-                )
+                if removed:
+                    msg = f"🗑 Removed **{removed} × {item}** from {user.mention}."
+                    print(f"🗑 {removed} × {item} removed from {user.display_name}'s stash")
+                else:
+                    msg = f"⚠️ {user.mention} doesn't have that many **{item}**."
+                    print(f"⚠️ Not enough {item} to remove from {user.display_name}")
 
             profile["stash"] = stash
             profiles[uid] = profile
             await save_file(USER_DATA, profiles)
+            print(f"💾 Profile updated for {user.display_name} ({uid})")
             await interaction.followup.send(msg, ephemeral=True)
 
         except Exception as e:
