@@ -1,36 +1,41 @@
-# cogs/register.py — Creates player profile if not already registered
-
 import discord
 from discord.ext import commands
-from discord import app_commands, Interaction
-
+from discord import app_commands
 from utils.profileManager import create_profile, get_profile
 
-class RegisterCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+ADMIN_ROLE_ID = 1173049392371085392
+
+class ForceRegister(commands.Cog):
+    def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="register", description="Create your Warlab profile.")
-    async def register(self, interaction: Interaction):
-        uid = str(interaction.user.id)
+    def is_admin():
+        async def predicate(interaction: discord.Interaction):
+            return any(role.id == ADMIN_ROLE_ID for role in interaction.user.roles)
+        return app_commands.check(predicate)
+
+    @app_commands.command(name="forceregister", description="Admin: Force-register a player manually.")
+    @is_admin()
+    async def forceregister(self, interaction: discord.Interaction, target: discord.Member):
+        uid = str(target.id)
+        print(f"📥 [/forceregister] Attempt by {interaction.user.display_name} for UID {uid}")
+
         existing = await get_profile(uid)
 
-        print(f"📥 [/register] Called by: {interaction.user} ({uid})")
-
         if existing:
-            print(f"✅ [/register] Profile already exists for {uid}.")
+            print(f"⚠️ [/forceregister] {target.display_name} is already registered.")
             await interaction.response.send_message(
-                "✅ You already have a profile — you can now try all other /warlab commands!",
+                f"🟡 `{target.display_name}` is already registered.",
                 ephemeral=True
             )
             return
 
-        await create_profile(uid, interaction.user.display_name)
-        print(f"🆕 [/register] Created new profile for {uid} — {interaction.user.display_name}")
+        await create_profile(uid, target.display_name)
+        print(f"✅ [/forceregister] Registered {target.display_name} successfully.")
         await interaction.response.send_message(
-            "🔗 Profile created! You can now use all other /warlab commands like /scavenge, /rank, etc.",
+            f"✅ `{target.display_name}` has been force-registered.",
             ephemeral=True
         )
 
-async def setup(bot: commands.Bot):
-    await bot.add_cog(RegisterCog(bot))
+async def setup(bot):
+    await bot.add_cog(ForceRegister(bot))
