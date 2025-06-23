@@ -117,7 +117,7 @@ class TurnInButton(discord.ui.Button):
 
 class RewardConfirmView(discord.ui.View):
     def __init__(self, player_id: str, item_name: str):
-        super().__init__(timeout=None)
+        super().__init__(timeout=86400)
         self.add_item(ConfirmRewardButton(player_id, item_name))
 
 class ConfirmRewardButton(discord.ui.Button):
@@ -187,7 +187,7 @@ class TurnIn(commands.Cog):
             color=0x3498DB
         )
 
-        view = discord.ui.View(timeout=120)
+        view = discord.ui.View(timeout=86400)
         for item in eligible[:10]:
             view.add_item(TurnInButton(item, user_id))
 
