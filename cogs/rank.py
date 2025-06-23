@@ -19,9 +19,9 @@ RANK_TITLES = {
 }
 
 SPECIAL_REWARDS = {
-    1: {"title": "🔬 Scavenger Elite", "color": 0x3cb4fc},
+    1: {"title": "☣️ Raider Elite", "color": 0x880808},
     2: {"title": "💉 Weaponsmith Elite", "color": 0x88e0a0},
-    3: {"title": "☣️ Raider Elite", "color": 0x880808}
+    3: {"title": "🔬 Scavenger Elite", "color": 0x3cb4fc}
 }
 
 PRESTIGE_ROLES = {
