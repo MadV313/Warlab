@@ -1,7 +1,7 @@
 # cogs/scavenge.py — WARLAB daily gathering logic (3-hour cooldown + boost-aware + counter)
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import json
 import random
@@ -55,8 +55,9 @@ class Scavenge(commands.Cog):
             user.setdefault("last_scavenge", None)
             user.setdefault("boosts", {})
             user.setdefault("scavenges", 0)
+            user.setdefault("blueprints", [])
 
-            boosts = user.get("boosts", {})
+            boosts = user["boosts"]
             pulls = random.randint(2, 5)
             boost_msgs = []
 
@@ -81,30 +82,45 @@ class Scavenge(commands.Cog):
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
-            # Load loot and rarity weights
+            # Load loot pool and filter
             item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
-            loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if isinstance(v, dict) and "rarity" in v]
+            owned_blueprints = set(user["blueprints"])
+
+            loot_pool = []
+            for name, data in item_catalog.items():
+                if not isinstance(data, dict) or "rarity" not in data:
+                    continue
+                if data.get("type") == "crafted" and f"{name} Blueprint" in owned_blueprints:
+                    continue  # Skip crafted item if its blueprint is already owned
+                loot_pool.append({"item": name, "rarity": data["rarity"]})
 
             found = []
             crafted_found = []
-            for _ in range(pulls):
+            attempts = 0
+            max_attempts = 15  # Avoid infinite loops
+
+            while len(found) < pulls and attempts < max_attempts:
                 item = weighted_choice(loot_pool, rarity_weights)
-                if item:
-                    name = item["item"]
+                if not item:
+                    break
+                name = item["item"]
+                if name not in found:
                     found.append(name)
                     if item_catalog.get(name, {}).get("type") == "crafted":
                         crafted_found.append(name)
+                attempts += 1
 
             # Weekend bonus
             if is_weekend_boost_active():
                 bonus = weighted_choice(loot_pool, rarity_weights)
                 if bonus:
                     name = bonus["item"]
-                    found.append(name)
-                    boost_msgs.append("🎁 Weekend Boost activated!")
-                    if item_catalog.get(name, {}).get("type") == "crafted":
-                        crafted_found.append(name)
+                    if name not in found:
+                        found.append(name)
+                        boost_msgs.append("🎁 Weekend Boost activated!")
+                        if item_catalog.get(name, {}).get("type") == "crafted":
+                            crafted_found.append(name)
 
             coins_found = random.randint(5, 25)
             if boosts.get("coin_doubler"):
