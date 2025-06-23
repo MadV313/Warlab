@@ -210,27 +210,36 @@ class Rank(commands.Cog):
             await itx.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
-        builds = user.get("builds_completed", 0)
-        raids = user.get("successful_raids", 0)
+        from utils.prestigeUtils import get_prestige_progress
 
-        earned = (builds + raids) * (100 if is_weekend() else 50)
-        user["prestige_points"] = earned
+        progress = get_prestige_progress(user.get("prestige_points", 0))
+        prestige = progress["current_rank"]
+        points = progress["points"]
+        threshold = progress["next_threshold"]
+        
+        # Sync rank in case backend changed
+        user["prestige"] = prestige
         self._update_user(uid, user)
 
-        prestige = user.get("prestige", 0)
         class_id = user.get("special_class")
         reward = SPECIAL_REWARDS.get(class_id)
         color = reward["color"] if reward else 0x88e0ef
 
         emb = discord.Embed(title=f"🏅 {itx.user.display_name}'s Rank", color=color)
         emb.add_field(name="🎖️ Rank Title", value=RANK_TITLES.get(prestige, "Unknown Survivor"), inline=False)
-        emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {user['prestige_points']}/200", inline=False)
+        if threshold:
+            emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — {points}/{threshold}", inline=False)
+        else:
+            emb.add_field(name="🧬 Prestige", value=f"Tier {prestige} — MAX", inline=False)
+
         emb.add_field(name="💰 Coins", value=str(user.get("coins", 0)))
         emb.add_field(name="📦 Turn-ins", value=str(user.get("turnins_completed", 0)))
-        emb.add_field(name="🔁 Builds Completed", value=str(builds))
-        emb.add_field(name="🪖 Raids Won", value=str(raids))
+        emb.add_field(name="🔁 Builds Completed", value=str(user.get("builds_completed", 0)))
+        emb.add_field(name="🪖 Raids Won", value=str(user.get("successful_raids", 0)))
         emb.add_field(name="🔍 Scavenges", value=str(user.get("scavenges", 0)))
         emb.add_field(name="📝 Tasks Done", value=str(user.get("tasks_completed", 0)))
+
+
 
         lines = []
         for k, meta in BOOST_CATALOG.items():
