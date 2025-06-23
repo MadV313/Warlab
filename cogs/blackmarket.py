@@ -1,4 +1,4 @@
-# cogs/blackmarket.py — WARLAB rotating black market shop (updated to block duplicates + daily limits)
+# cogs/blackmarket.py — WARLAB rotating black market shop (final logic: Guard Dog/Trap disable after purchase only)
 
 import discord
 from discord.ext import commands
@@ -92,7 +92,6 @@ class MarketView(discord.ui.View):
         super().__init__(timeout=90)
         self.stored_messages = []
         owned_blueprints = user.get("blueprints", [])
-        stash = user.get("stash", [])
         purchased = user.get("purchasedToday", [])
 
         for item in offers:
@@ -100,16 +99,13 @@ class MarketView(discord.ui.View):
             rarity = item["rarity"]
             cost = ITEM_COSTS.get(rarity, 999)
 
-            # Check if already owned or already purchased
-            blueprint_name = f"{name} Blueprint"
-            already_owned = (
-                blueprint_name in owned_blueprints
-                if name not in ["Guard Dog", "Claymore Trap"]
-                else name in stash
-            )
-            already_bought = name in purchased
+            disabled = name in purchased
 
-            disabled = already_owned or already_bought
+            if name not in ["Guard Dog", "Claymore Trap"]:
+                blueprint_name = f"{name} Blueprint"
+                if blueprint_name in owned_blueprints:
+                    disabled = True
+
             self.add_item(BuyButton(name, cost, name, rarity, disabled=disabled))
 
         self.add_item(CloseButton())
@@ -138,11 +134,10 @@ class BlackMarket(commands.Cog):
             market = await self.generate_market()
             await save_file(MARKET_FILE, market)
 
-            # Reset everyone's purchasedToday list
             for uid in profiles:
                 profiles[uid]["purchasedToday"] = []
             await save_file(USER_DATA, profiles)
-            user = profiles.get(user_id)  # Refresh user's reset profile
+            user = profiles.get(user_id)
 
         offers = market["offers"]
 
