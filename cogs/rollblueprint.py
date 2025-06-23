@@ -1,4 +1,4 @@
-# cogs/rollblueprint.py
+# cogs/rollblueprint.py — Roll for a unique blueprint once per prestige level
 
 import discord
 from discord.ext import commands
@@ -24,6 +24,7 @@ class RollBlueprint(commands.Cog):
     async def rollblueprint(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         user_id = str(interaction.user.id)
+        print(f"🎲 [/rollblueprint] Called by {interaction.user} ({user_id})")
 
         # Load files
         rarity_weights  = await load_file(RARITY_WEIGHTS)
@@ -33,11 +34,13 @@ class RollBlueprint(commands.Cog):
         user_data       = await load_file(USER_DATA)
 
         if user_id not in user_data:
+            print("❌ User not registered.")
             await interaction.followup.send("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
             return
 
         profile  = user_data[user_id]
         prestige = profile.get("prestige", 0)
+        print(f"📊 Prestige Level: {prestige}")
 
         if prestige < 1:
             await interaction.followup.send("🔒 You must reach Prestige 1 to roll for blueprints.", ephemeral=True)
@@ -63,23 +66,28 @@ class RollBlueprint(commands.Cog):
                         "rarity": entry.get("rarity", "Common")
                     })
 
+        print(f"📦 Unique blueprints available: {len(all_items)}")
+
         if not all_items:
             await interaction.followup.send("✅ You’ve already unlocked all available blueprints!", ephemeral=True)
             return
 
+        # Try max 10 times to find a unique blueprint
         max_attempts = 10
         selected = None
-        for _ in range(max_attempts):
+        for attempt in range(max_attempts):
             candidate = weighted_choice(all_items, rarity_weights)
             if candidate and candidate["item"] not in current_blueprints:
                 selected = candidate
                 break
 
         if not selected:
+            print("❌ Failed to find a unique blueprint after max attempts.")
             await interaction.followup.send("❌ Failed to roll a unique blueprint. Please try again later.", ephemeral=True)
             return
 
         # Update user profile
+        print(f"🆕 Blueprint Unlocked: {selected['item']} (Rarity: {selected['rarity']})")
         profile.setdefault("blueprints", []).append(selected["item"])
         profile.setdefault("blueprint_rolls_used", []).append(prestige)
         user_data[user_id] = profile
