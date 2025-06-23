@@ -104,7 +104,7 @@ class LabSkinSelect(discord.ui.Select):
 
 class LabSkinView(discord.ui.View):
     def __init__(self, user_id, skins, catalog, profile):
-        super().__init__(timeout=60)
+        super().__init__(timeout=300)
         self.add_item(LabSkinSelect(user_id, skins, catalog, profile))
 
 class LabSkins(commands.Cog):
