@@ -1,4 +1,4 @@
-# cogs/craft.py — Button-based blueprint crafting with Fortify-style corrections + Prestige Rank Sync
+# cogs/craft.py — Blueprint crafting with persistent storage + debug logging
 
 import discord
 from discord.ext import commands
@@ -40,26 +40,31 @@ class CraftButton(discord.ui.Button):
             await interaction.followup.send("⚠️ This isn’t your crafting menu.", ephemeral=True)
             return
 
-        profiles   = await load_file(USER_DATA) or {}
-        recipes    = await load_file(RECIPE_DATA) or {}
-        armor      = await load_file(ARMOR_DATA) or {}
-        explosives = await load_file(EXPLOSIVE_DATA) or {}
+        try:
+            profiles   = await load_file(USER_DATA) or {}
+            recipes    = await load_file(RECIPE_DATA) or {}
+            armor      = await load_file(ARMOR_DATA) or {}
+            explosives = await load_file(EXPLOSIVE_DATA) or {}
+        except Exception as e:
+            print(f"❌ [CraftButton] Failed to load data: {e}")
+            await interaction.followup.send("❌ Error loading crafting data.", ephemeral=True)
+            return
+
         all_recipes = {**recipes, **armor, **explosives}
-        user       = profiles.get(self.user_id)
+        user = profiles.get(self.user_id)
 
         if not user:
             await interaction.followup.send("❌ User profile not found.", ephemeral=True)
+            print(f"❌ [CraftButton] Profile not found: {self.user_id}")
             return
 
         blueprint_name = f"{self.blueprint} Blueprint"
-        owned_blueprints = user.get("blueprints", [])
-        if blueprint_name not in owned_blueprints:
+        if blueprint_name not in user.get("blueprints", []):
             await interaction.followup.send(f"🔒 You must unlock **{blueprint_name}** first.", ephemeral=True)
             return
 
         item_key = self.blueprint.lower()
         recipe = all_recipes.get(item_key)
-
         if not recipe or not isinstance(recipe, dict):
             await interaction.followup.send("❌ Invalid blueprint data.", ephemeral=True)
             return
@@ -88,16 +93,15 @@ class CraftButton(discord.ui.Button):
 
             crafted = recipe["produces"]
             user["stash"].append(crafted)
-
             if crafted in TURNIN_ELIGIBLE:
                 user.setdefault("crafted", []).append(crafted)
 
             user["builds_completed"] = user.get("builds_completed", 0) + 1
-
-            # 🧬 Prestige XP Gain (Craft = 25 XP)
             user, ranked_up, rank_up_msg = apply_prestige_xp(user, xp_gain=25)
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
+
+            print(f"🧪 [CraftButton] Crafted: {crafted} — XP applied — Saved profile: {self.user_id}")
 
             embed = discord.Embed(
                 title="✅ Crafting Successful",
@@ -107,7 +111,6 @@ class CraftButton(discord.ui.Button):
             embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
             embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
 
-            # 🧬 Add Prestige Progress
             prestige_rank = user.get("prestige", 0)
             prestige_points = user.get("prestige_points", 0)
             next_threshold = PRESTIGE_TIERS.get(prestige_rank + 1, None)
@@ -122,17 +125,13 @@ class CraftButton(discord.ui.Button):
             embed.set_footer(text="WARLAB | SV13 Bot")
             await interaction.followup.send(embed=embed, ephemeral=True)
 
+            # UI Update
             if hasattr(self.view, "stored_messages"):
                 updated_stash = Counter(user["stash"])
                 updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
                 updated_view.stored_messages = self.view.stored_messages
 
-                grouped_buildables = {
-                    "🔫 Weapons": [],
-                    "🪖 Armor": [],
-                    "💣 Explosives": []
-                }
-
+                grouped_buildables = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
                 for bp in user.get("blueprints", []):
                     core_name = bp.replace(" Blueprint", "").strip()
                     key = core_name.lower()
@@ -220,11 +219,13 @@ class Craft(commands.Cog):
     async def craft(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         uid = str(interaction.user.id)
+        print(f"🛠️ [Craft] Opening workshop for UID: {uid}")
         profiles = await load_file(USER_DATA) or {}
         recipes = await load_file(RECIPE_DATA) or {}
         armor = await load_file(ARMOR_DATA) or {}
         explosives = await load_file(EXPLOSIVE_DATA) or {}
         user = profiles.get(uid)
+
         if not user:
             await interaction.followup.send("❌ You don't have a profile yet. Use `/register` first.", ephemeral=True)
             return
@@ -236,9 +237,8 @@ class Craft(commands.Cog):
 
         stash = Counter(user.get("stash", []))
         all_recipes = {**recipes, **armor, **explosives}
-        grouped_buildables = {
-            "🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []
-        }
+        grouped_buildables = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
+
         for bp in blueprints:
             core_name = bp.replace(" Blueprint", "").strip()
             key = core_name.lower()
@@ -256,6 +256,7 @@ class Craft(commands.Cog):
                     if stash.get(p, 0) < q
                 ]
                 line = f"{recipe['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
+
             if key in explosives:
                 grouped_buildables["💣 Explosives"].append(line)
             elif key in armor:
@@ -280,8 +281,7 @@ class Craft(commands.Cog):
 
         view = CraftView(uid, blueprints, stash, all_recipes)
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        sent = await interaction.original_response()
-        view.stored_messages = [sent]
+        view.stored_messages = [await interaction.original_response()]
 
 async def setup(bot):
     await bot.add_cog(Craft(bot))
