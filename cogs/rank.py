@@ -1,13 +1,15 @@
-# cogs/rank.py — Fixed Prestige Display + Proper Prestige Class Logic
+# cogs/rank.py — Fixed Prestige Display + Proper Prestige Class Logic (Remote Persistence + Debug Prints)
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json, random
+import random
 from datetime import datetime
 import pytz
 
-USER_DATA_FILE = "data/user_profiles.json"
+from utils.storageClient import load_file, save_file
+
+USER_DATA_FILE = "user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296
 
 RANK_TITLES = {
@@ -55,7 +57,6 @@ class RankView(discord.ui.View):
         self.user_id = user_id
         self.user_data = user_data
         self.update_callback = update_callback
-
         self.add_item(CloseButton())
 
     @discord.ui.button(label="🧬 Prestige", style=discord.ButtonStyle.danger, custom_id="prestige_button")
@@ -68,6 +69,8 @@ class RankView(discord.ui.View):
         if points < 200:
             await itx.response.send_message("🔒 You need **200 prestige points** to prestige.\nEarn 50 per build or successful raid.", ephemeral=True)
             return
+
+        print(f"🧬 [Prestige] {self.user_id} prestiging with {points} points.")
 
         skin = self.user_data.get("active_skin", "")
         raids = self.user_data.get("successful_raids", 0)
@@ -87,14 +90,16 @@ class RankView(discord.ui.View):
         else:
             self.user_data["special_class"] = None
 
-        # Reset for prestige — allow point rollover
+        # Reset for prestige
         self.user_data["prestige"] = self.user_data.get("prestige", 0) + 1
         self.user_data["prestige_points"] -= 200
         self.user_data["builds_completed"] = 0
         self.user_data["rank_level"] = 0
         self.user_data["stash"] = []
         self.user_data["boosts"] = {}
-        self.update_callback(self.user_id, self.user_data)
+
+        print(f"✅ [Prestige] Updated user: {self.user_data}")
+        await self.update_callback(self.user_id, self.user_data)
 
         title = reward['title'] if reward else "No Prestige Class — equip a qualifying Lab Skin and meet requirements to unlock one."
         color = reward["color"] if reward else 0x5865f2
@@ -113,6 +118,7 @@ class RankView(discord.ui.View):
             emb.set_thumbnail(url=itx.user.display_avatar.url)
             await ch.send(embed=emb)
 
+        # Role assignment
         guild = itx.guild
         roleID = PRESTIGE_ROLES.get(self.user_data["prestige"])
         if guild and roleID:
@@ -176,7 +182,8 @@ class BoostDropdown(discord.ui.View):
 
         self.udata["coins"] -= cost
         self.udata.setdefault("boosts", {})[key] = True
-        self.update_cb(self.uid, self.udata)
+        print(f"⚡ [Boost] {self.uid} bought {key} for {cost} coins.")
+        await self.update_cb(self.uid, self.udata)
 
         await itx.response.send_message(f"✅ Boost purchased: **{meta['label']}**", ephemeral=True)
 
@@ -184,26 +191,16 @@ class Rank(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def _load(self):
-        try:
-            with open(USER_DATA_FILE) as f:
-                return json.load(f)
-        except:
-            return {}
-
-    def _save(self, data):
-        with open(USER_DATA_FILE, "w") as f:
-            json.dump(data, f, indent=2)
-
-    def _update_user(self, uid, data):
-        all_d = self._load()
-        all_d[uid] = data
-        self._save(all_d)
+    async def _update_user(self, uid, data):
+        print(f"💾 [Rank] Saving profile for UID {uid}")
+        all_profiles = await load_file(USER_DATA_FILE) or {}
+        all_profiles[uid] = data
+        await save_file(USER_DATA_FILE, all_profiles)
 
     @app_commands.command(name="rank", description="View rank, prestige & buy boosts.")
     async def rank(self, itx: discord.Interaction):
         uid = str(itx.user.id)
-        profiles = self._load()
+        profiles = await load_file(USER_DATA_FILE) or {}
         user = profiles.get(uid)
 
         if not user:
@@ -211,15 +208,13 @@ class Rank(commands.Cog):
             return
 
         from utils.prestigeUtils import get_prestige_progress
-
         progress = get_prestige_progress(user.get("prestige_points", 0))
         prestige = progress["current_rank"]
         points = progress["points"]
         threshold = progress["next_threshold"]
-        
-        # Sync rank in case backend changed
+
         user["prestige"] = prestige
-        self._update_user(uid, user)
+        await self._update_user(uid, user)
 
         class_id = user.get("special_class")
         reward = SPECIAL_REWARDS.get(class_id)
@@ -239,12 +234,10 @@ class Rank(commands.Cog):
         emb.add_field(name="🔍 Scavenges", value=str(user.get("scavenges", 0)))
         emb.add_field(name="📝 Tasks Done", value=str(user.get("tasks_completed", 0)))
 
-
-
+        boosts = user.get("boosts", {})
         lines = []
         for k, meta in BOOST_CATALOG.items():
-            owned = user.get("boosts", {}).get(k, False)
-            status = "✅" if owned else "❌"
+            status = "✅" if boosts.get(k) else "❌"
             lines.append(f"{status} {meta['label']} — {meta['cost']} coins")
         emb.add_field(name="⚡ Boosts", value="\n".join(lines), inline=False)
 
