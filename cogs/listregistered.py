@@ -1,5 +1,3 @@
-# cogs/listregistered.py — Registered Player Overview with Reinforcements Added + Remote Storage + Debug Prints
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -26,9 +24,24 @@ PRESTIGE_TITLES = {
 
 DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
+class CloseButton(discord.ui.Button):
+    def __init__(self, ephemeral: bool):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger)
+        self.ephemeral = ephemeral
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            if self.ephemeral:
+                await interaction.message.edit(content="❌ Registered users view closed.", embed=None, view=None)
+            else:
+                await interaction.message.delete()
+        except Exception as e:
+            print(f"❌ [listregistered.py] Failed to close view: {e}")
+        await interaction.response.defer()
+
 class RegisteredListView(discord.ui.View):
-    def __init__(self, pages, user):
-        super().__init__(timeout=60)
+    def __init__(self, pages, user, ephemeral: bool):
+        super().__init__(timeout=300)
         self.pages = pages
         self.current_page = 0
         self.user = user
@@ -36,6 +49,8 @@ class RegisteredListView(discord.ui.View):
         self.previous_button.disabled = True
         if len(pages) == 1:
             self.next_button.disabled = True
+
+        self.add_item(CloseButton(ephemeral))
 
     async def update_embed(self, interaction):
         embed = discord.Embed(
@@ -130,7 +145,7 @@ class ListRegistered(commands.Cog):
         )
         embed.set_footer(text=f"Page 1 of {len(pages)}")
 
-        view = RegisteredListView(pages, interaction.user)
+        view = RegisteredListView(pages, interaction.user, ephemeral=True)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         print(f"✅ [listregistered.py] Sent player list with {len(pages)} pages to {interaction.user}")
 
