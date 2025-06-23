@@ -1,4 +1,4 @@
-# cogs/part.py — Remote Part Give/Remove with Debug + Master Reference Lookup
+# cogs/part.py — Remote Part Give/Remove with Debug + Master Reference Lookup + Validated Removals
 
 import discord
 from discord.ext import commands
@@ -80,6 +80,12 @@ class PartManager(commands.Cog):
             msg = f"✅ Gave **{quantity} × {part}** to {user.mention}."
             print(f"🎁 [part.py] Gave {quantity}x {part} to {uid}")
         else:
+            if stash.count(part) < quantity:
+                msg = f"⚠️ {user.mention} does not have **{quantity} × {part}** to remove."
+                print(f"❌ [part.py] Not enough {part} to remove from {user.display_name}")
+                await interaction.followup.send(msg, ephemeral=True)
+                return
+
             removed = 0
             new_stash = []
             for s in stash:
@@ -87,12 +93,9 @@ class PartManager(commands.Cog):
                     removed += 1
                     continue
                 new_stash.append(s)
+
             stash = new_stash
-            msg = (
-                f"🗑 Removed **{removed} × {part}** from {user.mention}."
-                if removed else
-                f"⚠️ {user.mention} doesn't have that many **{part}**."
-            )
+            msg = f"🗑 Removed **{removed} × {part}** from {user.mention}."
             print(f"🧹 [part.py] Removed {removed}/{quantity}x {part} from {uid}")
 
         profile["stash"] = stash
