@@ -58,7 +58,7 @@ class CloseButton(discord.ui.Button):
 
 class RankView(discord.ui.View):
     def __init__(self, user_id: str, user_data: dict, update_callback):
-        super().__init__(timeout=None)
+        super().__init__(timeout=300)
         self.user_id = user_id
         self.user_data = user_data
         self.update_callback = update_callback
@@ -161,7 +161,7 @@ class RankView(discord.ui.View):
 
 class BoostDropdown(discord.ui.View):
     def __init__(self, uid, udata, update_cb, options):
-        super().__init__(timeout=60)
+        super().__init__(timeout=300)
         self.uid = uid
         self.udata = udata
         self.update_cb = update_cb
