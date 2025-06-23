@@ -8,7 +8,7 @@ from PIL import Image, ImageSequence
 
 from utils.fileIO import load_file, save_file
 from utils.boosts import is_weekend_boost_active
-from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS
+from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS     # ← unchanged import
 from cogs.fortify import render_stash_visual, get_skin_visuals
 from stash_image_generator import generate_stash_image
 
@@ -334,12 +334,12 @@ class RaidView(discord.ui.View):
             prestige_gain = 0
             self.stolen_items = []
             self.stolen_coins = 0
-    
+
             if self.success:
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-    
+
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)
@@ -371,16 +371,17 @@ class RaidView(discord.ui.View):
                 user, ranked_up = apply_prestige_xp(user, xp_gain=prestige_gain)
 
                 # Prestige info for embed
-                prestige_rank = user.get("prestige", 0)
-                prestige_points = user.get("prestige_points", 0)
-                next_threshold = PRESTIGE_TIERS.get(prestige_rank + 1, None)
-                if next_threshold:
-                    summary.append(f"🧬 Prestige: {prestige_rank} — {prestige_points}/{next_threshold}")
-                else:
-                    summary.append(f"🧬 Prestige: {prestige_rank} — MAX")
-    
+                user, ranked_up, rank_msg = apply_prestige_xp(user, xp_gain=prestige_gain)
+
+                prestige_rank    = user.get("prestige", 0)
+                prestige_points  = user.get("prestige_points", 0)
+                next_threshold   = PRESTIGE_TIERS.get(prestige_rank + 1)
+                summary.append(
+                    f"🧬 Prestige: {prestige_rank} — "
+                    f"{prestige_points}/{next_threshold if next_threshold else 'MAX'}"
+                )
                 if ranked_up:
-                    summary.append(f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
+                    summary.append(rank_msg or f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
                     
                     print(f"📦 POST-UPDATE STASH: {user['stash']}")
     
