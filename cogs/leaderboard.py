@@ -5,13 +5,33 @@ from utils.storageClient import load_file
 
 USER_DATA_FILE = "data/user_profiles.json"
 
+class CloseButton(discord.ui.Button):
+    def __init__(self, ephemeral: bool):
+        super().__init__(label="Close", style=discord.ButtonStyle.danger)
+        self.ephemeral = ephemeral
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            if self.ephemeral:
+                await interaction.message.edit(content="❌ Leaderboard view closed.", embed=None, view=None)
+            else:
+                await interaction.message.delete()
+        except Exception as e:
+            print(f"❌ Failed to close leaderboard view: {e}")
+        await interaction.response.defer()
+
+class LeaderboardView(discord.ui.View):
+    def __init__(self, ephemeral: bool):
+        super().__init__(timeout=300)
+        self.add_item(CloseButton(ephemeral))
+
 class Leaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="leaderboard", description="Top 3: raids won, builds completed, coins held.")
     async def leaderboard(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         profiles = await load_file(USER_DATA_FILE) or {}
         if not profiles:
@@ -48,7 +68,8 @@ class Leaderboard(commands.Cog):
         embed.add_field(name="🪙 Top Coin Holders", value=format_top("Coins", coins, "🪙"), inline=False)
         embed.set_footer(text="Based on global user data")
 
-        await interaction.followup.send(embed=embed)
+        view = LeaderboardView(ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Leaderboard(bot))
