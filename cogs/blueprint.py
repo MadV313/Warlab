@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with remote storage + debug)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with remote storage + debug + validation)
 
 import discord
 from discord.ext import commands
@@ -79,6 +79,8 @@ class BlueprintManager(commands.Cog):
 
         profile = profiles.get(user_id)
         blueprints = profile.get("blueprints", [])
+        if not isinstance(blueprints, list):
+            blueprints = []
 
         if action == "give":
             if full_item in blueprints:
@@ -96,20 +98,19 @@ class BlueprintManager(commands.Cog):
                 print(f"✅ [BlueprintManager] Added blueprint '{full_item}' to UID: {user_id}")
 
         elif action == "remove":
-            if full_item in blueprints:
-                blueprints.remove(full_item)
+            if full_item not in blueprints:
                 await interaction.followup.send(
-                    f"🗑 Blueprint **{full_item}** removed from {user.mention}.",
-                    ephemeral=True
-                )
-                print(f"🗑 [BlueprintManager] Removed blueprint '{full_item}' from UID: {user_id}")
-            else:
-                await interaction.followup.send(
-                    f"⚠️ {user.mention} does not have that blueprint.",
+                    f"⚠️ {user.mention} does not have blueprint **{full_item}**.",
                     ephemeral=True
                 )
                 print(f"⚠️ [BlueprintManager] Tried to remove non-existent blueprint for UID: {user_id}")
                 return
+            blueprints.remove(full_item)
+            await interaction.followup.send(
+                f"🗑 Blueprint **{full_item}** removed from {user.mention}.",
+                ephemeral=True
+            )
+            print(f"🗑 [BlueprintManager] Removed blueprint '{full_item}' from UID: {user_id}")
 
         profile["blueprints"] = blueprints
         profiles[user_id] = profile
