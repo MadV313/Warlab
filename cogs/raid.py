@@ -23,6 +23,11 @@ FORCE_SAVE_TEST_RAID = True  # 🔧 Set to False later to disable test-mode pers
 
 DEFENCE_TYPES = ["Guard Dog", "Claymore Trap", "Barbed Fence", "Reinforced Gate", "Locked Container"]
 
+WEAPON_PATH     = "data/item_recipes.json"
+ARMOR_PATH      = "data/armor_blueprints.json"
+EXPLOSIVE_PATH  = "data/explosive_blueprints.json"
+RARITY_WEIGHTS  = "data/rarity_weights.json"
+
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF     = "miss.gif"
 
@@ -85,8 +90,6 @@ def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
         print(f"❌ merge_overlay failed: {e}")
         return base_path
 
-# 🔧 Add this helper function near the top of raid.py (below constants is fine)
-
 def format_defense_status(reinforcements: dict) -> str:
     emoji_map = {
         "Barbed Fence": "🧱",
@@ -111,6 +114,32 @@ def format_defense_status(reinforcements: dict) -> str:
         lines.append(f"{emoji} {key}: {current}/{max_val}")
     return "\n".join(lines)
 
+async def get_unowned_blueprint(user_profile):
+    weapon_pool     = await load_file(WEAPON_PATH)
+    armor_pool      = await load_file(ARMOR_PATH)
+    explosive_pool  = await load_file(EXPLOSIVE_PATH)
+    rarity_weights  = await load_file(RARITY_WEIGHTS)
+
+    all_items = []
+    current_blueprints = user_profile.get("blueprints", [])
+
+    for pool in (weapon_pool, armor_pool, explosive_pool):
+        for key, entry in pool.items():
+            produced = entry.get("produces")
+            blueprint_name = f"{produced} Blueprint"
+            if produced and blueprint_name not in current_blueprints:
+                all_items.append({
+                    "item": blueprint_name,
+                    "source_key": key,
+                    "rarity": entry.get("rarity", "Common")
+                })
+
+    if not all_items:
+        return None  # No new blueprint available
+
+    from utils.inventory import weighted_choice
+    return weighted_choice(all_items, rarity_weights)
+    
 # ---------------------- Reinforcement Summary Tracker -------------------- #
 def summarize_destroyed(start, end, triggered):
     destroyed = []
