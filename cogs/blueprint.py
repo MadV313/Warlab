@@ -1,4 +1,4 @@
-# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (with clean storage + suffix applied, now prevents duplicates)
+# cogs/blueprint.py — Admin: Give or remove blueprint unlocks (duplicate prevention + profile check)
 
 import discord
 from discord.ext import commands
@@ -64,7 +64,15 @@ class BlueprintManager(commands.Cog):
 
         profiles = await load_file(USER_DATA) or {}
         user_id = str(user.id)
-        profile = profiles.get(user_id, {"inventory": [], "blueprints": []})
+
+        if user_id not in profiles:
+            await interaction.followup.send(
+                f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        profile = profiles.get(user_id)
         blueprints = profile.get("blueprints", [])
 
         if action == "give":
