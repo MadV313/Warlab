@@ -91,7 +91,7 @@ class CloseButton(discord.ui.Button):
 
 class MarketView(discord.ui.View):
     def __init__(self, user, offers):
-        super().__init__(timeout=90)
+        super().__init__(timeout=300)
         self.stored_messages = []
         owned_blueprints = user.get("blueprints", [])
         purchased = user.get("purchasedToday", [])
