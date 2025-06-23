@@ -1,9 +1,8 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from utils.storageClient import load_file, save_file
+from utils.profileManager import create_profile, get_profile  # ✅ Use proper profile functions
 
-USER_DATA = "data/user_profiles.json"
 ADMIN_ROLE_ID = 1173049392371085392
 
 class ForceRegister(commands.Cog):
@@ -19,24 +18,23 @@ class ForceRegister(commands.Cog):
     @is_admin()
     async def forceregister(self, interaction: discord.Interaction, target: discord.Member):
         user_id = str(target.id)
-        profiles = await load_file(USER_DATA) or {}
+        print(f"📥 [/forceregister] Called by {interaction.user} for target {target} ({user_id})")
 
-        if user_id in profiles:
-            await interaction.response.send_message(f"🟡 `{target.display_name}` is already registered.", ephemeral=True)
+        existing = await get_profile(user_id)
+        if existing:
+            print(f"🟡 [forceregister] {target.display_name} already registered.")
+            await interaction.response.send_message(
+                f"🟡 `{target.display_name}` is already registered.",
+                ephemeral=True
+            )
             return
 
-        profiles[user_id] = {
-            "id": user_id,
-            "name": target.display_name,
-            "stash": [],
-            "coins": 0,
-            "prestige": 0,
-            "reinforcements": {},
-            "stash_hp": 0
-        }
-
-        await save_file(USER_DATA, profiles)
-        await interaction.response.send_message(f"✅ `{target.display_name}` has been force-registered.", ephemeral=True)
+        await create_profile(user_id, target.display_name)
+        print(f"✅ [forceregister] {target.display_name} successfully registered.")
+        await interaction.response.send_message(
+            f"✅ `{target.display_name}` has been force-registered.",
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(ForceRegister(bot))
