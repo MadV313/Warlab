@@ -1,4 +1,4 @@
-# cogs/scavenge.py — WARLAB daily gathering logic (dynamic loot + coins + debug)
+# cogs/scavenge.py — WARLAB daily gathering logic (3-hour cooldown + boost-aware + counter)
 
 import discord
 from discord.ext import commands
@@ -58,15 +58,20 @@ class Scavenge(commands.Cog):
 
             boosts = user.get("boosts", {})
             pulls = random.randint(2, 5)
+            boost_msgs = []
+
             if boosts.get("perm_loot_boost"):
                 pulls += 1
+                boost_msgs.append("💠 Permanent Loot Boost activated!")
             if boosts.get("daily_loot_boost"):
-                last_date = user.get("daily_loot_boost_used", "1970-01-01")
-                if last_date != now.strftime("%Y-%m-%d"):
+                last_used = user.get("daily_loot_boost_used", "1970-01-01")
+                today = now.strftime("%Y-%m-%d")
+                if last_used != today:
                     pulls += 1
-                    user["daily_loot_boost_used"] = now.strftime("%Y-%m-%d")
+                    user["daily_loot_boost_used"] = today
+                    boost_msgs.append("🔄 Daily Loot Boost activated!")
 
-            # Cooldown
+            # Cooldown check (3h)
             cooldown_min = 180
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
@@ -76,20 +81,19 @@ class Scavenge(commands.Cog):
                     await interaction.followup.send(f"⏳ You must wait {mins} more minutes before scavenging again.", ephemeral=True)
                     return
 
-            # Load item pool and weights
+            # Load loot and rarity weights
             item_catalog = await load_file(ITEMS_MASTER)
             rarity_weights = await load_file(RARITY_WEIGHTS)
             loot_pool = [{"item": k, "rarity": v["rarity"]} for k, v in item_catalog.items() if isinstance(v, dict) and "rarity" in v]
 
             found = []
-            crafted_found = []  # 🧰 For turn-in-ready detection
-            for i in range(pulls):
+            crafted_found = []
+            for _ in range(pulls):
                 item = weighted_choice(loot_pool, rarity_weights)
                 if item:
                     name = item["item"]
                     found.append(name)
-                    item_type = item_catalog.get(name, {}).get("type", "")
-                    if item_type == "crafted":
+                    if item_catalog.get(name, {}).get("type") == "crafted":
                         crafted_found.append(name)
 
             # Weekend bonus
@@ -98,42 +102,36 @@ class Scavenge(commands.Cog):
                 if bonus:
                     name = bonus["item"]
                     found.append(name)
-                    if item_catalog.get(name, {}).get("type", "") == "crafted":
+                    boost_msgs.append("🎁 Weekend Boost activated!")
+                    if item_catalog.get(name, {}).get("type") == "crafted":
                         crafted_found.append(name)
 
             coins_found = random.randint(5, 25)
             if boosts.get("coin_doubler"):
                 coins_found *= 2
+                boost_msgs.append("💸 Coin Doubler applied!")
 
             user["stash"].extend(found)
             user["coins"] += coins_found
             user["last_scavenge"] = now.isoformat()
-            user["scavenges"] += 1  # ✅ Count tracked
+            user["scavenges"] += 1
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
 
-            # 🧾 Format embed with 🧰 marker
-            mission_text = random.choice(SCAVENGE_MISSIONS)
-            display_loot = []
-            for item in found:
-                if item in crafted_found:
-                    display_loot.append(f"🧰 {item}")
-                else:
-                    display_loot.append(item)
-
-            await interaction.followup.send(
-                f"📋 {mission_text}\n\n"
-                f"🔎 You scavenged and found: **{', '.join(display_loot)}**\n"
-                f"💰 You also found **{coins_found} coins!**",
-                ephemeral=True
+            loot_display = [f"🧰 {x}" if x in crafted_found else x for x in found]
+            summary_text = (
+                f"📋 {random.choice(SCAVENGE_MISSIONS)}\n\n"
+                f"🔎 You scavenged and found: **{', '.join(loot_display)}**\n"
+                f"💰 You also found **{coins_found} coins!**"
             )
+            if boost_msgs:
+                summary_text += "\n\n" + "\n".join(boost_msgs)
+
+            await interaction.followup.send(summary_text, ephemeral=True)
 
             if crafted_found:
-                for turnin_item in crafted_found:
-                    await interaction.followup.send(
-                        f"🚨 Turn-in ready item pulled! Use `/turnin` to redeem: **{turnin_item}**",
-                        ephemeral=True
-                    )
+                for item in crafted_found:
+                    await interaction.followup.send(f"🚨 Turn-in ready item pulled! Use `/turnin` to redeem: **{item}**", ephemeral=True)
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
