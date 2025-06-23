@@ -323,7 +323,6 @@ class RaidView(discord.ui.View):
                         summary.append(f"<a:bonus_item:1370091021958119445> Bonus item: {bonus_item}")
                     summary.append("<a:bonus:1386436403000512694> Tripple Threat Weekend Boost Active! +25 coins")
     
-                user["prestige_points"] = min(user.get("prestige_points", 0) + prestige_gain, 200)
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
     
