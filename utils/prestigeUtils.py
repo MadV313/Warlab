@@ -1,6 +1,8 @@
 # utils/prestigeUtils.py — Centralized Prestige Rank System
 
 from utils.boosts import is_weekend_boost_active
+import discord
+from datetime import datetime
 
 PRESTIGE_TIERS = {
     1: 200,     # Prestige I
@@ -15,6 +17,22 @@ PRESTIGE_CLASSES = {
     2: {"title": "💉 Weaponsmith Elite", "color": 0x88e0a0},
     3: {"title": "🔬 Scavenger Elite", "color": 0x3cb4fc},
 }
+
+RANK_TITLES = {
+    0: "Unranked Survivor",
+    1: "Field Engineer",
+    2: "Weapon Tech",
+    3: "Shadow Engineer",
+    4: "Warlab Veteran",
+    5: "Legendary Craftsman",
+    6: "Legend",
+    7: "Apex",
+    8: "Ghost",
+    9: "Mythic",
+    10: "Master Chief"
+}
+
+WARLAB_CHANNEL_ID = 1382187883590455296
 
 def get_prestige_rank(points: int) -> int:
     for rank in sorted(PRESTIGE_TIERS.keys(), reverse=True):
@@ -78,3 +96,28 @@ def apply_prestige_xp(user_data: dict, xp_gain: int) -> tuple:
             message = f"🎉 **Prestige Rank Up!** You are now Prestige {new_rank}!"
 
     return user_data, ranked_up, message
+
+async def broadcast_prestige_announcement(bot: discord.Client, member: discord.Member, profile: dict):
+    """
+    Sends a prestige rank-up announcement to the WARLAB channel.
+    """
+    new_rank = profile.get("prestige", 0)
+    rank_title = RANK_TITLES.get(new_rank, "Prestige Specialist")
+    special_class = get_prestige_class(profile)
+
+    emb = discord.Embed(
+        title="🧬 Prestige Unlocked!",
+        description=(
+            f"{member.mention} reached **Prestige {new_rank}**\n"
+            f"🎖 Rank Title: **{rank_title}**\n" +
+            (f"📛 Prestige Class: **{special_class['title']}**\n" if special_class else "") +
+            "\n🎲 Use /rollblueprint to try for a new schematic!"
+        ),
+        color=special_class["color"] if special_class else 0x6b8e23,
+        timestamp=datetime.utcnow()
+    )
+    emb.set_thumbnail(url=member.display_avatar.url)
+
+    channel = bot.get_channel(WARLAB_CHANNEL_ID)
+    if channel:
+        await channel.send(embed=emb)
