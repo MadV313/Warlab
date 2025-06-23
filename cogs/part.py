@@ -1,4 +1,4 @@
-# cogs/part.py — Fully Inline /part Command with Master Reference Lookup + Registration Check
+# cogs/part.py — Remote Part Give/Remove with Debug + Master Reference Lookup
 
 import discord
 from discord.ext import commands
@@ -12,7 +12,7 @@ PART_MASTER_REF = "data/part_master_reference.json"
 class PartManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cached_parts = {}  # {"Weapons": [parts], ...}
+        self.cached_parts = {}  # {"Weapons": [...], "Armor": [...], "Explosives": [...]}
 
     async def get_parts_by_category(self, category):
         if category in self.cached_parts:
@@ -20,6 +20,7 @@ class PartManager(commands.Cog):
 
         ref = await load_file(PART_MASTER_REF) or {}
         self.cached_parts[category] = ref.get(category, [])
+        print(f"📦 [part.py] Cached parts for {category}: {self.cached_parts[category]}")
         return self.cached_parts[category]
 
     @app_commands.command(name="part", description="Admin: Give or remove parts from a player.")
@@ -41,6 +42,9 @@ class PartManager(commands.Cog):
         quantity: int
     ):
         await interaction.response.defer(ephemeral=True)
+        uid = str(user.id)
+
+        print(f"📥 [part.py] /part used by {interaction.user} — {action} {quantity}x {part} to {user} ({uid})")
 
         if quantity <= 0:
             await interaction.followup.send("⚠️ Quantity must be greater than 0.", ephemeral=True)
@@ -48,6 +52,7 @@ class PartManager(commands.Cog):
 
         valid_parts = await self.get_parts_by_category(item)
         if part not in valid_parts:
+            print(f"❌ [part.py] Invalid part '{part}' for category '{item}'")
             await interaction.followup.send(
                 f"❌ Invalid part for {item}. Try auto-completing the field.",
                 ephemeral=True
@@ -55,9 +60,9 @@ class PartManager(commands.Cog):
             return
 
         profiles = await load_file(USER_DATA) or {}
-        uid = str(user.id)
 
         if uid not in profiles:
+            print(f"❌ [part.py] No profile found for {uid}")
             await interaction.followup.send(
                 f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
                 ephemeral=True
@@ -73,6 +78,7 @@ class PartManager(commands.Cog):
         if action == "give":
             stash.extend([part] * quantity)
             msg = f"✅ Gave **{quantity} × {part}** to {user.mention}."
+            print(f"🎁 [part.py] Gave {quantity}x {part} to {uid}")
         else:
             removed = 0
             new_stash = []
@@ -87,10 +93,13 @@ class PartManager(commands.Cog):
                 if removed else
                 f"⚠️ {user.mention} doesn't have that many **{part}**."
             )
+            print(f"🧹 [part.py] Removed {removed}/{quantity}x {part} from {uid}")
 
         profile["stash"] = stash
         profiles[uid] = profile
         await save_file(USER_DATA, profiles)
+
+        print(f"💾 [part.py] Updated stash saved for user {uid}")
         await interaction.followup.send(msg, ephemeral=True)
 
     @part.autocomplete("part")
