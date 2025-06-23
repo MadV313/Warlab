@@ -1,4 +1,6 @@
-# utils/prestigeBonusHandler.py
+# utils/prestigeBonusHandler.py — Remote-persistent ready (no logic changes)
+
+from utils.fileIO import load_file, save_file  # Ready for future persistence use
 
 def get_unlocked_features(prestige_level: int, profile: dict = None) -> list:
     bonuses = []
