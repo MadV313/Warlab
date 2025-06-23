@@ -21,7 +21,7 @@ FALLBACK_CATALOG = {
     },
     "Contaminated Worksite": {
         "filename": "base_house_prestige3.png",
-        "emoji": "🏭", "color": 0xf1c40f
+        "emoji": "🏥", "color": 0xf1c40f
     },
     "Tactical Emerald": {
         "filename": "base_house_prestige4.png",
@@ -41,7 +41,7 @@ FALLBACK_CATALOG = {
     },
     "Scavenger's Haven": {
         "filename": "base_house_scavenge_master.png",
-        "emoji": "🏕️", "color": 0xd35400
+        "emoji": "🛖", "color": 0xd35400
     }
 }
 
