@@ -13,31 +13,31 @@ CATALOG_PATH = "data/labskin_catalog.json"
 FALLBACK_CATALOG = {
     "Rust Bucket": {
         "filename": "base_house_prestige1.png",
-        "emoji": "🪚", "color": 0x8e44ad
+        "emoji": "🏚️", "color": 0x8e44ad
     },
     "Field Technician": {
         "filename": "base_house_prestige2.png",
-        "emoji": "🔧", "color": 0x3498db
+        "emoji": "🏪", "color": 0x3498db
     },
     "Contaminated Worksite": {
         "filename": "base_house_prestige3.png",
-        "emoji": "☣️", "color": 0xf1c40f
+        "emoji": "🏭", "color": 0xf1c40f
     },
     "Tactical Emerald": {
         "filename": "base_house_prestige4.png",
-        "emoji": "🎯", "color": 0x2ecc71
+        "emoji": "🏢", "color": 0x2ecc71
     },
     "Warlab Blacksite": {
         "filename": "base_house_prestige5.png",
-        "emoji": "🕶️", "color": 0x111111
+        "emoji": "🕋", "color": 0x111111
     },
     "Dark Ops": {
         "filename": "base_house_raid_master.png",
-        "emoji": "🛡️", "color": 0x2c3e50
+        "emoji": "🏰", "color": 0x2c3e50
     },
     "Architect's Vault": {
         "filename": "base_house_blueprint_master.png",
-        "emoji": "🧪", "color": 0xffffff
+        "emoji": "🏛️", "color": 0xffffff
     },
     "Scavenger's Haven": {
         "filename": "base_house_scavenge_master.png",
