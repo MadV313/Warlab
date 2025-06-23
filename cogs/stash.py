@@ -32,7 +32,7 @@ class CloseButton(discord.ui.Button):
 
 class StashView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=90)
+        super().__init__(timeout=300)
         self.stored_messages = []
         self.add_item(CloseButton())
 
