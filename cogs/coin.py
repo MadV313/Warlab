@@ -1,4 +1,4 @@
-# cogs/coin.py — Admin: Give or take coins from a player (clean, simple version)
+# cogs/coin.py — Admin: Give or take coins from a player (with registration check)
 
 import discord
 from discord.ext import commands
@@ -35,15 +35,29 @@ class CoinManager(commands.Cog):
 
         user_id = str(user.id)
         profiles = await load_file(USER_DATA) or {}
-        profile = profiles.get(user_id, {"coins": 0})
+
+        if user_id not in profiles:
+            await interaction.response.send_message(
+                f"❌ That player does not have a profile yet. Ask them to use `/register` first.",
+                ephemeral=True
+            )
+            return
+
+        profile = profiles[user_id]
         current_coins = profile.get("coins", 0)
 
         if action == "take":
             if current_coins <= 0:
-                await interaction.response.send_message(f"⚠️ {user.mention} already has **0 coins**.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"⚠️ {user.mention} already has **0 coins**.",
+                    ephemeral=True
+                )
                 return
             if amount > current_coins:
-                await interaction.response.send_message(f"❌ Cannot remove **{amount} coins** — {user.mention} only has **{current_coins} coins**.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"❌ Cannot remove **{amount} coins** — {user.mention} only has **{current_coins} coins**.",
+                    ephemeral=True
+                )
                 return
             profile["coins"] = current_coins - amount
             result = f"🗑 Removed **{amount} coins** from {user.mention}."
@@ -55,7 +69,10 @@ class CoinManager(commands.Cog):
         profiles[user_id] = profile
         await save_file(USER_DATA, profiles)
 
-        await interaction.response.send_message(f"{result}\n💰 New Balance: **{profile['coins']} coins**", ephemeral=True)
+        await interaction.response.send_message(
+            f"{result}\n💰 New Balance: **{profile['coins']} coins**",
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(CoinManager(bot))
