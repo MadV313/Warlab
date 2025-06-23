@@ -9,19 +9,21 @@ WARLAB_CHANNEL_ID = 1382187883590455296
 class CleanChannel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        print("✅ [COG LOADED] CleanChannel cog loaded successfully.")
 
     def is_admin():
         async def predicate(interaction: discord.Interaction):
+            print(f"🔐 [Check] is_admin called by {interaction.user}")
             return any(role.id == ADMIN_ROLE_ID for role in interaction.user.roles)
         return app_commands.check(predicate)
 
     @app_commands.command(name="cleanchannel", description="Admin: Wipe WARLAB channel after confirmation.")
     @is_admin()
     async def cleanchannel(self, interaction: discord.Interaction):
-        print(f"📥 [/cleanchannel] Command used by {interaction.user} ({interaction.user.id})")
+        print(f"📥 [/cleanchannel] Triggered by {interaction.user} in channel {interaction.channel.id}")
 
         if interaction.channel.id != WARLAB_CHANNEL_ID:
-            print(f"❌ [cleanchannel] Rejected: Wrong channel ({interaction.channel.id})")
+            print("❌ Incorrect channel")
             await interaction.response.send_message("❌ This command can only be used in the WARLAB channel.", ephemeral=True)
             return
 
@@ -31,29 +33,30 @@ class CleanChannel(commands.Cog):
                 self.author = author
 
             async def interaction_check(self, i: discord.Interaction) -> bool:
+                print(f"🔁 [Interaction Check] Pressed by {i.user}")
                 if i.user.id != self.author.id:
-                    await i.response.send_message("❌ Only the original command user can confirm or cancel.", ephemeral=True)
-                    print(f"⚠️ [cleanchannel] Unauthorized button press by {i.user} ({i.user.id})")
+                    await i.response.send_message("❌ Only the command user may confirm/cancel.", ephemeral=True)
                     return False
                 return True
 
             @discord.ui.button(label="✅ Confirm", style=discord.ButtonStyle.danger)
             async def confirm(self, i: discord.Interaction, _):
+                print(f"⚠️ Confirm pressed by {i.user}")
                 await i.response.defer(ephemeral=True)
                 try:
                     deleted = await i.channel.purge(limit=100)
-                    print(f"🧹 [cleanchannel] Deleted {len(deleted)} messages in {i.channel.name}")
-                    await i.followup.send(f"🧹 Channel cleaned. `{len(deleted)}` messages purged.", ephemeral=True)
+                    await i.followup.send(f"🧹 Deleted {len(deleted)} messages.", ephemeral=True)
+                    print(f"✅ Channel cleaned. {len(deleted)} messages removed.")
                 except Exception as e:
-                    print(f"❌ [cleanchannel] Purge failed: {e}")
+                    print(f"❌ Exception during purge: {e}")
                     traceback.print_exc()
-                    await i.followup.send("❌ Failed to clean the channel. Check logs for details.", ephemeral=True)
+                    await i.followup.send("❌ Purge failed. Check logs.", ephemeral=True)
                 self.stop()
 
             @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
             async def cancel(self, i: discord.Interaction, _):
-                await i.response.send_message("❌ Cleanup cancelled.", ephemeral=True)
-                print(f"🚫 [cleanchannel] Cleanup cancelled by {i.user}")
+                print(f"🚫 Cancel pressed by {i.user}")
+                await i.response.send_message("❌ Cancelled.", ephemeral=True)
                 self.stop()
 
         try:
@@ -62,10 +65,16 @@ class CleanChannel(commands.Cog):
                 view=ConfirmView(interaction.user),
                 ephemeral=True
             )
-            print("✅ [cleanchannel] Confirmation prompt sent.")
+            print("✅ Confirmation prompt sent.")
         except Exception as e:
-            print(f"❌ [cleanchannel] Failed to send confirmation prompt: {e}")
+            print(f"❌ Failed to send prompt: {e}")
             traceback.print_exc()
 
+# 🔧 Catch any Cog load failures
 async def setup(bot):
-    await bot.add_cog(CleanChannel(bot))
+    try:
+        await bot.add_cog(CleanChannel(bot))
+        print("✅ [SETUP] CleanChannel setup complete.")
+    except Exception as e:
+        print(f"❌ [SETUP FAILED] cleanchannel.py: {e}")
+        traceback.print_exc()
