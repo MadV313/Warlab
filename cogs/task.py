@@ -1,12 +1,13 @@
-# cogs/task.py — Daily Warlab mission with crafted item highlights + boost announcements + task counter
+# cogs/task.py — Daily Warlab mission with crafted item highlights + boost announcements + task counter + persistent storage + debug logs
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-import json, random
+import random
 from datetime import datetime
 
-from utils.boosts import is_weekend_boost_active  # ✅ Boost helper
+from utils.boosts import is_weekend_boost_active
+from utils.fileIO import load_file, save_file
 
 USER_DATA_FILE       = "data/user_profiles.json"
 ITEMS_MASTER_FILE    = "data/items_master.json"
@@ -38,23 +39,11 @@ class Task(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @staticmethod
-    def _load(path):
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except:
-            return {}
-
-    @staticmethod
-    def _save(path, data):
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
-
-    def _load_all_crafted_items(self):
+    async def _load_all_crafted_items(self):
         crafted = set()
         for path in RECIPE_PATHS:
-            data = self._load(path)
+            print(f"📥 Loading crafted items from: {path}")
+            data = await load_file(path)
             for entry in data.values():
                 output = entry.get("produces")
                 if output:
@@ -64,9 +53,9 @@ class Task(commands.Cog):
     @app_commands.command(name="task", description="Complete your daily Warlab mission for rewards.")
     async def task(self, interaction: discord.Interaction):
         uid       = str(interaction.user.id)
-        profiles  = self._load(USER_DATA_FILE)
         today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
+        profiles = await load_file(USER_DATA_FILE)
         user = profiles.get(uid)
         if not user:
             await interaction.response.send_message("❌ You don’t have a profile yet. Please use `/register` first.", ephemeral=True)
@@ -76,13 +65,17 @@ class Task(commands.Cog):
             await interaction.response.send_message("🕒 You’ve already completed your daily task. Try again tomorrow.", ephemeral=True)
             return
 
-        items_master = self._load(ITEMS_MASTER_FILE)
-        black_market = self._load(BLACKMARKET_FILE)
-        crafted_set  = self._load_all_crafted_items()
-        blueprint_list = user.get("blueprints", [])
+        print(f"📅 New task triggered for user {uid} — {interaction.user.display_name}")
 
+        items_master  = await load_file(ITEMS_MASTER_FILE)
+        black_market  = await load_file(BLACKMARKET_FILE)
+        crafted_set   = await self._load_all_crafted_items()
+
+        blueprint_list = user.get("blueprints", [])
         std_pool  = [item for item in items_master.keys() if item not in blueprint_list]
         rare_pool = [item for item in black_market.keys() if item not in blueprint_list]
+
+        print(f"🎯 STD Pool: {len(std_pool)} items | RARE Pool: {len(rare_pool)} items")
 
         base_coins = random.randint(40, 80)
         boosts     = user.get("boosts", {})
@@ -115,12 +108,14 @@ class Task(commands.Cog):
         item_rewards = [guaranteed_tool]
         crafted_rewards = []
 
+        print(f"🎁 Reward Rolls: {total_rolls} | Guaranteed tool: {guaranteed_tool}")
         user.setdefault("stash", []).append(guaranteed_tool)
 
-        for _ in range(total_rolls):
+        for i in range(total_rolls):
             is_rare = random.randint(1, 100) <= 5
             loot_pool = rare_pool if (is_rare and rare_pool) else std_pool
             if not loot_pool:
+                print(f"⚠️ No items in {'rare' if is_rare else 'standard'} pool — skipping roll #{i+1}")
                 continue
             loot = random.choice(loot_pool)
             item_rewards.append(loot)
@@ -129,7 +124,8 @@ class Task(commands.Cog):
                 crafted_rewards.append(loot)
 
         profiles[uid] = user
-        self._save(USER_DATA_FILE, profiles)
+        await save_file(USER_DATA_FILE, profiles)
+        print(f"✅ Task saved for {interaction.user.display_name} ({uid})")
 
         mission = random.choice(DAILY_TASKS)
         embed = discord.Embed(title="📋 Daily Task Complete!", color=0x8DE68A)
