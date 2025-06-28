@@ -136,7 +136,7 @@ class Scavenge(commands.Cog):
                     name = bonus["item"]
                     if name not in found:
                         found.append(name)
-                        boost_msgs.append("🎁 Weekend Boost activated!")
+                        boost_msgs.append("🔥 Weekend Boost activated!")
                         if item_catalog.get(name, {}).get("type") == "crafted":
                             crafted_found.append(name)
                         print(f"🎉 Weekend bonus pulled: {name}")
@@ -160,7 +160,7 @@ class Scavenge(commands.Cog):
                 f"📋 {random.choice(SCAVENGE_MISSIONS)}\n\n"
                 f"🔎 You scavenged and found: **{', '.join(loot_display)}**\n"
                 f"💰 You also found **{coins_found} coins!**\n"
-                f"☑️ Scavenges Completed: **{user['scavenges']}**"
+                f"✅ Scavenges Completed: **{user['scavenges']}**"
             )
             if boost_msgs:
                 summary_text += "\n\n" + "\n".join(boost_msgs)
