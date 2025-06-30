@@ -92,15 +92,15 @@ class CraftButton(discord.ui.Button):
             user["stash"] = list(stash.elements())
 
             # Optional parts
-            optional_parts = recipe.get("optional", [])
+            optional_parts = recipe.get("optional", {})
             optional_used = []
             
-            for part in optional_parts:
-                if stash.get(part, 0) >= 1:
-                    stash[part] -= 1
+            for part, qty in optional_parts.items():
+                if stash.get(part, 0) >= qty:
+                    stash[part] -= qty
                     if stash[part] <= 0:
                         del stash[part]
-                    optional_used.append(f"1× {part}")
+                    optional_used.append(f"{qty}× {part}")
 
             crafted = recipe["produces"]
             user["stash"].append(crafted)
