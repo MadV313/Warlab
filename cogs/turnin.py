@@ -65,21 +65,16 @@ class TurnInButton(discord.ui.Button):
             if not recipe:
                 return await interaction.response.send_message("❌ Recipe not found.", ephemeral=True)
 
+            # Only consume optional parts if player still has them
             used_parts = recipe.get("requirements", {}).copy()
             for part, qty in recipe.get("optional", {}).items():
                 if user_data.get("stash", []).count(part) >= qty:
                     used_parts[part] = used_parts.get(part, 0) + qty
                     for _ in range(qty):
                         user_data["stash"].remove(part)
-
-            for part, qty in recipe.get("requirements", {}).items():
-                if user_data["stash"].count(part) < qty:
-                    return await interaction.response.send_message(
-                        f"❌ You no longer have all required parts to turn in **{self.item_name}**.", ephemeral=True)
             
-            for part, qty in recipe.get("requirements", {}).items():
-                for _ in range(qty):
-                    user_data["stash"].remove(part)
+            # ❌ DO NOT check required parts again — the item is already crafted
+            # ❌ DO NOT re-remove required parts from stash
 
             prestige = REWARD_VALUES["base_prestige"]
             if "Tactical" in self.item_name:
