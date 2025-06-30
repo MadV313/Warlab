@@ -1,11 +1,11 @@
-# utils/fileIO.py — Final remote-only persistent storage with cross-repo support and debug logs
+# utils/fileIO.py — Final remote-only persistent storage with base_url_override support + debug logs
 
 from utils.storageClient import load_file as remote_load, save_file as remote_save
 
 async def load_file(path, base_url_override=None):
     """
-    Loads file data from remote persistent storage.
-    Allows optional override of the base URL.
+    Loads file data from remote persistent storage only.
+    Supports optional base_url_override for cross-repo support.
     """
     print(f"📡 [fileIO] Requesting remote load for: {path}")
     try:
@@ -18,8 +18,8 @@ async def load_file(path, base_url_override=None):
 
 async def save_file(path, data, base_url_override=None):
     """
-    Saves file data to remote persistent storage.
-    Allows optional override of the base URL.
+    Saves file data to remote persistent storage only.
+    Supports optional base_url_override for cross-repo support.
     """
     print(f"📡 [fileIO] Requesting remote save for: {path}")
     try:
