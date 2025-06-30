@@ -13,12 +13,11 @@ class CloseButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         try:
             if self.ephemeral:
-                await interaction.message.edit(content="❌ Leaderboard view closed.", embed=None, view=None)
+                await interaction.response.edit_message(content="❌ Leaderboard view closed.", embed=None, view=None)
             else:
                 await interaction.message.delete()
         except Exception as e:
             print(f"❌ Failed to close leaderboard view: {e}")
-        await interaction.response.defer()
 
 class LeaderboardView(discord.ui.View):
     def __init__(self, ephemeral: bool):
