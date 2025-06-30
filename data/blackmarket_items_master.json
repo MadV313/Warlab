@@ -83,5 +83,12 @@
     "tags": [
       "grenade"
     ]
+  },
+  "Humvee": {
+    "type": "vehicle",
+    "rarity": "Legendary",
+    "tags": [
+      "humvee"
+    ]
   }
 }
