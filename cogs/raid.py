@@ -509,36 +509,35 @@ class Raid(commands.Cog):
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
 
+        if is_test:
+            return await interaction.followup.send("⚠️ You cannot raid **Warlab**.", ephemeral=True)
+
+        # 1. Enforce 3 raids per 12 hours limit
         cooldowns = await load_file(COOLDOWN_FILE) or {}
-        if defender_id in cooldowns.get(attacker_id, {}):
-            last = datetime.fromisoformat(cooldowns[attacker_id][defender_id])
+        recent_raids = cooldowns.get(attacker_id, {})
+        past_12_hours = now - timedelta(hours=12)
+        raid_times = [datetime.fromisoformat(ts) for ts in recent_raids.values()]
+        recent_valid_raids = [ts for ts in raid_times if ts > past_12_hours]
+
+        if len(recent_valid_raids) >= 3:
+            return await interaction.followup.send(
+                "🧨 You’ve reached your **raid limit**.\nYou can only raid **3 times every 12 hours**.",
+                ephemeral=True)
+
+        # 2. Per-player cooldown
+        if defender_id in recent_raids:
+            last = datetime.fromisoformat(recent_raids[defender_id])
             if now - last < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last)
                 return await interaction.followup.send(
                     f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
                     ephemeral=True)
 
-        if is_test:
-            catalog = await load_file(CATALOG_PATH) or {}
-            skin = random.choice(list(catalog))
-            defender = {
-                "labskins": [skin],
-                "baseImage": catalog[skin]["filename"],
-                "reinforcements": {
-                    "Guard Dog": 1,
-                    "Claymore Trap": 1,
-                    "Barbed Fence": 2,
-                    "Reinforced Gate": 1,
-                    "Locked Container": 1
-                },
-                "stash": ["Saw", "Red Dot", "NBC Suit"],
-                "coins": 50
-            }
-        else:
-            defender = users.get(defender_id)
-            if not defender:
-                return await interaction.followup.send(
-                    "❌ That player doesn’t have a profile yet.", ephemeral=True)
+        # Defender Setup
+        defender = users.get(defender_id)
+        if not defender:
+            return await interaction.followup.send(
+                "❌ That player doesn’t have a profile yet.", ephemeral=True)
 
         reinforcements = defender.get("reinforcements", {})
         catalog = await load_file(CATALOG_PATH) or {}
