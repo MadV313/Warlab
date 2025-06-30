@@ -195,8 +195,12 @@ class BlackMarket(commands.Cog):
         for src in (WEAPONS, ARMOR, EXPLOSIVES):
             pool = await load_file(src)
             for bp in pool.values():
+                name = bp["produces"]
+                # ⛔ Prevent full Humvee from being sold in the market
+                if name.lower() == "humvee":
+                    continue
                 all_items.append({
-                    "name": bp["produces"],
+                    "name": name,
                     "rarity": bp.get("rarity", "Common")
                 })
 
@@ -206,13 +210,13 @@ class BlackMarket(commands.Cog):
             {"name": "Claymore Trap", "rarity": "Special"}
         ]
 
-        # ✅ Protect against malformed car_parts file
         car_parts = await load_file(CAR_PARTS_FILE) or []
-        if isinstance(car_parts, list) and len(car_parts) > 0:
-            car_part = random.choice(car_parts)
-        else:
-            print("⚠️ [BlackMarket] No car parts available or file malformed.")
-            car_part = None
+        car_part = random.choice(list(car_parts.items())) if car_parts else None
+        if car_part:
+            car_part = {
+                "name": car_part[0],
+                "rarity": car_part[1].get("rarity", "Rare")
+            }
 
         expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
         print(f"📅 [BlackMarket] Rotation expires at: {expires_at}")
