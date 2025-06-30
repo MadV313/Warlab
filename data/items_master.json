@@ -27,6 +27,34 @@
       "build"
     ]
   },
+  "Glow Plug": {
+    "type": "car_part",
+    "rarity": "Rare",
+    "tags": [
+       "humvee"
+    ]
+  },
+  "Battery": {
+    "type": "car_part",
+    "rarity": "Rare",
+    "tags": [
+       "humvee"
+     ]
+  },
+  "Fuel Canister": {
+    "type": "car_part",
+    "rarity": "Rare",
+    "tags": [
+      "humvee"
+     ]
+  },
+  "M1025 Wheel": {
+     "type": "car_part",
+     "rarity": "Rare",
+     "tags": [
+       "humvee"
+    ]
+  },
   "Slide": {
     "type": "gun_part",
     "rarity": "Uncommon",
