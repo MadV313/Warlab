@@ -1,4 +1,4 @@
-# cogs/stash.py — Updated with 📦 Crafted Items group for crafted weapons/gear + persistent storage
+# cogs/stash.py — Updated with 📦 Crafted Items group for crafted weapons/gear + persistent storage + missing part hint
 
 import discord
 from discord.ext import commands
@@ -103,6 +103,7 @@ class Stash(commands.Cog):
                 grouped["🎒 Misc"].append(label)
 
         buildables = []
+        has_missing = False
         for blueprint in blueprints:
             core_name = blueprint.replace(" Blueprint", "").strip()
             recipe = all_recipes.get(core_name.lower())
@@ -110,6 +111,8 @@ class Stash(commands.Cog):
                 continue
             requirements = recipe.get("requirements", {})
             can_build = all(stash_items.get(part, 0) >= qty for part, qty in requirements.items())
+            if not can_build:
+                has_missing = True
             status = "✅ Build Ready" if can_build else "❌ Missing Parts"
             buildables.append(f"{recipe['produces']} — {status}")
 
@@ -130,9 +133,12 @@ class Stash(commands.Cog):
             )
 
         if buildables:
+            build_text = "\n".join(buildables)
+            if has_missing:
+                build_text += "\n\n🛠️ Refer to `/craft` for parts missing."
             embed.add_field(
                 name="🧰 Buildable Items",
-                value="\n".join(buildables),
+                value=build_text,
                 inline=False
             )
 
