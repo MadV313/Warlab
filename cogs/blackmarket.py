@@ -13,6 +13,7 @@ WEAPONS     = "data/item_recipes.json"
 ARMOR       = "data/armor_blueprints.json"
 EXPLOSIVES  = "data/explosive_blueprints.json"
 MARKET_FILE = "data/blackmarket_rotation.json"
+CAR_PARTS_FILE = "data/car_parts_master.json"  # ✅ NEW
 
 ITEM_COSTS = {
     "Common"   : 75,
@@ -135,7 +136,6 @@ class BlackMarket(commands.Cog):
         print("📦 [BlackMarket] Checking current rotation...")
         market = await load_file(MARKET_FILE)
 
-        # ✅ PATCH: Handle missing file or empty fallback
         if not market or not isinstance(market, dict) or market.get("expires", "") < datetime.utcnow().isoformat():
             print("🔁 [BlackMarket] Generating new rotation...")
             market = await self.generate_market()
@@ -147,6 +147,7 @@ class BlackMarket(commands.Cog):
             user = profiles.get(user_id)
 
         offers = market["offers"]
+        car_parts = await load_file(CAR_PARTS_FILE) or []
 
         embed = discord.Embed(
             title="🛒 WARLAB Black Market",
@@ -164,6 +165,17 @@ class BlackMarket(commands.Cog):
                 value=f"Rarity: **{rarity}**\nCost: **{cost} coins**",
                 inline=False
             )
+
+        if car_parts:
+            embed.add_field(name="🚗 Humvee Parts", value="Parts required to build the military Humvee:", inline=False)
+            for part in car_parts:
+                emoji = RARITY_EMOJIS.get(part["rarity"], "🔵")
+                cost = ITEM_COSTS.get(part["rarity"], 999)
+                embed.add_field(
+                    name=f"{emoji} {part['name']}",
+                    value=f"Rarity: **{part['rarity']}**\nCost: **{cost} coins**",
+                    inline=True
+                )
 
         view = MarketView(user, offers)
         embed_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
