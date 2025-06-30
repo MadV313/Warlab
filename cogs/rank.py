@@ -43,7 +43,10 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.secondary, row=1)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.message.edit(content="❌ Rank view closed", embed=None, view=None)
+        try:
+            await interaction.response.edit_message(content="❌ Rank view closed", embed=None, view=None)
+        except Exception as e:
+            print(f"⚠️ [CloseButton] Failed to close ephemeral message: {e}")
 
 class RankView(discord.ui.View):
     def __init__(self, user_id: str, user_data: dict, update_callback):
