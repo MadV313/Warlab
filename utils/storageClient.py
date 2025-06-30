@@ -10,12 +10,14 @@ PERSISTENT_DATA_URL = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
 if not PERSISTENT_DATA_URL:
     raise RuntimeError("❌ Environment variable PERSISTENT_DATA_URL is not set!")
 
-async def load_file(filename):
+async def load_file(filename, base_url_override=None):
     """
     Load a file remotely from persistent storage.
     Supports JSON (.json), base64 text (.bytes), and plain text.
+    Optional override for base URL.
     """
-    url = f"{PERSISTENT_DATA_URL}/{filename}"
+    base_url = base_url_override.rstrip("/") if base_url_override else PERSISTENT_DATA_URL
+    url = f"{base_url}/{filename}"
     print(f"📥 [storageClient] Loading file from: {url}")
 
     async with aiohttp.ClientSession() as session:
@@ -46,12 +48,14 @@ async def load_file(filename):
             print(f"⚠️ [storageClient] Error loading {filename}: {e}")
             raise
 
-async def save_file(filename, data):
+async def save_file(filename, data, base_url_override=None):
     """
     Save a file remotely to persistent storage using HTTP PUT.
     Only supports JSON data.
+    Optional override for base URL.
     """
-    url = f"{PERSISTENT_DATA_URL}/{filename}"
+    base_url = base_url_override.rstrip("/") if base_url_override else PERSISTENT_DATA_URL
+    url = f"{base_url}/{filename}"
     json_data = json.dumps(data, indent=2)
 
     print(f"📤 [storageClient] Save requested: {filename}")
