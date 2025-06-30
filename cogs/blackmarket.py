@@ -56,7 +56,10 @@ class BuyButton(discord.ui.Button):
             await interaction.response.send_message("❌ You don’t have enough coins.", ephemeral=True)
             return
 
+        # ✅ If it's a trap, stash it. If it's a car part, stash it. Otherwise, grant blueprint
         if self.item_name in ["Guard Dog", "Claymore Trap"]:
+            user.setdefault("stash", []).append(self.item_name)
+        elif self.item_name in ["Glow Plug", "Battery", "Fuel Canister", "M1025 Wheel"]:
             user.setdefault("stash", []).append(self.item_name)
         else:
             blueprint_name = f"{self.item_name} Blueprint"
@@ -91,7 +94,7 @@ class CloseButton(discord.ui.Button):
         await interaction.response.defer()
 
 class MarketView(discord.ui.View):
-    def __init__(self, user, offers):
+    def __init__(self, user, offers, car_part=None):
         super().__init__(timeout=300)
         self.stored_messages = []
         owned_blueprints = user.get("blueprints", [])
@@ -109,6 +112,13 @@ class MarketView(discord.ui.View):
                 if blueprint_name in owned_blueprints:
                     disabled = True
 
+            self.add_item(BuyButton(name, cost, name, rarity, disabled=disabled))
+
+        if car_part:
+            name = car_part["name"]
+            rarity = car_part["rarity"]
+            cost = ITEM_COSTS.get(rarity, 999)
+            disabled = name in purchased
             self.add_item(BuyButton(name, cost, name, rarity, disabled=disabled))
 
         self.add_item(CloseButton())
@@ -147,7 +157,7 @@ class BlackMarket(commands.Cog):
             user = profiles.get(user_id)
 
         offers = market["offers"]
-        car_parts = await load_file(CAR_PARTS_FILE) or []
+        car_part = market.get("car_part")
 
         embed = discord.Embed(
             title="🛒 WARLAB Black Market",
@@ -166,18 +176,16 @@ class BlackMarket(commands.Cog):
                 inline=False
             )
 
-        if car_parts:
-            embed.add_field(name="🚗 Humvee Parts", value="Parts required to build the military Humvee:", inline=False)
-            for part in car_parts:
-                emoji = RARITY_EMOJIS.get(part["rarity"], "🔵")
-                cost = ITEM_COSTS.get(part["rarity"], 999)
-                embed.add_field(
-                    name=f"{emoji} {part['name']}",
-                    value=f"Rarity: **{part['rarity']}**\nCost: **{cost} coins**",
-                    inline=True
-                )
+        if car_part:
+            emoji = RARITY_EMOJIS.get(car_part["rarity"], "🔵")
+            cost = ITEM_COSTS.get(car_part["rarity"], 999)
+            embed.add_field(
+                name="🚗 Humvee Part",
+                value=f"{emoji} **{car_part['name']}**\nRarity: **{car_part['rarity']}**\nCost: **{cost} coins**",
+                inline=False
+            )
 
-        view = MarketView(user, offers)
+        view = MarketView(user, offers, car_part=car_part)
         embed_msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         view.stored_messages = [embed_msg]
 
@@ -198,11 +206,15 @@ class BlackMarket(commands.Cog):
             {"name": "Claymore Trap", "rarity": "Special"}
         ]
 
+        car_parts = await load_file(CAR_PARTS_FILE) or []
+        car_part = random.choice(car_parts) if car_parts else None
+
         expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
         print(f"📅 [BlackMarket] Rotation expires at: {expires_at}")
         return {
             "offers": rotation,
-            "expires": expires_at
+            "expires": expires_at,
+            "car_part": car_part
         }
 
 async def setup(bot):
