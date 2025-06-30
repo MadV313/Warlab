@@ -48,7 +48,7 @@ class TurnInButton(discord.ui.Button):
         try:
             profiles = await load_file(USER_DATA) or {}
             recipes = await load_file(RECIPE_DATA) or {}
-            logs = await load_file(TURNIN_LOG) or {}
+            logs = await load_file(TURNIN_LOG, base_url_override=SV_PERSISTENT_DATA_URL) or {}
             taxlog = await load_file(TAXMAN_LOG, base_url_override=SV_PERSISTENT_DATA_URL) or {}
 
             user_data = profiles.get(self.user_id)
@@ -99,7 +99,7 @@ class TurnInButton(discord.ui.Button):
             taxlog[self.user_id] += prestige
 
             await save_file(USER_DATA, profiles)
-            await save_file(TURNIN_LOG, logs)
+            await save_file(TURNIN_LOG, logs, base_url_override=SV_PERSISTENT_DATA_URL)
             await save_file(TAXMAN_LOG, taxlog, base_url_override=SV_PERSISTENT_DATA_URL)
 
             embed = discord.Embed(
