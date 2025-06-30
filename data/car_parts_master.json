@@ -1,0 +1,34 @@
+[
+  {
+    "id": "glow_plug",
+    "name": "Glow Plug",
+    "rarity": "Rare",
+    "used_in": ["humvee"],
+    "optional": false,
+    "tags": ["engine"]
+  },
+  {
+    "id": "battery",
+    "name": "Battery",
+    "rarity": "Rare",
+    "used_in": ["humvee"],
+    "optional": false,
+    "tags": ["engine"]
+  },
+  {
+    "id": "fuel",
+    "name": "Fuel Canister",
+    "rarity": "Rare",
+    "used_in": ["humvee"],
+    "optional": false,
+    "tags": ["fuel"]
+  },
+  {
+    "id": "m1025_wheel",
+    "name": "M1025 Wheel",
+    "rarity": "Rare",
+    "used_in": ["humvee"],
+    "optional": false,
+    "tags": ["wheel"]
+  }
+]
