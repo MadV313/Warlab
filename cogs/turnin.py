@@ -10,10 +10,10 @@ import traceback
 import os
 
 USER_DATA   = "data/user_profiles.json"
-TURNIN_LOG  = "logs/turnin_log.json"
-TAXMAN_LOG  = "logs/taxman_log.json"
+TURNIN_LOG  = "data/turnin_log.json"
+TAXMAN_LOG  = "data/taxman_log.json"
 RECIPE_DATA = "data/item_recipes.json"
-CONFIRMATION_LOG = "logs/confirmations.json"
+CONFIRMATION_LOG = "data/confirmations.json"
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ECONOMY_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
