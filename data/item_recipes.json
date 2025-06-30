@@ -6,10 +6,10 @@
       "Barrel": 1,
       "Magazine": 1
     },
-    "optional": [
-      "Suppressor",
-      "Red Dot"
-    ],
+    "optional": {
+      "Suppressor": 1,
+      "Red Dot": 1
+    },
     "produces": "Mlock",
     "tags": [
       "pistol"
@@ -23,10 +23,10 @@
       "Magazine": 1,
       "Buttstock": 1
     },
-    "optional": [
-      "Optic",
-      "Suppressor"
-    ],
+    "optional": {
+      "Optic": 1,
+      "Suppressor": 1
+    },
     "produces": "M4",
     "tags": [
       "assault"
@@ -40,10 +40,10 @@
       "Slide Bolt": 1,
       "Buttstock": 1
     },
-    "optional": [
-      "PSO Scope",
-      "Muzzle Brake"
-    ],
+    "optional": {
+      "PSO Scope": 1,
+      "Muzzle Brake": 1
+    },
     "produces": "Mosin",
     "tags": [
       "rifle"
@@ -57,10 +57,10 @@
       "Receiver": 1,
       "Wooden Stock": 1
     },
-    "optional": [
-      "Red Dot",
-      "Sawed-Off Mod"
-    ],
+    "optional": {
+      "Red Dot": 1,
+      "Sawed-Off Mod": 1
+    },
     "produces": "BK-133",
     "tags": [
       "shotgun"
@@ -74,10 +74,10 @@
       "Magazine": 1,
       "Tactical Stock": 1
     },
-    "optional": [
-      "Suppressor",
-      "Reflex Sight"
-    ],
+    "optional": {
+      "Suppressor": 1,
+      "Reflex Sight": 1
+    },
     "produces": "USG 45",
     "tags": [
       "smg"
