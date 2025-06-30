@@ -1,11 +1,11 @@
-# utils/storageClient.py — Remote JSON Loader/Saver for Persistent Storage
+# utils/storageClient.py — Remote JSON Loader/Saver with correct override logic
 
 import os
 import aiohttp
 import json
 import base64
 
-# 🔗 Base URL to your persistent data endpoint
+# 🔗 Base URL to your default persistent data endpoint
 PERSISTENT_DATA_URL = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
 if not PERSISTENT_DATA_URL:
     raise RuntimeError("❌ Environment variable PERSISTENT_DATA_URL is not set!")
@@ -16,7 +16,7 @@ async def load_file(filename, base_url_override=None):
     Supports JSON (.json), base64 text (.bytes), and plain text.
     Optional override for base URL.
     """
-    base_url = base_url_override.rstrip("/") if base_url_override else PERSISTENT_DATA_URL
+    base_url = (base_url_override or PERSISTENT_DATA_URL).rstrip("/")
     url = f"{base_url}/{filename}"
     print(f"📥 [storageClient] Loading file from: {url}")
 
@@ -54,7 +54,7 @@ async def save_file(filename, data, base_url_override=None):
     Only supports JSON data.
     Optional override for base URL.
     """
-    base_url = base_url_override.rstrip("/") if base_url_override else PERSISTENT_DATA_URL
+    base_url = (base_url_override or PERSISTENT_DATA_URL).rstrip("/")
     url = f"{base_url}/{filename}"
     json_data = json.dumps(data, indent=2)
 
