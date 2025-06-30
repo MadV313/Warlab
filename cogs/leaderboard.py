@@ -62,7 +62,7 @@ class Leaderboard(commands.Cog):
             title="🏆 WARLAB Leaderboards",
             color=0xFFD700
         )
-        embed.add_field(name="🪖 Top Raid Wins", value=format_top("Raids Won", raids, "🪖"), inline=False)
+        embed.add_field(name="🪖 Top Raiders", value=format_top("Raids Won", raids, "🪖"), inline=False)
         embed.add_field(name="🛠️ Top Builders", value=format_top("Builds Completed", builds, "🛠️"), inline=False)
         embed.add_field(name="🪙 Top Coin Holders", value=format_top("Coins", coins, "🪙"), inline=False)
         embed.set_footer(text="Based on global user data")
