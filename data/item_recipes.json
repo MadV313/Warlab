@@ -90,7 +90,7 @@
       "Battery": 1,
       "Fuel Canister": 1,
       "M1025 Wheel": 1
-    ],
+    },
     "produces": "Humvee",
     "tags": [
       "humvee"
