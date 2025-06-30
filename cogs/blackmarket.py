@@ -206,8 +206,13 @@ class BlackMarket(commands.Cog):
             {"name": "Claymore Trap", "rarity": "Special"}
         ]
 
+        # ✅ Protect against malformed car_parts file
         car_parts = await load_file(CAR_PARTS_FILE) or []
-        car_part = random.choice(car_parts) if car_parts else None
+        if isinstance(car_parts, list) and len(car_parts) > 0:
+            car_part = random.choice(car_parts)
+        else:
+            print("⚠️ [BlackMarket] No car parts available or file malformed.")
+            car_part = None
 
         expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
         print(f"📅 [BlackMarket] Rotation expires at: {expires_at}")
