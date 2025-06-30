@@ -73,6 +73,11 @@ class TurnInButton(discord.ui.Button):
                         user_data["stash"].remove(part)
 
             for part, qty in recipe.get("requirements", {}).items():
+                if user_data["stash"].count(part) < qty:
+                    return await interaction.response.send_message(
+                        f"❌ You no longer have all required parts to turn in **{self.item_name}**.", ephemeral=True)
+            
+            for part, qty in recipe.get("requirements", {}).items():
                 for _ in range(qty):
                     user_data["stash"].remove(part)
 
