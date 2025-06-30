@@ -18,7 +18,7 @@ EXPLOSIVE_DATA  = "data/explosive_blueprints.json"
 TURNIN_ELIGIBLE = [
     "Mlock", "M4", "Mosin", "USG45", "BK-133",
     "Improvised Explosive Device", "Claymore", "Flashbang", "Frag Grenade",
-    "Combat Outfit", "Tactical Outfit", "NBC Suit"
+    "Combat Outfit", "Tactical Outfit", "NBC Suit", "Humvee"
 ]
 
 class CraftButton(discord.ui.Button):
