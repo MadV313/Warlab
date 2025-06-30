@@ -91,6 +91,16 @@ class CraftButton(discord.ui.Button):
             remove_parts(stash, recipe["requirements"])
             user["stash"] = list(stash.elements())
 
+            # Optional parts
+            optional_parts = recipe.get("optional", {})
+            optional_used = []
+            for part, qty in optional_parts.items():
+                if stash.get(part, 0) >= qty:
+                    stash[part] -= qty
+                    if stash[part] <= 0:
+                        del stash[part]
+                    optional_used.append(f"{qty}× {part}")
+
             crafted = recipe["produces"]
             user["stash"].append(crafted)
             if crafted in TURNIN_ELIGIBLE:
@@ -111,6 +121,9 @@ class CraftButton(discord.ui.Button):
             embed.add_field(name="Type", value=recipe.get("type", "Unknown"), inline=True)
             embed.add_field(name="Rarity", value=recipe.get("rarity", "Common"), inline=True)
 
+            if optional_used:
+                embed.add_field(name="Optional Bonuses", value="\n• " + "\n• ".join(optional_used), inline=False)
+
             prestige_rank = user.get("prestige", 0)
             prestige_points = user.get("prestige_points", 0)
             next_threshold = PRESTIGE_TIERS.get(prestige_rank + 1, None)
@@ -125,37 +138,35 @@ class CraftButton(discord.ui.Button):
             embed.set_footer(text="WARLAB | SV13 Bot")
             await interaction.followup.send(embed=embed, ephemeral=True)
 
-            # UI Update
+            # UI refresh
             if hasattr(self.view, "stored_messages"):
                 updated_stash = Counter(user["stash"])
                 updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
                 updated_view.stored_messages = self.view.stored_messages
 
-                grouped_buildables = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
+                # Rebuild embed
+                grouped = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
                 for bp in user.get("blueprints", []):
-                    core_name = bp.replace(" Blueprint", "").strip()
-                    key = core_name.lower()
-                    recipe = all_recipes.get(key)
-                    if not recipe:
-                        continue
-                    reqs = recipe.get("requirements", {})
-                    can_build = all(updated_stash.get(p, 0) >= q for p, q in reqs.items())
-                    if can_build:
-                        line = f"{recipe['produces']} — ✅ Build Ready"
+                    core = bp.replace(" Blueprint", "").strip()
+                    key = core.lower()
+                    r = all_recipes.get(key)
+                    if not r: continue
+                    reqs = r.get("requirements", {})
+                    if all(updated_stash.get(p, 0) >= q for p, q in reqs.items()):
+                        line = f"{r['produces']} — ✅ Build Ready"
                     else:
                         missing = [
                             f"{q - updated_stash.get(p, 0)}× {p}"
                             for p, q in reqs.items()
                             if updated_stash.get(p, 0) < q
                         ]
-                        line = f"{recipe['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
-
+                        line = f"{r['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
                     if key in explosives:
-                        grouped_buildables["💣 Explosives"].append(line)
+                        grouped["💣 Explosives"].append(line)
                     elif key in armor:
-                        grouped_buildables["🪖 Armor"].append(line)
+                        grouped["🪖 Armor"].append(line)
                     else:
-                        grouped_buildables["🔫 Weapons"].append(line)
+                        grouped["🔫 Weapons"].append(line)
 
                 updated_embed = discord.Embed(
                     title="🔧 Blueprint Workshop (Updated)",
@@ -163,12 +174,8 @@ class CraftButton(discord.ui.Button):
                     color=0xf1c40f
                 )
                 updated_embed.set_footer(text="WARLAB | SV13 Bot")
-                updated_embed.add_field(
-                    name="📘 Blueprints Owned",
-                    value="\n".join(f"• {bp}" for bp in user.get("blueprints", [])),
-                    inline=False
-                )
-                for group_name, items in grouped_buildables.items():
+                updated_embed.add_field(name="📘 Blueprints Owned", value="\n".join(f"• {bp}" for bp in user.get("blueprints", [])), inline=False)
+                for group_name, items in grouped.items():
                     if items:
                         updated_embed.add_field(name=group_name, value="\n".join(items), inline=False)
 
@@ -186,11 +193,18 @@ class CloseButton(discord.ui.Button):
         super().__init__(label="Close", style=discord.ButtonStyle.danger, row=4)
 
     async def callback(self, interaction: discord.Interaction):
-        for child in self.view.children:
-            child.disabled = True
-        if hasattr(self.view, "stored_messages"):
-            await self.view.stored_messages[0].edit(content="❌ Crafting closed.", embed=None, view=None)
-        await interaction.response.defer()
+        print(f"❌ [CloseButton] Triggered by {interaction.user.id}")
+        try:
+            for child in self.view.children:
+                child.disabled = True
+            await interaction.response.edit_message(
+                content="❌ Crafting view closed.",
+                embed=None,
+                view=None
+            )
+        except Exception as e:
+            print(f"❌ [CloseButton] Failed to edit message: {e}")
+            await interaction.followup.send("❌ Failed to close view. Try again or refresh.", ephemeral=True)
 
 class CraftView(discord.ui.View):
     def __init__(self, user_id, blueprints, stash_counter, all_recipes):
