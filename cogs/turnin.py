@@ -15,14 +15,14 @@ TAXMAN_LOG  = "logs/taxman_log.json"
 RECIPE_DATA = "data/item_recipes.json"
 CONFIRMATION_LOG = "logs/confirmations.json"
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
-ECONOMY_CHANNEL_ID = 1367583463775146167  # Set your economy channel if different
-ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]  # Admin + Trial Admin
+ECONOMY_CHANNEL_ID = 1367583463775146167
+ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
 REWARD_VALUES = {
-    "base_prestige" : 50,
+    "base_prestige": 50,
     "tactical_bonus": 100,
-    "coin_enabled"  : True,
-    "coin_bonus"    : 25
+    "coin_enabled": True,
+    "coin_bonus": 25
 }
 
 TURNIN_ELIGIBLE = [
@@ -35,7 +35,7 @@ class TurnInButton(discord.ui.Button):
     def __init__(self, item_name: str, user_id: str):
         super().__init__(label=f"Turn In: {item_name}", style=discord.ButtonStyle.success)
         self.item_name = item_name.strip()
-        self.user_id   = user_id
+        self.user_id = user_id
 
     async def callback(self, interaction: discord.Interaction):
         if str(interaction.user.id) != self.user_id:
@@ -44,9 +44,9 @@ class TurnInButton(discord.ui.Button):
 
         try:
             profiles = await load_file(USER_DATA) or {}
-            recipes  = await load_file(RECIPE_DATA) or {}
-            logs     = await load_file(TURNIN_LOG) or {}
-            taxlog   = await load_file(TAXMAN_LOG) or {}
+            recipes = await load_file(RECIPE_DATA) or {}
+            logs = await load_file(TURNIN_LOG) or {}
+            taxlog = await load_file(TAXMAN_LOG) or {}
 
             user_data = profiles.get(self.user_id)
             if not user_data:
@@ -81,7 +81,7 @@ class TurnInButton(discord.ui.Button):
             user_data["crafted"].remove(self.item_name)
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
-            user_data["coins"]    += coins
+            user_data["coins"] += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
             logs.setdefault(self.user_id, []).append({
@@ -107,7 +107,7 @@ class TurnInButton(discord.ui.Button):
                 color=0x00FF7F
             )
             current_rank = get_prestige_rank(user_data["prestige"])
-            progress     = get_prestige_progress(user_data["prestige"])
+            progress = get_prestige_progress(user_data["prestige"])
             embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
             embed.add_field(name="Progress to Next", value=f"{progress}", inline=True)
             await interaction.response.edit_message(embed=embed, view=None)
@@ -163,14 +163,12 @@ class ConfirmRewardButton(discord.ui.Button):
 
         await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
 
-        # Notify in economy channel
         economy_channel = interaction.client.get_channel(ECONOMY_CHANNEL_ID)
         if economy_channel:
             await economy_channel.send(
                 f"💰 <@{self.player_id}> has received **{prestige} prestige** for turning in **{self.item_name}**."
             )
 
-        # Log admin confirmation
         confirmations = await load_file(CONFIRMATION_LOG) or []
         confirmations.append({
             "confirmed_by": str(interaction.user),
@@ -190,9 +188,34 @@ class ConfirmRewardButton(discord.ui.Button):
         await interaction.response.send_message("✅ Confirmation logged.", ephemeral=True)
 
 
-async def setup(bot):
-    await bot.add_cog(TurnIn(bot))
-
 class TurnIn(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @app_commands.command(name="turnin", description="View your eligible crafted items to turn in for rewards.")
+    async def turnin(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        profiles = await load_file(USER_DATA) or {}
+        user_data = profiles.get(user_id)
+
+        if not user_data or not user_data.get("crafted"):
+            return await interaction.response.send_message("❌ You have no crafted items to turn in.", ephemeral=True)
+
+        eligible_items = [item for item in user_data["crafted"] if item in TURNIN_ELIGIBLE]
+        if not eligible_items:
+            return await interaction.response.send_message("❌ No eligible turn-ins found.", ephemeral=True)
+
+        embed = discord.Embed(
+            title="🧾 Available Turn-Ins",
+            description="Click a button below to turn in one of your crafted items.",
+            color=0x3498DB
+        )
+        view = discord.ui.View(timeout=60)
+        for item in eligible_items[:5]:
+            view.add_item(TurnInButton(item, user_id))
+
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+async def setup(bot):
+    await bot.add_cog(TurnIn(bot))
