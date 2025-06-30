@@ -8,18 +8,28 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 PART_MASTER_REF = "data/part_master_reference.json"
+CAR_PARTS_FILE = "data/car_parts_master.json"
 
 class PartManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.cached_parts = {}  # {"Weapons": [...], "Armor": [...], "Explosives": [...]}
+        self.cached_parts = {}
 
     async def get_parts_by_category(self, category):
         if category in self.cached_parts:
             return self.cached_parts[category]
 
-        ref = await load_file(PART_MASTER_REF) or {}
-        self.cached_parts[category] = ref.get(category, [])
+        if category in ["Weapons", "Armor", "Explosives"]:
+            ref = await load_file(PART_MASTER_REF) or {}
+            self.cached_parts[category] = ref.get(category, [])
+        elif category == "Car Parts":
+            ref = await load_file(CAR_PARTS_FILE) or {}
+            self.cached_parts[category] = list(ref.keys())
+        elif category == "Vehicles":
+            self.cached_parts[category] = ["Humvee"]
+        else:
+            self.cached_parts[category] = []
+
         print(f"📦 [part.py] Cached parts for {category}: {self.cached_parts[category]}")
         return self.cached_parts[category]
 
@@ -28,7 +38,7 @@ class PartManager(commands.Cog):
     @app_commands.describe(
         action="Give or remove a part",
         user="Target player",
-        item="Category: Weapons, Armor, or Explosives",
+        item="Category: Weapons, Armor, Explosives, Car Parts, or Vehicles",
         part="Part name from selected category",
         quantity="Amount to give or remove"
     )
@@ -37,7 +47,7 @@ class PartManager(commands.Cog):
         interaction: discord.Interaction,
         action: Literal["give", "remove"],
         user: discord.Member,
-        item: Literal["Weapons", "Armor", "Explosives"],
+        item: Literal["Weapons", "Armor", "Explosives", "Car Parts", "Vehicles"],
         part: str,
         quantity: int
     ):
