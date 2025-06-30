@@ -18,6 +18,9 @@ TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ECONOMY_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
+# Load SV persistent override (for taxman and confirmations)
+SV_PERSISTENT_DATA_URL = os.getenv("SV_PERSISTENT_DATA_URL", "").rstrip("/")
+
 REWARD_VALUES = {
     "base_prestige": 50,
     "tactical_bonus": 100,
@@ -46,7 +49,7 @@ class TurnInButton(discord.ui.Button):
             profiles = await load_file(USER_DATA) or {}
             recipes = await load_file(RECIPE_DATA) or {}
             logs = await load_file(TURNIN_LOG) or {}
-            taxlog = await load_file(TAXMAN_LOG) or {}
+            taxlog = await load_file(TAXMAN_LOG, base_url_override=SV_PERSISTENT_DATA_URL) or {}
 
             user_data = profiles.get(self.user_id)
             if not user_data:
@@ -97,7 +100,7 @@ class TurnInButton(discord.ui.Button):
 
             await save_file(USER_DATA, profiles)
             await save_file(TURNIN_LOG, logs)
-            await save_file(TAXMAN_LOG, taxlog)
+            await save_file(TAXMAN_LOG, taxlog, base_url_override=SV_PERSISTENT_DATA_URL)
 
             embed = discord.Embed(
                 title="✅ Item Turned In",
@@ -169,7 +172,7 @@ class ConfirmRewardButton(discord.ui.Button):
                 f"💰 <@{self.player_id}> has received **{prestige} prestige** for turning in **{self.item_name}**."
             )
 
-        confirmations = await load_file(CONFIRMATION_LOG) or []
+        confirmations = await load_file(CONFIRMATION_LOG, base_url_override=SV_PERSISTENT_DATA_URL) or []
         confirmations.append({
             "confirmed_by": str(interaction.user),
             "confirmed_by_id": str(interaction.user.id),
@@ -178,12 +181,12 @@ class ConfirmRewardButton(discord.ui.Button):
             "reason": f"Turn-In: {self.item_name}",
             "timestamp": datetime.utcnow().isoformat()
         })
-        await save_file(CONFIRMATION_LOG, confirmations)
+        await save_file(CONFIRMATION_LOG, confirmations, base_url_override=SV_PERSISTENT_DATA_URL)
 
-        taxlog = await load_file(TAXMAN_LOG) or {}
+        taxlog = await load_file(TAXMAN_LOG, base_url_override=SV_PERSISTENT_DATA_URL) or {}
         admin_id_str = str(interaction.user.id)
         taxlog[admin_id_str] = taxlog.get(admin_id_str, 0) + 1
-        await save_file(TAXMAN_LOG, taxlog)
+        await save_file(TAXMAN_LOG, taxlog, base_url_override=SV_PERSISTENT_DATA_URL)
 
         await interaction.response.send_message("✅ Confirmation logged.", ephemeral=True)
 
