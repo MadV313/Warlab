@@ -464,16 +464,17 @@ class RaidView(discord.ui.View):
                 defender_user = await self.ctx.guild.fetch_member(int(self.defender_id))
                 if defender_user and not defender_user.bot and self.success:
                     class RetaliateButton(discord.ui.View):
-                        def __init__(self, attacker_id):
+                        def __init__(self, attacker_id, guild_id):
                             super().__init__(timeout=86400)
                             self.add_item(discord.ui.Button(
                                 label="🗡 Retaliate",
                                 style=discord.ButtonStyle.danger,
-                                url=f"https://discord.com/channels/{self.ctx.guild.id}/{WARLAB_CHANNEL}"
+                                url=f"https://discord.com/channels/{guild_id}/{WARLAB_CHANNEL}"
                             ))
+
                     await defender_user.send(
                         f"⚠️ You were raided by <@{self.attacker_id}>!\nYou may retaliate within 24 hours.",
-                        view=RetaliateButton(self.attacker_id)
+                        view=RetaliateButton(self.attacker_id, self.ctx.guild.id)
                     )
             except Exception as e:
                 print(f"⚠️ Failed to send retaliation DM: {e}")
@@ -520,6 +521,11 @@ class Raid(commands.Cog):
             raid_limit = 3
             cooldowns = await load_file(COOLDOWN_FILE) or {}
             raid_timestamps = cooldowns.get(attacker_id, [])
+
+            if isinstance(raid_timestamps, dict):
+                # Legacy format — skip parsing and avoid crash
+                print(f"⚠️ Skipping legacy cooldown format for {attacker_id}")
+                raid_timestamps = []
 
             recent_raids = [
                 datetime.fromisoformat(ts)
