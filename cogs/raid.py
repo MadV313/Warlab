@@ -334,16 +334,16 @@ class RaidView(discord.ui.View):
             prestige_gain = 0
             self.stolen_items = []
             self.stolen_coins = 0
-    
+        
             if self.success:
                 multiplier = 2 if is_weekend_boost_active() else 1
                 prestige_gain = 50 * multiplier
                 self.stolen_coins = random.randint(5, 25) * multiplier
-    
+        
                 uid = str(self.attacker_id)
                 profiles = await load_file(USER_DATA)
                 user = profiles.get(uid, self.attacker)
-    
+        
                 if is_weekend_boost_active() and all(self.results):
                     user["coins"] += 25
                     bonus_item = await get_random_bonus_item()
@@ -351,25 +351,26 @@ class RaidView(discord.ui.View):
                         user["stash"].append(bonus_item)
                         summary.append(f"<a:bonus_item:1370091021958119445> Bonus item: {bonus_item}")
                     summary.append("<a:bonus:1386436403000512694> Tripple Threat Weekend Boost Active! +25 coins")
-    
+        
                 defender_stash = self.defender.get("stash", [])
                 stealable = [item for item in defender_stash if item not in DEFENCE_TYPES]
-    
+        
                 if stealable:
                     stolen_count = min(3, len(stealable))
                     self.stolen_items = random.sample(stealable, stolen_count)
                     for item in self.stolen_items:
                         defender_stash.remove(item)
-    
+        
                 user.setdefault("stash", [])
                 print(f"📦 PRE-UPDATE STASH: {user['stash']}")
-    
+        
                 user["coins"] += self.stolen_coins
                 user["stash"].extend(self.stolen_items)
                 user["successful_raids"] = user.get("successful_raids", 0) + 1
-    
-                user, ranked_up, rank_msg = apply_prestige_xp(user, xp_gain=prestige_gain)
-    
+        
+                # ✅ FIXED UNPACKING LINE
+                user, ranked_up, rank_msg, _, _ = apply_prestige_xp(user, xp_gain=prestige_gain)
+        
                 prestige_rank    = user.get("prestige", 0)
                 prestige_points  = user.get("prestige_points", 0)
                 next_threshold   = PRESTIGE_TIERS.get(prestige_rank + 1)
@@ -380,7 +381,7 @@ class RaidView(discord.ui.View):
                 if ranked_up:
                     summary.append(rank_msg or f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
                     print(f"📦 POST-UPDATE STASH: {user['stash']}")
-    
+        
                 self.attacker = user
                 profiles[uid] = user
                 await save_file(USER_DATA, profiles)
