@@ -2,19 +2,20 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
-from utils.fileIO import load_file, save_file
+import json
+from utils.fileIO import load_file
 
 USER_DATA = "data/user_profiles.json"
-WARLAB_CHANNEL_ID = 1382187883590455296     # Replace with your actual Warlab channel ID
-BACKUP_CHANNEL_ID = 1389706195102728322     # Backup upload channel
-ADMIN_ROLE_IDS = [1173049392371085392]  # Your admin role IDs
+WARLAB_CHANNEL_ID = 1382187883590455296     # Warlab channel
+BACKUP_CHANNEL_ID = 1389706195102728322     # Secure archive channel
 
 class WarlabBackup(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="warlabbackup", description="🧪 ADMIN: Back up all Warlab user data to the secure archive channel.")
-    @app_commands.guilds(discord.Object(id=1166441420643639348))  # Replace with your server ID
+    @app_commands.guilds(discord.Object(id=1166441420643639348))  # Server ID
+    @app_commands.checks.has_permissions(administrator=True)
     async def warlabbackup(self, interaction: discord.Interaction):
         print(f"📦 [warlabbackup] Called by {interaction.user} ({interaction.user.id})")
 
@@ -24,29 +25,18 @@ class WarlabBackup(commands.Cog):
                 "❌ This command must be used in the Warlab channel.", ephemeral=True
             )
 
-        # Admin role restriction
-        member = interaction.guild.get_member(interaction.user.id) or await interaction.guild.fetch_member(interaction.user.id)
-        user_roles = [role.id for role in member.roles]
-        
-        print(f"🔍 [warlabnuke] User roles: {user_roles}")  # Debug
-        
-        # ✅ Check permission
-        if not any(role_id in ADMIN_ROLE_IDS for role_id in user_roles):
-            return await interaction.response.send_message(
-                "❌ You do not have permission to use this command.", ephemeral=True
-            )
-
         await interaction.response.send_message("📁 Creating backup...", ephemeral=True)
 
         try:
-            # Load and save a clean local copy
+            # Load player data
             profiles = await load_file(USER_DATA) or {}
-            backup_path = f"/mnt/data/user_profiles_backup.json"
+
+            # Save to temp file
+            backup_path = "/mnt/data/user_profiles_backup.json"
             with open(backup_path, "w", encoding="utf-8") as f:
-                import json
                 json.dump(profiles, f, indent=2)
 
-            # Send to backup channel
+            # Upload to archive
             backup_channel = self.bot.get_channel(BACKUP_CHANNEL_ID)
             if backup_channel:
                 await backup_channel.send(
@@ -54,9 +44,10 @@ class WarlabBackup(commands.Cog):
                     file=discord.File(backup_path)
                 )
                 await interaction.followup.send("✅ Backup completed and sent to the archive channel.", ephemeral=True)
+                print("✅ [warlabbackup] Backup sent successfully.")
             else:
                 await interaction.followup.send("❌ Backup channel not found.", ephemeral=True)
-                print(f"❌ [warlabbackup] Could not find channel: {BACKUP_CHANNEL_ID}")
+                print(f"❌ [warlabbackup] Could not find channel ID: {BACKUP_CHANNEL_ID}")
 
         except Exception as e:
             print(f"❌ [warlabbackup] Backup failed: {e}")
