@@ -1,4 +1,4 @@
-# cogs/turnin.py — Finalized Turn-In system with stash tracking, prestige DM, and admin logging
+# cogs/turnin.py — Finalized Turn-In system with correct persistence routing and full DM/admin flow
 
 import discord
 from discord.ext import commands
@@ -11,7 +11,6 @@ import os
 
 USER_DATA   = "data/user_profiles.json"
 RECIPE_DATA = "data/item_recipes.json"
-
 TURNIN_LOG  = "data/turnin_log.json"
 TAXMAN_LOG  = "data/taxman_log.json"
 CONFIRMATION_LOG = "data/confirmations.json"
@@ -61,8 +60,7 @@ class TurnInButton(discord.ui.Button):
             if self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
                 return await interaction.response.send_message("❌ This item is not eligible or was already turned in.", ephemeral=True)
 
-            recipe_key = self.item_name.lower()
-            recipe = recipes.get(recipe_key)
+            recipe = recipes.get(self.item_name.lower())
             if not recipe:
                 return await interaction.response.send_message("❌ Recipe not found.", ephemeral=True)
 
@@ -111,14 +109,9 @@ class TurnInButton(discord.ui.Button):
             current = progress_data["points"]
             current_threshold = progress_data["current_threshold"]
             next_threshold = progress_data["next_threshold"]
-            
-            if next_threshold:
-                progress = (current - current_threshold) / (next_threshold - current_threshold)
-            else:
-                progress = 1.0
-            
+            progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
             progress_bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
-            
+
             embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
             embed.add_field(name="Progress to Next", value=progress_bar, inline=True)
 
@@ -172,22 +165,15 @@ class ConfirmRewardButton(discord.ui.Button):
 
             await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
 
-            # DM player
             try:
                 prestige_total = player_data.get("prestige", 0)
                 crafted_total = len(player_data.get("crafted_log", []))
                 rank = get_prestige_rank(prestige_total)
                 progress_data = get_prestige_progress(prestige_total)
-                
                 current = progress_data["points"]
                 current_threshold = progress_data["current_threshold"]
                 next_threshold = progress_data["next_threshold"]
-                
-                if next_threshold:
-                    progress = (current - current_threshold) / (next_threshold - current_threshold)
-                else:
-                    progress = 1.0
-                
+                progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
                 bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
 
                 user = await interaction.client.fetch_user(int(self.player_id))
