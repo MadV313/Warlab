@@ -18,7 +18,6 @@ TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ECONOMY_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
-# Load correct SV13 persistent repo for logging
 SV13_PERSISTENT_DATA_URL = os.getenv("SV13_PERSISTENT_DATA_URL", "").rstrip("/")
 
 REWARD_VALUES = {
@@ -65,16 +64,12 @@ class TurnInButton(discord.ui.Button):
             if not recipe:
                 return await interaction.response.send_message("❌ Recipe not found.", ephemeral=True)
 
-            # Only consume optional parts if player still has them
             used_parts = recipe.get("requirements", {}).copy()
             for part, qty in recipe.get("optional", {}).items():
                 if user_data.get("stash", []).count(part) >= qty:
                     used_parts[part] = used_parts.get(part, 0) + qty
                     for _ in range(qty):
                         user_data["stash"].remove(part)
-            
-            # ❌ DO NOT check required parts again — the item is already crafted
-            # ❌ DO NOT re-remove required parts from stash
 
             prestige = REWARD_VALUES["base_prestige"]
             if "Tactical" in self.item_name:
@@ -111,8 +106,10 @@ class TurnInButton(discord.ui.Button):
             )
             current_rank = get_prestige_rank(user_data["prestige"])
             progress = get_prestige_progress(user_data["prestige"])
+            progress_bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
+
             embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
-            embed.add_field(name="Progress to Next", value=f"{progress}", inline=True)
+            embed.add_field(name="Progress to Next", value=progress_bar, inline=True)
             await interaction.response.edit_message(embed=embed, view=None)
 
             try:
@@ -156,8 +153,8 @@ class ConfirmRewardButton(discord.ui.Button):
             return
 
         profiles = await load_file(USER_DATA) or {}
-        player = profiles.get(self.player_id)
-        if not player:
+        player_data = profiles.get(self.player_id)
+        if not player_data:
             return await interaction.response.send_message("❌ Player profile not found.", ephemeral=True)
 
         prestige = REWARD_VALUES["base_prestige"]
@@ -171,6 +168,27 @@ class ConfirmRewardButton(discord.ui.Button):
             await economy_channel.send(
                 f"💰 <@{self.player_id}> has received **{prestige} prestige** for turning in **{self.item_name}**."
             )
+
+        # ✅ Send player DM
+        try:
+            prestige_total = player_data.get("prestige", 0)
+            crafted_total = len(player_data.get("crafted_log", []))
+            rank = get_prestige_rank(prestige_total)
+            progress_raw = get_prestige_progress(prestige_total)
+            progress_bar = f"[{'█' * int(progress_raw * 10):<10}] {int(progress_raw * 100)}%"
+
+            user = await interaction.client.fetch_user(int(self.player_id))
+            if user:
+                await user.send(
+                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
+                    f"🔧 **Item Turned In:** {self.item_name}\n"
+                    f"📦 **Total Builds Completed:** `{crafted_total}`\n"
+                    f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
+                    f"📊 **Progress to Next Rank:** {progress_bar}\n\n"
+                    f"🫡 Stay frosty, Survivor — your legend is growing!"
+                )
+        except Exception as e:
+            print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
 
         confirmations = await load_file(CONFIRMATION_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or []
         confirmations.append({
