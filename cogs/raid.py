@@ -383,7 +383,7 @@ class RaidView(discord.ui.View):
                 )
                 if ranked_up:
                         try:
-                            await broadcast_prestige_announcement(self.ctx.bot, self.ctx.user, user)
+                            await broadcast_prestige_announcement(self.ctx.client, self.ctx.user, user)
                         except Exception as e:
                             print(f"⚠️ Failed to broadcast prestige announcement: {e}")
         
@@ -436,13 +436,6 @@ class RaidView(discord.ui.View):
             except:
                 pass
             self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view, ephemeral=True)
-    
-            try:
-                cooldowns = await load_file(COOLDOWN_FILE) or {}
-                cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
-                await save_file(COOLDOWN_FILE, cooldowns)
-            except Exception as e:
-                print(f"⚠️ Failed to update cooldowns: {e}")
     
             try:
                 warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
