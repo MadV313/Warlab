@@ -7,7 +7,7 @@ from utils.fileIO import load_file, save_file
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296     # Replace with your actual Warlab channel ID
 BACKUP_CHANNEL_ID = 1389706195102728322     # Backup upload channel
-ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]  # Your admin role IDs
+ADMIN_ROLE_IDS = ["1173049392371085392"]  # Your admin role IDs
 
 class WarlabBackup(commands.Cog):
     def __init__(self, bot):
