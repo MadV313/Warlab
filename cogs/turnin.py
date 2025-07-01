@@ -9,8 +9,8 @@ from datetime import datetime
 import traceback
 import asyncio
 
-USER_DATA = "user_profiles.json"
-TURNIN_LOG = "turnin_log.json"
+USER_DATA = "data/user_profiles.json"
+TURNIN_LOG = "logs/turnin_log.json"
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
