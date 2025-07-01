@@ -1,4 +1,4 @@
-# cogs/turnin.py — Updated Turn-In system with correct stash consumption tracking, prestige display, and admin logging
+# cogs/turnin.py — Finalized Turn-In system with stash tracking, prestige DM, and admin logging
 
 import discord
 from discord.ext import commands
@@ -56,8 +56,7 @@ class TurnInButton(discord.ui.Button):
 
             crafted_list = user_data.get("crafted", [])
             if self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
-                return await interaction.response.send_message(
-                    "❌ This item is not eligible or was already turned in.", ephemeral=True)
+                return await interaction.response.send_message("❌ This item is not eligible or was already turned in.", ephemeral=True)
 
             recipe_key = self.item_name.lower()
             recipe = recipes.get(recipe_key)
@@ -131,8 +130,7 @@ class TurnInButton(discord.ui.Button):
 
         except Exception:
             print("❌ [TurnInButton Error]\n" + traceback.format_exc())
-            await interaction.followup.send(
-                "❌ Something broke while processing your turn-in. Please ping an admin.", ephemeral=True)
+            await interaction.followup.send("❌ Something broke while processing your turn-in. Please ping an admin.", ephemeral=True)
 
 
 class RewardConfirmView(discord.ui.View):
@@ -149,64 +147,61 @@ class ConfirmRewardButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if not any(str(role.id) in ADMIN_ROLE_IDS for role in interaction.user.roles):
-            await interaction.response.send_message("❌ You are not authorized to confirm rewards.", ephemeral=True)
-            return
+            return await interaction.response.send_message("❌ You are not authorized to confirm rewards.", ephemeral=True)
 
-        profiles = await load_file(USER_DATA) or {}
-        player_data = profiles.get(self.player_id)
-        if not player_data:
-            return await interaction.response.send_message("❌ Player profile not found.", ephemeral=True)
-
-        prestige = REWARD_VALUES["base_prestige"]
-        if "Tactical" in self.item_name:
-            prestige += REWARD_VALUES["tactical_bonus"]
-
-        await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
-
-        economy_channel = interaction.client.get_channel(ECONOMY_CHANNEL_ID)
-        if economy_channel:
-            await economy_channel.send(
-                f"💰 <@{self.player_id}> has received **{prestige} prestige** for turning in **{self.item_name}**."
-            )
-
-        # ✅ Send player DM
         try:
-            prestige_total = player_data.get("prestige", 0)
-            crafted_total = len(player_data.get("crafted_log", []))
-            rank = get_prestige_rank(prestige_total)
-            progress_raw = get_prestige_progress(prestige_total)
-            progress_bar = f"[{'█' * int(progress_raw * 10):<10}] {int(progress_raw * 100)}%"
+            profiles = await load_file(USER_DATA) or {}
+            player_data = profiles.get(self.player_id)
+            if not player_data:
+                return await interaction.response.send_message("❌ Player profile not found.", ephemeral=True)
 
-            user = await interaction.client.fetch_user(int(self.player_id))
-            if user:
-                await user.send(
-                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
-                    f"🔧 **Item Turned In:** {self.item_name}\n"
-                    f"📦 **Total Builds Completed:** `{crafted_total}`\n"
-                    f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
-                    f"📊 **Progress to Next Rank:** {progress_bar}\n\n"
-                    f"🫡 Stay frosty, Survivor — your legend is growing!"
-                )
-        except Exception as e:
-            print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
+            prestige = REWARD_VALUES["base_prestige"]
+            if "Tactical" in self.item_name:
+                prestige += REWARD_VALUES["tactical_bonus"]
 
-        confirmations = await load_file(CONFIRMATION_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or []
-        confirmations.append({
-            "confirmed_by": str(interaction.user),
-            "confirmed_by_id": str(interaction.user.id),
-            "target_user_id": self.player_id,
-            "amount": prestige,
-            "reason": f"Turn-In: {self.item_name}",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        await save_file(CONFIRMATION_LOG, confirmations, base_url_override=SV13_PERSISTENT_DATA_URL)
+            await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
 
-        taxlog = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
-        admin_id_str = str(interaction.user.id)
-        taxlog[admin_id_str] = taxlog.get(admin_id_str, 0) + 1
-        await save_file(TAXMAN_LOG, taxlog, base_url_override=SV13_PERSISTENT_DATA_URL)
+            # DM player
+            try:
+                prestige_total = player_data.get("prestige", 0)
+                crafted_total = len(player_data.get("crafted_log", []))
+                rank = get_prestige_rank(prestige_total)
+                progress = get_prestige_progress(prestige_total)
+                bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
 
-        await interaction.response.send_message("✅ Confirmation logged.", ephemeral=True)
+                user = await interaction.client.fetch_user(int(self.player_id))
+                if user:
+                    await user.send(
+                        f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
+                        f"🔧 **Item Turned In:** {self.item_name}\n"
+                        f"📦 **Total Builds Completed:** `{crafted_total}`\n"
+                        f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
+                        f"📊 **Progress to Next Rank:** {bar}\n\n"
+                        f"🫡 Stay frosty, Survivor — your legend is growing!"
+                    )
+            except Exception as e:
+                print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
+
+            confirmations = await load_file(CONFIRMATION_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or []
+            confirmations.append({
+                "confirmed_by": str(interaction.user),
+                "confirmed_by_id": str(interaction.user.id),
+                "target_user_id": self.player_id,
+                "amount": prestige,
+                "reason": f"Turn-In: {self.item_name}",
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            await save_file(CONFIRMATION_LOG, confirmations, base_url_override=SV13_PERSISTENT_DATA_URL)
+
+            taxlog = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
+            admin_id = str(interaction.user.id)
+            taxlog[admin_id] = taxlog.get(admin_id, 0) + 1
+            await save_file(TAXMAN_LOG, taxlog, base_url_override=SV13_PERSISTENT_DATA_URL)
+
+            await interaction.response.send_message("✅ Confirmation logged.", ephemeral=True)
+
+        except Exception:
+            print("❌ [ConfirmRewardButton Error]\n" + traceback.format_exc())
 
 
 class TurnIn(commands.Cog):
