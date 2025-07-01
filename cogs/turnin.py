@@ -9,11 +9,11 @@ from datetime import datetime
 import traceback
 import os
 
-USER_DATA   = "data/user_profiles.json"
-RECIPE_DATA = "data/item_recipes.json"
-TURNIN_LOG  = "data/turnin_log.json"
-TAXMAN_LOG  = "data/taxman_log.json"
-CONFIRMATION_LOG = "data/confirmations.json"
+USER_DATA   = "user_profiles.json"
+RECIPE_DATA = "item_recipes.json"
+TURNIN_LOG  = "turnin_log.json"
+TAXMAN_LOG  = "taxman_log.json"
+CONFIRMATION_LOG = "confirmations.json"
 
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ECONOMY_CHANNEL_ID = 1367583463775146167
