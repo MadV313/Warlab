@@ -2,9 +2,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import asyncio
+import os
 from utils.fileIO import load_file, save_file
 
-USER_DATA = "user_profiles.json"
+USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # Warlab channel ID
 
 class WarlabNuke(commands.Cog):
@@ -44,6 +45,8 @@ class WarlabNuke(commands.Cog):
 
         # Execute nuke
         try:
+            os.makedirs("/mnt/data", exist_ok=True)  # Ensure directory exists
+
             data = await load_file(USER_DATA) or {}
             wiped = {}
 
