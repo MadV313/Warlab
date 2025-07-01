@@ -8,7 +8,7 @@ from collections import Counter
 from utils.fileIO import load_file, save_file
 from utils.inventory import has_required_parts, remove_parts
 from utils.prestigeBonusHandler import can_craft_tactical, can_craft_explosives
-from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS
+from utils.prestigeUtils import apply_prestige_xp, broadcast_prestige_announcement, PRESTIGE_TIERS
 
 USER_DATA       = "data/user_profiles.json"
 RECIPE_DATA     = "data/item_recipes.json"
@@ -111,11 +111,17 @@ class CraftButton(discord.ui.Button):
                     "item": crafted,
                     "optional": optional_used
                 })
-
+            
             user["builds_completed"] = user.get("builds_completed", 0) + 1
-            user, ranked_up, rank_up_msg = apply_prestige_xp(user, xp_gain=25)
+            user, ranked_up, rank_up_msg, old_rank, new_rank = apply_prestige_xp(user, xp_gain=25)
+            
+            # Save updated profile
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
+            
+            # Broadcast if rank-up occurred
+            if ranked_up:
+                await broadcast_prestige_announcement(interaction.client, interaction.user, user)
 
             print(f"🧪 [CraftButton] Crafted: {crafted} — XP applied — Saved profile: {self.user_id}")
 
