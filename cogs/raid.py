@@ -561,8 +561,17 @@ class Raid(commands.Cog):
         view = RaidView(interaction, attacker, defender, visuals, reinforcements,
                         stash_visual, stash_img_path, is_test, target=target)
 
-        initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
-        view.message = initial_msg
+        try:
+            initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
+            view.message = initial_msg
+            print(f"✅ [raid.py] Sent raid UI successfully. Message ID: {initial_msg.id}")
+        except Exception as e:
+            print(f"❌ [raid.py] Failed to send raid UI: {e}")
+            await interaction.followup.send(
+                "❌ An unexpected error occurred while sending the raid UI. Please try again later.",
+                ephemeral=True
+            )
+            return
 
 # ---------------------------  Cog Setup  --------------------------------- #
 async def setup(bot): await bot.add_cog(Raid(bot))
