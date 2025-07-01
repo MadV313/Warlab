@@ -136,7 +136,7 @@ class Scavenge(commands.Cog):
                     name = bonus["item"]
                     if name not in found:
                         found.append(name)
-                        boost_msgs.append("🔥 Weekend Boost activated!")
+                        boost_msgs.append("<a:bonus:1386436403000512694> Weekend Boost activated!")
                         if item_catalog.get(name, {}).get("type") == "crafted":
                             crafted_found.append(name)
                         print(f"🎉 Weekend bonus pulled: {name}")
@@ -168,7 +168,7 @@ class Scavenge(commands.Cog):
             embed.add_field(name="✅ Scavenges Completed", value=str(user["scavenges"]), inline=True)
             
             if boost_msgs:
-                embed.add_field(name="🔥 Active Boosts", value="\n".join(boost_msgs), inline=False)
+                embed.add_field(name="<a:bonus:1386436403000512694> Active Boosts", value="\n".join(boost_msgs), inline=False)
             
             await interaction.followup.send(embed=embed, ephemeral=True)
             
