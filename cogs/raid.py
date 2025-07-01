@@ -441,6 +441,8 @@ class RaidView(discord.ui.View):
                 cooldowns = await load_file(COOLDOWN_FILE) or {}
                 cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
                 await save_file(COOLDOWN_FILE, cooldowns)
+            except Exception as e:
+                print(f"⚠️ Failed to update cooldowns: {e}")
     
             try:
                 warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
