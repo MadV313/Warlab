@@ -9,6 +9,7 @@ from datetime import datetime
 import traceback
 import asyncio
 from collections import Counter
+from cogs.rank import RANK_TITLES 
 
 USER_DATA = "data/user_profiles.json"
 TURNIN_LOG = "logs/turnin_log.json"
@@ -131,24 +132,30 @@ class ConfirmRewardButton(discord.ui.Button):
             profiles = await load_file(USER_DATA) or {}
             player_data = profiles.get(self.player_id, {})
 
-            prestige_total = player_data.get("prestige", 0)
+            prestige_points = player_data.get("prestige_points", 0)
             crafted_total = len(player_data.get("crafted_log", []))
-            rank = get_prestige_rank(prestige_total)
-            progress_data = get_prestige_progress(prestige_total)
-
-            current = progress_data["points"]
-            current_threshold = progress_data["current_threshold"]
+            progress_data = get_prestige_progress(prestige_points)
+            current_tier = progress_data["current_rank"]
             next_threshold = progress_data["next_threshold"]
-            progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
-            bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
-
+            rank_title = RANK_TITLES.get(current_tier, "Unknown")
+            
+            # Optional: store prestige for consistency with /rank
+            player_data["prestige"] = current_tier
+            
+            # Build progress bar
+            if next_threshold:
+                bar = f"[{'█' * int((progress_data['points'] / next_threshold) * 10):<10}] {int((progress_data['points'] / next_threshold) * 100)}%"
+            else:
+                bar = "[██████████] MAX"
+            
+            # Send DM to player
             user = await interaction.client.fetch_user(int(self.player_id))
             if user:
                 await user.send(
                     f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
                     f"🔧 **Item Turned In:** {self.item_name}\n"
                     f"📦 **Total Builds Completed:** `{crafted_total}`\n"
-                    f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
+                    f"🧠 **Current Prestige:** `{prestige_points}` • *{rank_title}*\n"
                     f"📊 **Progress to Next Rank:** {bar}\n\n"
                     f"🫡 Stay frosty, Survivor — your legend is growing!"
                 )
