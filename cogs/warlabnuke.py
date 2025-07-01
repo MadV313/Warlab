@@ -4,7 +4,7 @@ from discord import app_commands
 import asyncio
 from utils.fileIO import load_file, save_file
 
-USER_DATA = "data/user_profiles.json"
+USER_DATA = "user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # Warlab channel ID
 
 class WarlabNuke(commands.Cog):
