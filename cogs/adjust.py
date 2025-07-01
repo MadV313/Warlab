@@ -7,7 +7,7 @@ from typing import Literal
 from datetime import datetime
 
 from utils.fileIO import load_file, save_file
-from utils.prestigeUtils import broadcast_prestige_announcement  # ✅ WARLAB rank-up alerts
+from utils.prestigeUtils import get_prestige_progress, get_prestige_rank, broadcast_prestige_announcement
 
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # Warlab broadcast target
@@ -67,28 +67,34 @@ class AdjustPrestige(commands.Cog):
             return
 
         profile = profiles[user_id]
-        current_prestige = profile.get("prestige", 0)
+        current_points = profile.get("prestige_points", 0)
+        current_rank = get_prestige_rank(current_points)
 
         if action == "take":
-            if current_prestige <= 0:
-                print(f"⚠️ [Adjust] {user.display_name} already at 0 prestige.")
-                await interaction.response.send_message(
-                    f"⚠️ {user.mention} is already at **0 prestige**.", ephemeral=True)
+            if current_rank <= 0:
+                await interaction.response.send_message(f"⚠️ {user.mention} is already at **0 prestige**.", ephemeral=True)
                 return
-            if amount > current_prestige:
-                print(f"❌ [Adjust] Cannot remove {amount} from {current_prestige}")
+            if amount > current_rank:
                 await interaction.response.send_message(
-                    f"❌ Cannot remove **{amount} prestige** — {user.mention} only has **{current_prestige}**.",
+                    f"❌ Cannot remove **{amount} prestige** — {user.mention} only has **{current_rank}**.",
                     ephemeral=True)
                 return
-            profile["prestige"] = current_prestige - amount
+            new_rank = current_rank - amount
+            new_points = get_prestige_progress(new_rank)["min_required"]
             result = f"🗑 Removed **{amount} prestige** from {user.mention}."
             print(f"✅ [Adjust] {result}")
 
         elif action == "give":
-            profile["prestige"] = current_prestige + amount
+            new_rank = current_rank + amount
+            new_points = get_prestige_progress(new_rank)["min_required"]
             result = f"✅ Gave **{amount} prestige** to {user.mention}."
             print(f"✅ [Adjust] {result}")
+
+        # Update both prestige fields
+        profile["prestige_points"] = new_points
+        profile["prestige"] = get_prestige_rank(new_points)
+
+        if action == "give" and new_rank > current_rank:
             await broadcast_prestige_announcement(interaction.client, user, profile)
 
         profiles[user_id] = profile
