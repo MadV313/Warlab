@@ -1,5 +1,7 @@
 # bot.py — WARLAB Cog Loader + Reliable Slash Sync + Weekend Boost Announcer
 
+BACKUP_CHANNEL_ID = 1389706195102728322
+
 print("🟡 Booting WARLAB Bot...")
 
 import discord
@@ -104,7 +106,38 @@ async def on_ready():
     except Exception as exc:
         print(f"❌ Slash-sync error: {exc}")
 
+    weekly_backup_loop.start()
+
     check_weekend_boosts.start()
+
+@tasks.loop(minutes=60)
+async def weekly_backup_loop():
+    now = datetime.now(pytz.timezone("US/Eastern"))
+    print(f"🕒 [weekly_backup] Tick: {now.strftime('%A %I:%M %p')} EST")
+
+    if now.weekday() == 6 and now.hour == 12:
+        print("🗂️ [weekly_backup] Running automatic backup...")
+
+        try:
+            profiles = await load_file("data/user_profiles.json") or {}
+            os.makedirs("/mnt/data", exist_ok=True)
+
+            backup_path = "/mnt/data/user_profiles_weekly.json"
+            with open(backup_path, "w", encoding="utf-8") as f:
+                json.dump(profiles, f, indent=2)
+
+            channel = bot.get_channel(BACKUP_CHANNEL_ID)
+            if channel:
+                await channel.send(
+                    content="🗃️ **Weekly Warlab Backup** — auto-export of `user_profiles.json` at Sunday 12 PM EST",
+                    file=discord.File(backup_path)
+                )
+                print("✅ [weekly_backup] Sent weekly archive to backup channel.")
+            else:
+                print(f"❌ [weekly_backup] Backup channel ID {BACKUP_CHANNEL_ID} not found.")
+
+        except Exception as e:
+            print(f"❌ [weekly_backup] Failed to send backup: {e}")
 
 # ── Log every slash invocation ───────────────────────────────────────────────
 @bot.listen("on_interaction")
