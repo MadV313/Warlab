@@ -23,7 +23,9 @@ class WarlabNuke(commands.Cog):
             )
 
         # ❌ Admin check
-        user_roles = [role.id for role in interaction.user.roles]
+        member = interaction.guild.get_member(interaction.user.id) or await interaction.guild.fetch_member(interaction.user.id)
+        user_roles = [role.id for role in member.roles]
+
         if not any(role_id in ADMIN_ROLE_IDS for role_id in user_roles):
             return await interaction.response.send_message(
                 "❌ You do not have permission to use this command.", ephemeral=True
