@@ -501,44 +501,44 @@ class Raid(commands.Cog):
         is_test = target.display_name.lower() == "warlab"
 
         users = await load_file(USER_DATA) or {}
-
         attacker = users.get(attacker_id)
         if not attacker:
-            print(f"❌ [Raid] Attacker profile not found: {attacker_id}")
-            return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
+            return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.",
+                                                   ephemeral=True)
 
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
 
-        if is_test:
-            return await interaction.followup.send("⚠️ You cannot raid **Warlab**.", ephemeral=True)
-
-        # 1. Enforce 3 raids per 12 hours limit
         cooldowns = await load_file(COOLDOWN_FILE) or {}
-        recent_raids = cooldowns.get(attacker_id, {})
-        past_12_hours = now - timedelta(hours=12)
-        raid_times = [datetime.fromisoformat(ts) for ts in recent_raids.values()]
-        recent_valid_raids = [ts for ts in raid_times if ts > past_12_hours]
-
-        if len(recent_valid_raids) >= 3:
-            return await interaction.followup.send(
-                "🧨 You’ve reached your **raid limit**.\nYou can only raid **3 times every 12 hours**.",
-                ephemeral=True)
-
-        # 2. Per-player cooldown
-        if defender_id in recent_raids:
-            last = datetime.fromisoformat(recent_raids[defender_id])
+        if defender_id in cooldowns.get(attacker_id, {}):
+            last = datetime.fromisoformat(cooldowns[attacker_id][defender_id])
             if now - last < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last)
                 return await interaction.followup.send(
                     f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
                     ephemeral=True)
 
-        # Defender Setup
-        defender = users.get(defender_id)
-        if not defender:
-            print(f"❌ [Raid] Defender profile not found: {defender_id}")
-            return await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
+        if is_test:
+            catalog = await load_file(CATALOG_PATH) or {}
+            skin = random.choice(list(catalog))
+            defender = {
+                "labskins": [skin],
+                "baseImage": catalog[skin]["filename"],
+                "reinforcements": {
+                    "Guard Dog": 1,
+                    "Claymore Trap": 1,
+                    "Barbed Fence": 2,
+                    "Reinforced Gate": 1,
+                    "Locked Container": 1
+                },
+                "stash": ["Saw", "Red Dot", "NBC Suit"],
+                "coins": 50
+            }
+        else:
+            defender = users.get(defender_id)
+            if not defender:
+                return await interaction.followup.send(
+                    "❌ That player doesn’t have a profile yet.", ephemeral=True)
 
         reinforcements = defender.get("reinforcements", {})
         catalog = await load_file(CATALOG_PATH) or {}
@@ -561,17 +561,8 @@ class Raid(commands.Cog):
         view = RaidView(interaction, attacker, defender, visuals, reinforcements,
                         stash_visual, stash_img_path, is_test, target=target)
 
-        try:
-            initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
-            view.message = initial_msg
-            print(f"✅ [raid.py] Sent raid UI successfully. Message ID: {initial_msg.id}")
-        except Exception as e:
-            print(f"❌ [raid.py] Failed to send raid UI: {e}")
-            await interaction.followup.send(
-                "❌ An unexpected error occurred while sending the raid UI. Please try again later.",
-                ephemeral=True
-            )
-            return
+        initial_msg = await interaction.followup.send(embed=embed, file=file, view=view, ephemeral=True)
+        view.message = initial_msg
 
 # ---------------------------  Cog Setup  --------------------------------- #
 async def setup(bot): await bot.add_cog(Raid(bot))
