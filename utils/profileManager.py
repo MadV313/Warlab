@@ -37,7 +37,8 @@ async def create_profile(uid: str, username: str):
         "boosts": {},
         "reinforcements": {},  # e.g., {"Barbed Fence": 2, "Guard Dog": 1}
         "task_status": "not_started",
-        "created": str(int(time.time()))  # UTC timestamp fallback instead of file mtime
+        "baseImage": "base_house.png",  # ✅ Add this line for visual compatibility
+        "created": str(int(time.time()))
     }
 
     await _save(data)
