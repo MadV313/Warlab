@@ -5,7 +5,7 @@ from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296  # Replace with your actual Warlab channel ID
-ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]  # Add your admin role IDs here
+ADMIN_ROLE_IDS = ["1173049392371085392"]  # Add your admin role IDs here
 
 class WarlabNuke(commands.Cog):
     def __init__(self, bot):
