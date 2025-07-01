@@ -509,14 +509,30 @@ class Raid(commands.Cog):
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
 
+        # ⏳ Load and check raid cooldowns
         cooldowns = await load_file(COOLDOWN_FILE) or {}
-        if defender_id in cooldowns.get(attacker_id, {}):
-            last = datetime.fromisoformat(cooldowns[attacker_id][defender_id])
+        recent_raids = cooldowns.get(attacker_id, {})
+        past_12_hours = now - timedelta(hours=12)
+
+        # Count raids in past 12 hours
+        raid_timestamps = [datetime.fromisoformat(ts) for ts in recent_raids.values()]
+        recent_valid_raids = [ts for ts in raid_timestamps if ts > past_12_hours]
+
+        if len(recent_valid_raids) >= 3:
+            return await interaction.followup.send(
+                "🧨 You’ve reached your **raid limit**.\nYou can only raid **3 times every 12 hours**.",
+                ephemeral=True
+            )
+
+        # Per-defender 24h cooldown
+        if defender_id in recent_raids:
+            last = datetime.fromisoformat(recent_raids[defender_id])
             if now - last < timedelta(hours=24):
                 wait = timedelta(hours=24) - (now - last)
                 return await interaction.followup.send(
                     f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
-                    ephemeral=True)
+                    ephemeral=True
+                )
 
         if is_test:
             catalog = await load_file(CATALOG_PATH) or {}
