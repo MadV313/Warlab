@@ -5,7 +5,7 @@ import os
 import json
 from utils.fileIO import load_file
 
-USER_DATA = "user_profiles.json"
+USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296     # Warlab channel
 BACKUP_CHANNEL_ID = 1389706195102728322     # Secure archive channel
 
@@ -31,8 +31,12 @@ class WarlabBackup(commands.Cog):
             # Load player data
             profiles = await load_file(USER_DATA) or {}
 
+            # Ensure /mnt/data exists
+            backup_dir = "/mnt/data"
+            os.makedirs(backup_dir, exist_ok=True)
+
             # Save to temp file
-            backup_path = "/mnt/data/user_profiles_backup.json"
+            backup_path = os.path.join(backup_dir, "user_profiles_backup.json")
             with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(profiles, f, indent=2)
 
