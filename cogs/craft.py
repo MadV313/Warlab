@@ -107,7 +107,10 @@ class CraftButton(discord.ui.Button):
             crafted = recipe["produces"]
             user["stash"].append(crafted)
             if crafted in TURNIN_ELIGIBLE:
-                user.setdefault("crafted", []).append(crafted)
+                user.setdefault("crafted", []).append({
+                    "item": crafted,
+                    "optional": optional_used
+                })
 
             user["builds_completed"] = user.get("builds_completed", 0) + 1
             user, ranked_up, rank_up_msg = apply_prestige_xp(user, xp_gain=25)
