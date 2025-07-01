@@ -10,14 +10,17 @@ import traceback
 import os
 
 USER_DATA   = "data/user_profiles.json"
+RECIPE_DATA = "data/item_recipes.json"
+
 TURNIN_LOG  = "data/turnin_log.json"
 TAXMAN_LOG  = "data/taxman_log.json"
-RECIPE_DATA = "data/item_recipes.json"
 CONFIRMATION_LOG = "data/confirmations.json"
+
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ECONOMY_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
+PERSISTENT_DATA_URL      = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
 SV13_PERSISTENT_DATA_URL = os.getenv("SV13_PERSISTENT_DATA_URL", "").rstrip("/")
 
 REWARD_VALUES = {
@@ -45,10 +48,10 @@ class TurnInButton(discord.ui.Button):
             return
 
         try:
-            profiles = await load_file(USER_DATA) or {}
-            recipes = await load_file(RECIPE_DATA) or {}
-            logs = await load_file(TURNIN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
-            taxlog = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
+            profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
+            recipes  = await load_file(RECIPE_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
+            logs     = await load_file(TURNIN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
+            taxlog   = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
 
             user_data = profiles.get(self.user_id)
             if not user_data:
@@ -92,7 +95,7 @@ class TurnInButton(discord.ui.Button):
             taxlog.setdefault(self.user_id, 0)
             taxlog[self.user_id] += prestige
 
-            await save_file(USER_DATA, profiles)
+            await save_file(USER_DATA, profiles, base_url_override=PERSISTENT_DATA_URL)
             await save_file(TURNIN_LOG, logs, base_url_override=SV13_PERSISTENT_DATA_URL)
             await save_file(TAXMAN_LOG, taxlog, base_url_override=SV13_PERSISTENT_DATA_URL)
 
@@ -150,7 +153,7 @@ class ConfirmRewardButton(discord.ui.Button):
             return await interaction.response.send_message("❌ You are not authorized to confirm rewards.", ephemeral=True)
 
         try:
-            profiles = await load_file(USER_DATA) or {}
+            profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
             player_data = profiles.get(self.player_id)
             if not player_data:
                 return await interaction.response.send_message("❌ Player profile not found.", ephemeral=True)
@@ -211,7 +214,7 @@ class TurnIn(commands.Cog):
     @app_commands.command(name="turnin", description="View your eligible crafted items to turn in for rewards.")
     async def turnin(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        profiles = await load_file(USER_DATA) or {}
+        profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
         user_data = profiles.get(user_id)
 
         if not user_data or not user_data.get("crafted"):
