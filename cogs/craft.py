@@ -88,10 +88,8 @@ class CraftButton(discord.ui.Button):
             return
 
         try:
-            # Remove required parts
             remove_parts(stash, recipe["requirements"])
-            
-            # Then consume optional parts
+
             optional_parts = recipe.get("optional", {})
             optional_used = []
             for part, qty in optional_parts.items():
@@ -100,8 +98,7 @@ class CraftButton(discord.ui.Button):
                     if stash[part] <= 0:
                         del stash[part]
                     optional_used.append(f"{qty}× {part}")
-            
-            # Update stash after consuming all parts
+
             user["stash"] = list(stash.elements())
 
             crafted = recipe["produces"]
@@ -111,15 +108,13 @@ class CraftButton(discord.ui.Button):
                     "item": crafted,
                     "optional": optional_used
                 })
-            
+
             user["builds_completed"] = user.get("builds_completed", 0) + 1
             user, ranked_up, rank_up_msg, old_rank, new_rank = apply_prestige_xp(user, xp_gain=25)
-            
-            # Save updated profile
+
             profiles[self.user_id] = user
             await save_file(USER_DATA, profiles)
-            
-            # Broadcast if rank-up occurred
+
             if ranked_up:
                 await broadcast_prestige_announcement(interaction.client, interaction.user, user)
 
@@ -148,54 +143,55 @@ class CraftButton(discord.ui.Button):
                 embed.description += f"\n{rank_up_msg}"
 
             embed.set_footer(text="WARLAB | SV13 Bot")
-            if self.view.stored_messages:
-                await self.view.stored_messages[0].edit(embed=embed)
-            else:
-                msg = await interaction.followup.send(embed=embed, ephemeral=True)
-                self.view.stored_messages = [msg]
 
-            # UI refresh
+            # 📌 Store or update the result followup message (2nd slot)
             if hasattr(self.view, "stored_messages"):
-                updated_stash = Counter(user["stash"])
-                updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
-                updated_view.stored_messages = self.view.stored_messages
+                if len(self.view.stored_messages) >= 2:
+                    await self.view.stored_messages[1].edit(embed=embed)
+                else:
+                    msg = await interaction.followup.send(embed=embed, ephemeral=True)
+                    self.view.stored_messages.append(msg)
 
-                # Rebuild embed
-                grouped = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
-                for bp in user.get("blueprints", []):
-                    core = bp.replace(" Blueprint", "").strip()
-                    key = core.lower()
-                    r = all_recipes.get(key)
-                    if not r: continue
-                    reqs = r.get("requirements", {})
-                    if all(updated_stash.get(p, 0) >= q for p, q in reqs.items()):
-                        line = f"{r['produces']} — ✅ Build Ready"
-                    else:
-                        missing = [
-                            f"{q - updated_stash.get(p, 0)}× {p}"
-                            for p, q in reqs.items()
-                            if updated_stash.get(p, 0) < q
-                        ]
-                        line = f"{r['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
-                    if key in explosives:
-                        grouped["💣 Explosives"].append(line)
-                    elif key in armor:
-                        grouped["🪖 Armor"].append(line)
-                    else:
-                        grouped["🔫 Weapons"].append(line)
+            # 🔁 Update main blueprint view
+            updated_stash = Counter(user["stash"])
+            updated_view = CraftView(self.user_id, user.get("blueprints", []), updated_stash, all_recipes)
+            updated_view.stored_messages = self.view.stored_messages
 
-                updated_embed = discord.Embed(
-                    title="🔧 Blueprint Workshop (Updated)",
-                    description="Click an item below to craft it if you have the parts.",
-                    color=0xf1c40f
-                )
-                updated_embed.set_footer(text="WARLAB | SV13 Bot")
-                updated_embed.add_field(name="📘 Blueprints Owned", value="\n".join(f"• {bp}" for bp in user.get("blueprints", [])), inline=False)
-                for group_name, items in grouped.items():
-                    if items:
-                        updated_embed.add_field(name=group_name, value="\n".join(items), inline=False)
+            grouped = {"🔫 Weapons": [], "🪖 Armor": [], "💣 Explosives": []}
+            for bp in user.get("blueprints", []):
+                core = bp.replace(" Blueprint", "").strip()
+                key = core.lower()
+                r = all_recipes.get(key)
+                if not r: continue
+                reqs = r.get("requirements", {})
+                if all(updated_stash.get(p, 0) >= q for p, q in reqs.items()):
+                    line = f"{r['produces']} — ✅ Build Ready"
+                else:
+                    missing = [
+                        f"{q - updated_stash.get(p, 0)}× {p}"
+                        for p, q in reqs.items()
+                        if updated_stash.get(p, 0) < q
+                    ]
+                    line = f"{r['produces']} — ❌ Missing Parts:\n• " + "\n• ".join(missing)
+                if key in explosives:
+                    grouped["💣 Explosives"].append(line)
+                elif key in armor:
+                    grouped["🪖 Armor"].append(line)
+                else:
+                    grouped["🔫 Weapons"].append(line)
 
-                await self.view.stored_messages[0].edit(embed=updated_embed, view=updated_view)
+            updated_embed = discord.Embed(
+                title="🔧 Blueprint Workshop (Updated)",
+                description="Click an item below to craft it if you have the parts.",
+                color=0xf1c40f
+            )
+            updated_embed.set_footer(text="WARLAB | SV13 Bot")
+            updated_embed.add_field(name="📘 Blueprints Owned", value="\n".join(f"• {bp}" for bp in user.get("blueprints", [])), inline=False)
+            for group_name, items in grouped.items():
+                if items:
+                    updated_embed.add_field(name=group_name, value="\n".join(items), inline=False)
+
+            await self.view.stored_messages[0].edit(embed=updated_embed, view=updated_view)
 
         except Exception as e:
             print(f"❌ [CraftButton] Exception occurred: {e}")
