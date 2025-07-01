@@ -4,12 +4,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from utils.storageClient import load_file, save_file
-from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
+from utils.prestigeUtils import get_prestige_rank, get_prestige_progress, broadcast_prestige_announcement
 from datetime import datetime
 import traceback
 import asyncio
 from collections import Counter
-from cogs.rank import RANK_TITLES 
+from cogs.rank import RANK_TITLES
 
 USER_DATA = "data/user_profiles.json"
 TURNIN_LOG = "logs/turnin_log.json"
@@ -65,7 +65,8 @@ class TurnInButton(discord.ui.Button):
             user_data["crafted"].remove(crafted_entry)
 
             user_data.setdefault("crafted_log", []).append(self.item_name)
-            user_data["prestige"] += prestige
+            user_data["prestige"] += prestige  # Legacy value
+            user_data["prestige_points"] = user_data.get("prestige_points", 0) + prestige
             user_data["coins"] += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
@@ -132,24 +133,27 @@ class ConfirmRewardButton(discord.ui.Button):
             profiles = await load_file(USER_DATA) or {}
             player_data = profiles.get(self.player_id, {})
 
-            prestige_points = player_data.get("prestige_points", 0)
+            old_points = player_data.get("prestige_points", 0)
+            old_rank = get_prestige_rank(old_points)
+
+            prestige_points = player_data["prestige_points"]
+            new_rank = get_prestige_rank(prestige_points)
             crafted_total = len(player_data.get("crafted_log", []))
             progress_data = get_prestige_progress(prestige_points)
-            current_tier = progress_data["current_rank"]
             next_threshold = progress_data["next_threshold"]
-            rank_title = RANK_TITLES.get(current_tier, "Unknown")
-            
-            # Optional: store prestige for consistency with /rank
-            player_data["prestige"] = current_tier
-            
-            # Build progress bar
+            rank_title = RANK_TITLES.get(new_rank, "Unknown")
+
+            player_data["prestige"] = new_rank
+
             if next_threshold:
                 bar = f"[{'█' * int((progress_data['points'] / next_threshold) * 10):<10}] {int((progress_data['points'] / next_threshold) * 100)}%"
             else:
                 bar = "[██████████] MAX"
-            
-            # Send DM to player
+
             user = await interaction.client.fetch_user(int(self.player_id))
+            if new_rank > old_rank:
+                await broadcast_prestige_announcement(interaction.client, user, player_data)
+
             if user:
                 await user.send(
                     f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
@@ -159,6 +163,9 @@ class ConfirmRewardButton(discord.ui.Button):
                     f"📊 **Progress to Next Rank:** {bar}\n\n"
                     f"🫡 Stay frosty, Survivor — your legend is growing!"
                 )
+
+            await save_file(USER_DATA, profiles)
+
         except Exception as e:
             print(f"⚠️ [RewardConfirmButton Error] {e}")
 
