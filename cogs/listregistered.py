@@ -117,7 +117,7 @@ class ListRegistered(commands.Cog):
             stash = Counter(profile.get("stash", []))
             reinforcements = profile.get("reinforcements", {})
             blueprints = profile.get("blueprints", [])
-            scavenges = profile.get("scavenge_count", 0)
+            scavenges = profile.get("scavenges", 0)
             tasks = profile.get("tasks_completed", 0)
             raids = profile.get("successful_raids", 0)
             turnins = profile.get("turnins_completed", 0)
