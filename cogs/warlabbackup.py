@@ -5,7 +5,7 @@ import os
 import json
 from utils.fileIO import load_file
 
-USER_DATA = "data/user_profiles.json"
+USER_DATA = "user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296     # Warlab channel
 BACKUP_CHANNEL_ID = 1389706195102728322     # Secure archive channel
 
