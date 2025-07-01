@@ -133,27 +133,34 @@ class ConfirmRewardButton(discord.ui.Button):
             profiles = await load_file(USER_DATA) or {}
             player_data = profiles.get(self.player_id, {})
 
+            # Get old prestige BEFORE update
             old_points = player_data.get("prestige_points", 0)
             old_rank = get_prestige_rank(old_points)
 
+            # Re-fetch prestige (already incremented earlier)
             prestige_points = player_data["prestige_points"]
             new_rank = get_prestige_rank(prestige_points)
             crafted_total = len(player_data.get("crafted_log", []))
-            progress_data = get_prestige_progress(prestige_points)
-            next_threshold = progress_data["next_threshold"]
+
+            # Update rank field
+            player_data["prestige"] = new_rank
             rank_title = RANK_TITLES.get(new_rank, "Unknown")
 
-            player_data["prestige"] = new_rank
-
+            # Progress bar
+            progress_data = get_prestige_progress(prestige_points)
+            next_threshold = progress_data["next_threshold"]
             if next_threshold:
-                bar = f"[{'█' * int((progress_data['points'] / next_threshold) * 10):<10}] {int((progress_data['points'] / next_threshold) * 100)}%"
+                percent = int((progress_data["points"] / next_threshold) * 100)
+                bar = f"[{'█' * (percent // 10):<10}] {percent}%"
             else:
                 bar = "[██████████] MAX"
 
+            # Trigger announcement if rank increased
             user = await interaction.client.fetch_user(int(self.player_id))
             if new_rank > old_rank:
                 await broadcast_prestige_announcement(interaction.client, user, player_data)
 
+            # DM user with updated prestige info
             if user:
                 await user.send(
                     f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
