@@ -1,3 +1,4 @@
+
 # utils/prestigeUtils.py — Centralized Prestige Rank System (Remote-persistent ready)
 
 from utils.boosts import is_weekend_boost_active
@@ -6,11 +7,16 @@ import discord
 from datetime import datetime
 
 PRESTIGE_TIERS = {
-    1: 200,     # Prestige I
-    2: 400,     # Prestige II
+    1: 200,     # Prestige I (Lab Skins Unlock)
+    2: 400,     # Prestige II (Special Unlocks)
     3: 600,     # Prestige III
-    4: 800,     # Prestige IV (Lab Skins Unlock)
-    5: 1000     # Prestige V (Special Unlocks)
+    4: 800,     # Prestige IV 
+    5: 1000,    # Prestige V 
+    6: 1200,    # Prestige VI 
+    7: 1400,    # Prestige VII
+    8: 1600,    # Prestige VIII
+    9: 1800,    # Prestige IX
+    10: 2000    # Prestige X 
 }
 
 PRESTIGE_CLASSES = {
@@ -72,7 +78,13 @@ def get_prestige_class(user: dict):
 def apply_prestige_xp(user_data: dict, xp_gain: int) -> tuple:
     """
     Adds prestige XP, applies rank-ups, and returns:
-    (updated_user_data, ranked_up: bool, rank_up_message: str or None)
+    (
+        updated_user_data,
+        ranked_up: bool,
+        message: Optional[str],
+        old_rank: int,
+        new_rank: int
+    )
     """
     if is_weekend_boost_active():
         xp_gain *= 2
@@ -96,7 +108,7 @@ def apply_prestige_xp(user_data: dict, xp_gain: int) -> tuple:
         else:
             message = f"🎉 **Prestige Rank Up!** You are now Prestige {new_rank}!"
 
-    return user_data, ranked_up, message
+    return user_data, ranked_up, message, old_rank, new_rank
 
 async def broadcast_prestige_announcement(bot: discord.Client, member: discord.Member, profile: dict):
     """
@@ -112,7 +124,8 @@ async def broadcast_prestige_announcement(bot: discord.Client, member: discord.M
             f"{member.mention} reached **Prestige {new_rank}**\n"
             f"🎖 Rank Title: **{rank_title}**\n" +
             (f"📛 Prestige Class: **{special_class['title']}**\n" if special_class else "") +
-            "\n🎲 Use /rollblueprint to try for a new schematic!"
+            "\n🎲 Use /rollblueprint to try for a new schematic!\n"
+            f"Check out new skins unlocked with /labskin!"
         ),
         color=special_class["color"] if special_class else 0x6b8e23,
         timestamp=datetime.utcnow()
