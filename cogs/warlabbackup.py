@@ -7,7 +7,7 @@ from utils.fileIO import load_file, save_file
 USER_DATA = "data/user_profiles.json"
 WARLAB_CHANNEL_ID = 1382187883590455296     # Replace with your actual Warlab channel ID
 BACKUP_CHANNEL_ID = 1389706195102728322     # Backup upload channel
-ADMIN_ROLE_IDS = ["1173049392371085392"]  # Your admin role IDs
+ADMIN_ROLE_IDS = [1173049392371085392]  # Your admin role IDs
 
 class WarlabBackup(commands.Cog):
     def __init__(self, bot):
@@ -27,7 +27,10 @@ class WarlabBackup(commands.Cog):
         # Admin role restriction
         member = interaction.guild.get_member(interaction.user.id) or await interaction.guild.fetch_member(interaction.user.id)
         user_roles = [role.id for role in member.roles]
-
+        
+        print(f"🔍 [warlabnuke] User roles: {user_roles}")  # Debug
+        
+        # ✅ Check permission
         if not any(role_id in ADMIN_ROLE_IDS for role_id in user_roles):
             return await interaction.response.send_message(
                 "❌ You do not have permission to use this command.", ephemeral=True
