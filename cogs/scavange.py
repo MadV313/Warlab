@@ -154,22 +154,31 @@ class Scavenge(commands.Cog):
             profiles[user_id] = user
             await save_file(USER_DATA, profiles)
             print(f"✅ Saved updated profile for {user_id}")
-
+            print(f"🎒 Items found: {found}")
+            print(f"🧰 Crafted items pulled: {crafted_found}")
+            
+            # Sort found items alphabetically for display
+            found.sort()
+            
             loot_display = [f"🧰 {x}" if x in crafted_found else x for x in found]
-            summary_text = (
-                f"📋 {random.choice(SCAVENGE_MISSIONS)}\n\n"
-                f"🔎 You scavenged and found: **{', '.join(loot_display)}**\n"
-                f"💰 You also found **{coins_found} coins!**\n"
-                f"✅ Scavenges Completed: **{user['scavenges']}**"
-            )
+            embed = discord.Embed(title="🧭 Scavenge Report", color=0x8DE68A)
+            embed.add_field(name="🧪 Mission", value=random.choice(SCAVENGE_MISSIONS), inline=False)
+            embed.add_field(name="📦 Items Gained", value="\n".join(loot_display), inline=False)
+            embed.add_field(name="💰 Coins Found", value=str(coins_found), inline=True)
+            embed.add_field(name="✅ Scavenges Completed", value=str(user["scavenges"]), inline=True)
+            
             if boost_msgs:
-                summary_text += "\n\n" + "\n".join(boost_msgs)
-
-            await interaction.followup.send(summary_text, ephemeral=True)
-
+                embed.add_field(name="🔥 Active Boosts", value="\n".join(boost_msgs), inline=False)
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # Crafted alert
             if crafted_found:
-                for item in crafted_found:
-                    await interaction.followup.send(f"🚨 Turn-in ready item pulled! Use `/turnin` to redeem: **{item}**", ephemeral=True)
+                crafted_line = ", ".join([f"**{itm}**" for itm in crafted_found])
+                await interaction.followup.send(
+                    f"<a:emoji_71:954381485236961280> Turn-in ready item found! Use `/turnin` to redeem: {crafted_line}",
+                    ephemeral=True
+                )
 
         except Exception as e:
             print(f"❌ SCAVENGE EXCEPTION: {e}")
