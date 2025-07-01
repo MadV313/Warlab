@@ -131,7 +131,7 @@ class ListRegistered(commands.Cog):
                 f"   - 🧬 Prestige: {prestige} ({prestige_pts}/200 pts)\n"
                 f"   - 🔁 Builds: {len(blueprints)} | 📦 Turn-ins: {turnins} | 🪖 Raids: {raids}\n"
                 f"   - 🔍 Scavenges: {scavenges} | 📝 Tasks: {tasks}\n"
-                f"   - ⚡ Boosts: {boosts_owned}/3 | 💰 Coins: {coins} | 🛡️ Reinforcements: {reinforce_total}"
+                f"   - <a:bonus:1386436403000512694> Boosts: {boosts_owned}/3 | 💰 Coins: {coins} | 🛡️ Reinforcements: {reinforce_total}"
             )
 
         if not entries:
