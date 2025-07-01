@@ -8,6 +8,7 @@ from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
 from datetime import datetime
 import traceback
 import asyncio
+from collections import Counter
 
 USER_DATA = "data/user_profiles.json"
 TURNIN_LOG = "logs/turnin_log.json"
@@ -46,23 +47,27 @@ class TurnInButton(discord.ui.Button):
             if not user_data:
                 return await interaction.response.send_message("❌ No profile found.", ephemeral=True)
 
-            crafted_list = [x.strip() for x in user_data.get("crafted", [])]
-            if self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
-                return await interaction.response.send_message("❌ This item is not eligible or has already been turned in.", ephemeral=True)
+            # Check that it's in stash and eligible
+            stash = user_data.get("stash", [])
+            if self.item_name not in stash or self.item_name not in TURNIN_ELIGIBLE:
+                return await interaction.response.send_message("❌ This item is not eligible or not in your stash.", ephemeral=True)
 
             prestige = REWARD_VALUES["base_prestige"]
             if "Tactical" in self.item_name:
                 prestige += REWARD_VALUES["tactical_bonus"]
             coins = REWARD_VALUES["coin_bonus"] if REWARD_VALUES["coin_enabled"] else 0
 
-            user_data["crafted"].remove(self.item_name)
+            # Remove from stash
+            user_data["stash"].remove(self.item_name)
+
+            # Remove from crafted if still present
+            if self.item_name in user_data.get("crafted", []):
+                user_data["crafted"].remove(self.item_name)
+
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
             user_data["coins"] += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
-
-            if self.item_name in user_data.get("stash", []):
-                user_data["stash"].remove(self.item_name)
 
             logs.setdefault(self.user_id, []).append({
                 "item": self.item_name,
@@ -163,8 +168,8 @@ class TurnIn(commands.Cog):
         if not user_data:
             return await interaction.response.send_message("❌ You don’t have a profile yet. Use `/register` first.", ephemeral=True)
 
-        crafted = [x.strip().lower() for x in user_data.get("crafted", [])]
-        eligible = [item for item in TURNIN_ELIGIBLE if item.lower() in crafted]
+        stash_counter = Counter(user_data.get("stash", []))
+        eligible = [item for item in TURNIN_ELIGIBLE if stash_counter.get(item, 0) > 0]
 
         if not eligible:
             return await interaction.response.send_message("❌ No eligible crafted items to turn in. Use `/craft` first.", ephemeral=True)
