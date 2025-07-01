@@ -8,7 +8,7 @@ from PIL import Image, ImageSequence
 
 from utils.storageClient import load_file, save_file
 from utils.boosts import is_weekend_boost_active
-from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS     # ← unchanged import
+from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS, broadcast_prestige_announcement
 from cogs.fortify import render_stash_visual, get_skin_visuals
 from stash_image_generator import generate_stash_image
 
@@ -382,8 +382,10 @@ class RaidView(discord.ui.View):
                     f"{prestige_points}/{next_threshold if next_threshold else 'MAX'}"
                 )
                 if ranked_up:
-                    summary.append(rank_msg or f"🎉 **Prestige Rank Up!** You are now Prestige {prestige_rank}!")
-                    print(f"📦 POST-UPDATE STASH: {user['stash']}")
+                        try:
+                            await broadcast_prestige_announcement(self.ctx.bot, self.ctx.user, user)
+                        except Exception as e:
+                            print(f"⚠️ Failed to broadcast prestige announcement: {e}")
         
                 self.attacker = user
                 profiles[uid] = user
@@ -436,19 +438,9 @@ class RaidView(discord.ui.View):
             self.message = await interaction.followup.send(embed=fin_embed, file=fin_file, view=final_view, ephemeral=True)
     
             try:
-                profiles = await load_file(USER_DATA) or {}
                 cooldowns = await load_file(COOLDOWN_FILE) or {}
-                uid = str(self.attacker_id)
-                user = profiles.get(uid, {"prestige": 0, "coins": 0, "stash": []})
-                self.attacker = user
-                profiles[uid] = user
-                if not self.is_test_mode or FORCE_SAVE_TEST_RAID:
-                    profiles[self.defender_id] = self.defender
                 cooldowns.setdefault(self.attacker_id, {})[self.defender_id] = self.now.isoformat()
-                await save_file(USER_DATA, profiles)
                 await save_file(COOLDOWN_FILE, cooldowns)
-            except Exception as e:
-                print(f"⚠️ Failed to update user profile after raid: {e}")
     
             try:
                 warlab_channel = self.ctx.guild.get_channel(WARLAB_CHANNEL)
@@ -527,11 +519,14 @@ class Raid(commands.Cog):
                 print(f"⚠️ Skipping legacy cooldown format for {attacker_id}")
                 raid_timestamps = []
 
-            recent_raids = [
-                datetime.fromisoformat(ts)
-                for ts in raid_timestamps
-                if now - datetime.fromisoformat(ts) <= timedelta(hours=raid_window_hours)
-            ]
+            recent_raids = []
+            for ts in raid_timestamps:
+                try:
+                    parsed = datetime.fromisoformat(ts)
+                    if now - parsed <= timedelta(hours=raid_window_hours):
+                        recent_raids.append(parsed)
+                except ValueError:
+                    print(f"⚠️ Skipping malformed timestamp in cooldowns: {ts}")
 
             if len(recent_raids) >= raid_limit:
                 return await interaction.followup.send(
@@ -543,6 +538,7 @@ class Raid(commands.Cog):
             recent_raids.append(now)
             cooldowns[attacker_id] = [ts.isoformat() for ts in recent_raids]
             await save_file(COOLDOWN_FILE, cooldowns)
+
         except Exception as e:
             print(f"⚠️ Failed raid cooldown check: {e}")
 
