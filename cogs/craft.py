@@ -148,7 +148,11 @@ class CraftButton(discord.ui.Button):
                 embed.description += f"\n{rank_up_msg}"
 
             embed.set_footer(text="WARLAB | SV13 Bot")
-            await self.view.stored_messages[0].edit(embed=embed)
+            if self.view.stored_messages:
+                await self.view.stored_messages[0].edit(embed=embed)
+            else:
+                msg = await interaction.followup.send(embed=embed, ephemeral=True)
+                self.view.stored_messages = [msg]
 
             # UI refresh
             if hasattr(self.view, "stored_messages"):
