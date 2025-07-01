@@ -60,12 +60,10 @@ class TurnInButton(discord.ui.Button):
                 prestige += REWARD_VALUES["tactical_bonus"]
             coins = REWARD_VALUES["coin_bonus"] if REWARD_VALUES["coin_enabled"] else 0
 
-            # Remove from stash and crafted[]
             user_data["stash"].remove(self.item_name)
             user_data["crafted"].remove(crafted_entry)
-
             user_data.setdefault("crafted_log", []).append(self.item_name)
-            user_data["prestige"] += prestige  # Legacy value
+            user_data["prestige"] += prestige
             user_data["prestige_points"] = user_data.get("prestige_points", 0) + prestige
             user_data["coins"] += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
@@ -133,41 +131,32 @@ class ConfirmRewardButton(discord.ui.Button):
             profiles = await load_file(USER_DATA) or {}
             player_data = profiles.get(self.player_id, {})
 
-            # Get old prestige BEFORE update
             old_points = player_data.get("prestige_points", 0)
             old_rank = get_prestige_rank(old_points)
 
-            # Re-fetch prestige (already incremented earlier)
             prestige_points = player_data["prestige_points"]
-            new_rank = get_prestige_rank(prestige_points)
+            progress_data = get_prestige_progress(prestige_points)
+            new_rank = progress_data["current_rank"]
             crafted_total = len(player_data.get("crafted_log", []))
 
-            # Update rank field
             player_data["prestige"] = new_rank
-            rank_title = RANK_TITLES.get(new_rank, "Unknown")
+            rank_title = RANK_TITLES.get(new_rank, "Unknown Survivor")
 
-            # Progress bar
-            progress_data = get_prestige_progress(prestige_points)
-            next_threshold = progress_data["next_threshold"]
-            if next_threshold:
-                percent = int((progress_data["points"] / next_threshold) * 100)
-                bar = f"[{'█' * (percent // 10):<10}] {percent}%"
+            if progress_data["next_threshold"]:
+                progress_line = f"Tier {new_rank} — {progress_data['points']}/{progress_data['next_threshold']}"
             else:
-                bar = "[██████████] MAX"
+                progress_line = f"Tier {new_rank} — MAX"
 
-            # Trigger announcement if rank increased
             user = await interaction.client.fetch_user(int(self.player_id))
             if new_rank > old_rank:
                 await broadcast_prestige_announcement(interaction.client, user, player_data)
 
-            # DM user with updated prestige info
             if user:
                 await user.send(
                     f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
                     f"🔧 **Item Turned In:** {self.item_name}\n"
                     f"📦 **Total Builds Completed:** `{crafted_total}`\n"
-                    f"🧠 **Current Prestige:** `{prestige_points}` • *{rank_title}*\n"
-                    f"📊 **Progress to Next Rank:** {bar}\n\n"
+                    f"🧠 **Current Prestige:** {progress_line} • *{rank_title}*\n\n"
                     f"🫡 Stay frosty, Survivor — your legend is growing!"
                 )
 
