@@ -163,8 +163,8 @@ class TurnIn(commands.Cog):
         if not user_data:
             return await interaction.response.send_message("❌ You don’t have a profile yet. Use `/register` first.", ephemeral=True)
 
-        crafted = [x.strip() for x in user_data.get("crafted", [])]
-        eligible = [item for item in crafted if item in TURNIN_ELIGIBLE]
+        crafted = [x.strip().lower() for x in user_data.get("crafted", [])]
+        eligible = [item for item in TURNIN_ELIGIBLE if item.lower() in crafted]
 
         if not eligible:
             return await interaction.response.send_message("❌ No eligible crafted items to turn in. Use `/craft` first.", ephemeral=True)
