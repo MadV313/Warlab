@@ -1,4 +1,4 @@
-# cogs/turnin.py — Finalized Turn-In system with stash tracking, prestige DM, and admin logging
+# cogs/turnin.py — Cleaned Turn-In system with stash tracking and prestige rewards + admin confirm DM
 
 import discord
 from discord.ext import commands
@@ -11,17 +11,13 @@ import os
 
 USER_DATA   = "data/user_profiles.json"
 RECIPE_DATA = "data/item_recipes.json"
-
 TURNIN_LOG  = "data/turnin_log.json"
 TAXMAN_LOG  = "data/taxman_log.json"
-CONFIRMATION_LOG = "data/confirmations.json"
 
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
-ECONOMY_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
-PERSISTENT_DATA_URL      = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
-SV13_PERSISTENT_DATA_URL = os.getenv("SV13_PERSISTENT_DATA_URL", "").rstrip("/")
+PERSISTENT_DATA_URL = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
 
 REWARD_VALUES = {
     "base_prestige": 50,
@@ -51,7 +47,7 @@ class TurnInButton(discord.ui.Button):
             profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
             recipes  = await load_file(RECIPE_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
             logs     = await load_file(TURNIN_LOG, base_url_override=PERSISTENT_DATA_URL) or {}
-            taxlog   = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
+            taxlog   = await load_file(TAXMAN_LOG, base_url_override=PERSISTENT_DATA_URL) or {}
 
             user_data = profiles.get(self.user_id)
             if not user_data:
@@ -97,7 +93,7 @@ class TurnInButton(discord.ui.Button):
 
             await save_file(USER_DATA, profiles, base_url_override=PERSISTENT_DATA_URL)
             await save_file(TURNIN_LOG, logs, base_url_override=PERSISTENT_DATA_URL)
-            await save_file(TAXMAN_LOG, taxlog, base_url_override=SV13_PERSISTENT_DATA_URL)
+            await save_file(TAXMAN_LOG, taxlog, base_url_override=PERSISTENT_DATA_URL)
 
             embed = discord.Embed(
                 title="✅ Item Turned In",
@@ -111,14 +107,9 @@ class TurnInButton(discord.ui.Button):
             current = progress_data["points"]
             current_threshold = progress_data["current_threshold"]
             next_threshold = progress_data["next_threshold"]
-            
-            if next_threshold:
-                progress = (current - current_threshold) / (next_threshold - current_threshold)
-            else:
-                progress = 1.0
-            
+            progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
             progress_bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
-            
+
             embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
             embed.add_field(name="Progress to Next", value=progress_bar, inline=True)
 
@@ -160,69 +151,39 @@ class ConfirmRewardButton(discord.ui.Button):
         if not any(str(role.id) in ADMIN_ROLE_IDS for role in interaction.user.roles):
             return await interaction.response.send_message("❌ You are not authorized to confirm rewards.", ephemeral=True)
 
+        await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
+
         try:
             profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
             player_data = profiles.get(self.player_id)
             if not player_data:
-                return await interaction.response.send_message("❌ Player profile not found.", ephemeral=True)
+                return
 
-            prestige = REWARD_VALUES["base_prestige"]
-            if "Tactical" in self.item_name:
-                prestige += REWARD_VALUES["tactical_bonus"]
+            prestige_total = player_data.get("prestige", 0)
+            crafted_total = len(player_data.get("crafted_log", []))
+            rank = get_prestige_rank(prestige_total)
+            progress_data = get_prestige_progress(prestige_total)
 
-            await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
+            current = progress_data["points"]
+            current_threshold = progress_data["current_threshold"]
+            next_threshold = progress_data["next_threshold"]
+            progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
+            bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
 
-            # DM player
-            try:
-                prestige_total = player_data.get("prestige", 0)
-                crafted_total = len(player_data.get("crafted_log", []))
-                rank = get_prestige_rank(prestige_total)
-                progress_data = get_prestige_progress(prestige_total)
-                
-                current = progress_data["points"]
-                current_threshold = progress_data["current_threshold"]
-                next_threshold = progress_data["next_threshold"]
-                
-                if next_threshold:
-                    progress = (current - current_threshold) / (next_threshold - current_threshold)
-                else:
-                    progress = 1.0
-                
-                bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
+            user = await interaction.client.fetch_user(int(self.player_id))
+            if user:
+                await user.send(
+                    f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
+                    f"🔧 **Item Turned In:** {self.item_name}\n"
+                    f"📦 **Total Builds Completed:** `{crafted_total}`\n"
+                    f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
+                    f"📊 **Progress to Next Rank:** {bar}\n\n"
+                    f"🫡 Stay frosty, Survivor — your legend is growing!"
+                )
+        except Exception as e:
+            print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
 
-                user = await interaction.client.fetch_user(int(self.player_id))
-                if user:
-                    await user.send(
-                        f"🎉 **Your reward has been confirmed! Please make your way to Sobotka Trader to receive your new:**\n\n"
-                        f"🔧 **Item Turned In:** {self.item_name}\n"
-                        f"📦 **Total Builds Completed:** `{crafted_total}`\n"
-                        f"🧠 **Current Prestige:** `{prestige_total}` • *{rank}*\n"
-                        f"📊 **Progress to Next Rank:** {bar}\n\n"
-                        f"🫡 Stay frosty, Survivor — your legend is growing!"
-                    )
-            except Exception as e:
-                print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
-
-            confirmations = await load_file(CONFIRMATION_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or []
-            confirmations.append({
-                "confirmed_by": str(interaction.user),
-                "confirmed_by_id": str(interaction.user.id),
-                "target_user_id": self.player_id,
-                "amount": prestige,
-                "reason": f"Turn-In: {self.item_name}",
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            await save_file(CONFIRMATION_LOG, confirmations, base_url_override=SV13_PERSISTENT_DATA_URL)
-
-            taxlog = await load_file(TAXMAN_LOG, base_url_override=SV13_PERSISTENT_DATA_URL) or {}
-            admin_id = str(interaction.user.id)
-            taxlog[admin_id] = taxlog.get(admin_id, 0) + 1
-            await save_file(TAXMAN_LOG, taxlog, base_url_override=SV13_PERSISTENT_DATA_URL)
-
-            await interaction.response.send_message("✅ Confirmation logged.", ephemeral=True)
-
-        except Exception:
-            print("❌ [ConfirmRewardButton Error]\n" + traceback.format_exc())
+        await interaction.response.send_message("✅ Confirmation complete.", ephemeral=True)
 
 
 class TurnIn(commands.Cog):
