@@ -107,12 +107,20 @@ class TurnInButton(discord.ui.Button):
                 color=0x00FF7F
             )
             current_rank = get_prestige_rank(user_data["prestige"])
-            progress = get_prestige_progress(user_data["prestige"])
+            progress_data = get_prestige_progress(user_data["prestige"])
+            current = progress_data["points"]
+            current_threshold = progress_data["current_threshold"]
+            next_threshold = progress_data["next_threshold"]
+            
+            if next_threshold:
+                progress = (current - current_threshold) / (next_threshold - current_threshold)
+            else:
+                progress = 1.0
+            
             progress_bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
-
+            
             embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
             embed.add_field(name="Progress to Next", value=progress_bar, inline=True)
-            await interaction.response.edit_message(embed=embed, view=None)
 
             try:
                 channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
@@ -169,7 +177,17 @@ class ConfirmRewardButton(discord.ui.Button):
                 prestige_total = player_data.get("prestige", 0)
                 crafted_total = len(player_data.get("crafted_log", []))
                 rank = get_prestige_rank(prestige_total)
-                progress = get_prestige_progress(prestige_total)
+                progress_data = get_prestige_progress(prestige_total)
+                
+                current = progress_data["points"]
+                current_threshold = progress_data["current_threshold"]
+                next_threshold = progress_data["next_threshold"]
+                
+                if next_threshold:
+                    progress = (current - current_threshold) / (next_threshold - current_threshold)
+                else:
+                    progress = 1.0
+                
                 bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
 
                 user = await interaction.client.fetch_user(int(self.player_id))
