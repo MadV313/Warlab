@@ -47,9 +47,11 @@ class TurnInButton(discord.ui.Button):
             if not user_data:
                 return await interaction.response.send_message("❌ No profile found.", ephemeral=True)
 
-            # Check that it's in stash and eligible
             stash = user_data.get("stash", [])
-            if self.item_name not in stash or self.item_name not in TURNIN_ELIGIBLE:
+            crafted_entries = user_data.get("crafted", [])
+            crafted_entry = next((c for c in crafted_entries if isinstance(c, dict) and c.get("item") == self.item_name), None)
+
+            if self.item_name not in stash or not crafted_entry:
                 return await interaction.response.send_message("❌ This item is not eligible or not in your stash.", ephemeral=True)
 
             prestige = REWARD_VALUES["base_prestige"]
@@ -57,12 +59,9 @@ class TurnInButton(discord.ui.Button):
                 prestige += REWARD_VALUES["tactical_bonus"]
             coins = REWARD_VALUES["coin_bonus"] if REWARD_VALUES["coin_enabled"] else 0
 
-            # Remove from stash
+            # Remove from stash and crafted[]
             user_data["stash"].remove(self.item_name)
-
-            # Remove from crafted if still present
-            if self.item_name in user_data.get("crafted", []):
-                user_data["crafted"].remove(self.item_name)
+            user_data["crafted"].remove(crafted_entry)
 
             user_data.setdefault("crafted_log", []).append(self.item_name)
             user_data["prestige"] += prestige
@@ -78,6 +77,8 @@ class TurnInButton(discord.ui.Button):
 
             await save_file(USER_DATA, profiles)
             await save_file(TURNIN_LOG, logs)
+
+            optional_bonus = "\n• " + "\n• ".join(crafted_entry.get("optional", [])) if crafted_entry.get("optional") else "None"
 
             success_embed = discord.Embed(
                 title="✅ Item Turned In",
@@ -96,7 +97,8 @@ class TurnInButton(discord.ui.Button):
                         description=(f"🧑 Player: <@{self.user_id}>\n"
                                      f"📦 Item: {self.item_name}\n"
                                      f"🧠 Prestige: {prestige}\n"
-                                     f"💰 Coins: {coins if coins else 'None'}"),
+                                     f"💰 Coins: {coins if coins else 'None'}\n"
+                                     f"🧩 Optional Parts: {optional_bonus}"),
                         color=0xF1C40F
                     )
                     admin_embed.set_footer(text="Please click the button below when the reward is ready.")
@@ -169,7 +171,9 @@ class TurnIn(commands.Cog):
             return await interaction.response.send_message("❌ You don’t have a profile yet. Use `/register` first.", ephemeral=True)
 
         stash_counter = Counter(user_data.get("stash", []))
-        eligible = [item for item in TURNIN_ELIGIBLE if stash_counter.get(item, 0) > 0]
+        crafted_list = user_data.get("crafted", [])
+        crafted_items = {entry["item"] for entry in crafted_list if isinstance(entry, dict)}
+        eligible = [item for item in TURNIN_ELIGIBLE if stash_counter.get(item, 0) > 0 and item in crafted_items]
 
         if not eligible:
             return await interaction.response.send_message("❌ No eligible crafted items to turn in. Use `/craft` first.", ephemeral=True)
