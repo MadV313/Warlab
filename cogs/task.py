@@ -127,6 +127,8 @@ class Task(commands.Cog):
             if loot in crafted_set:
                 crafted_rewards.append(loot)
 
+        item_rewards.sort()
+
         profiles[uid] = user
         await save_file(USER_DATA_FILE, profiles)
         print(f"✅ Task saved for {interaction.user.display_name} ({uid})")
@@ -144,7 +146,7 @@ class Task(commands.Cog):
 
         if active_boosts:
             embed.add_field(
-                name="🔥 Active Boosts",
+                name="<a:bonus:1386436403000512694> Active Boosts",
                 value="\n".join(active_boosts),
                 inline=False
             )
@@ -154,7 +156,7 @@ class Task(commands.Cog):
         if crafted_rewards:
             crafted_line = ", ".join([f"**{itm}**" for itm in crafted_rewards])
             await interaction.followup.send(
-                f"🚨 Turn-in ready item pulled! Use `/turnin` to redeem: {crafted_line}",
+                f"<a:emoji_71:954381485236961280> Turn-in ready item pulled! Use `/turnin` to redeem: {crafted_line}",
                 ephemeral=True
             )
 
