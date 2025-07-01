@@ -1,4 +1,4 @@
-# cogs/turnin.py — Cleaned Turn-In system with stash tracking and prestige rewards + admin confirm DM
+# cogs/turnin.py — Clean Turn-In system with admin confirm DM + proper file paths
 
 import discord
 from discord.ext import commands
@@ -7,17 +7,11 @@ from utils.fileIO import load_file, save_file
 from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
 from datetime import datetime
 import traceback
-import os
 
-USER_DATA   = "data/user_profiles.json"
-RECIPE_DATA = "data/item_recipes.json"
-TURNIN_LOG  = "data/turnin_log.json"
-TAXMAN_LOG  = "data/taxman_log.json"
-
+USER_DATA = "data/user_profiles.json"
+TURNIN_LOG = "logs/turnin_log.json"
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
-
-PERSISTENT_DATA_URL = os.getenv("PERSISTENT_DATA_URL", "").rstrip("/")
 
 REWARD_VALUES = {
     "base_prestige": 50,
@@ -44,30 +38,16 @@ class TurnInButton(discord.ui.Button):
             return
 
         try:
-            profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
-            recipes  = await load_file(RECIPE_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
-            logs     = await load_file(TURNIN_LOG, base_url_override=PERSISTENT_DATA_URL) or {}
-            taxlog   = await load_file(TAXMAN_LOG, base_url_override=PERSISTENT_DATA_URL) or {}
+            profiles = await load_file(USER_DATA) or {}
+            logs = await load_file(TURNIN_LOG) or {}
 
             user_data = profiles.get(self.user_id)
             if not user_data:
                 return await interaction.response.send_message("❌ No profile found.", ephemeral=True)
 
-            crafted_list = user_data.get("crafted", [])
+            crafted_list = [x.strip() for x in user_data.get("crafted", [])]
             if self.item_name not in crafted_list or self.item_name not in TURNIN_ELIGIBLE:
-                return await interaction.response.send_message("❌ This item is not eligible or was already turned in.", ephemeral=True)
-
-            recipe_key = self.item_name.lower()
-            recipe = recipes.get(recipe_key)
-            if not recipe:
-                return await interaction.response.send_message("❌ Recipe not found.", ephemeral=True)
-
-            used_parts = recipe.get("requirements", {}).copy()
-            for part, qty in recipe.get("optional", {}).items():
-                if user_data.get("stash", []).count(part) >= qty:
-                    used_parts[part] = used_parts.get(part, 0) + qty
-                    for _ in range(qty):
-                        user_data["stash"].remove(part)
+                return await interaction.response.send_message("❌ This item is not eligible or has already been turned in.", ephemeral=True)
 
             prestige = REWARD_VALUES["base_prestige"]
             if "Tactical" in self.item_name:
@@ -80,43 +60,31 @@ class TurnInButton(discord.ui.Button):
             user_data["coins"] += coins
             user_data["turnins_completed"] = user_data.get("turnins_completed", 0) + 1
 
+            if self.item_name in user_data.get("stash", []):
+                user_data["stash"].remove(self.item_name)
+
             logs.setdefault(self.user_id, []).append({
                 "item": self.item_name,
                 "reward_prestige": prestige,
                 "reward_coins": coins,
-                "parts_consumed": used_parts,
                 "timestamp": datetime.utcnow().isoformat()
             })
 
-            taxlog.setdefault(self.user_id, 0)
-            taxlog[self.user_id] += prestige
+            await save_file(USER_DATA, profiles)
+            await save_file(TURNIN_LOG, logs)
 
-            await save_file(USER_DATA, profiles, base_url_override=PERSISTENT_DATA_URL)
-            await save_file(TURNIN_LOG, logs, base_url_override=PERSISTENT_DATA_URL)
-            await save_file(TAXMAN_LOG, taxlog, base_url_override=PERSISTENT_DATA_URL)
-
-            embed = discord.Embed(
+            success_embed = discord.Embed(
                 title="✅ Item Turned In",
-                description=(f"**{self.item_name}** submitted!\n\n"
+                description=(f"**{self.item_name}** submitted! Please stand by for further rewards.\n\n"
                              f"+ 🧠 `{prestige}` Prestige\n"
                              f"+ 💰 `{coins}` Coins"),
                 color=0x00FF7F
             )
-            current_rank = get_prestige_rank(user_data["prestige"])
-            progress_data = get_prestige_progress(user_data["prestige"])
-            current = progress_data["points"]
-            current_threshold = progress_data["current_threshold"]
-            next_threshold = progress_data["next_threshold"]
-            progress = (current - current_threshold) / (next_threshold - current_threshold) if next_threshold else 1.0
-            progress_bar = f"[{'█' * int(progress * 10):<10}] {int(progress * 100)}%"
-
-            embed.add_field(name="Current Prestige", value=f"{user_data['prestige']} • *{current_rank}*", inline=True)
-            embed.add_field(name="Progress to Next", value=progress_bar, inline=True)
+            await interaction.response.edit_message(embed=success_embed, view=None)
 
             try:
                 channel = interaction.client.get_channel(TRADER_ORDERS_CHANNEL_ID)
                 if channel:
-                    part_lines = [f"{qty}x {part}" for part, qty in used_parts.items()]
                     admin_embed = discord.Embed(
                         title="🔧 Craft Turn-In",
                         description=(f"🧑 Player: <@{self.user_id}>\n"
@@ -125,7 +93,7 @@ class TurnInButton(discord.ui.Button):
                                      f"💰 Coins: {coins if coins else 'None'}"),
                         color=0xF1C40F
                     )
-                    admin_embed.add_field(name="Parts Consumed", value="\n".join(part_lines), inline=False)
+                    admin_embed.set_footer(text="Please click the button below when the reward is ready.")
                     await channel.send(embed=admin_embed, view=RewardConfirmView(self.user_id, self.item_name))
             except Exception:
                 print("❌ [Admin Ping Error]\n" + traceback.format_exc())
@@ -134,16 +102,14 @@ class TurnInButton(discord.ui.Button):
             print("❌ [TurnInButton Error]\n" + traceback.format_exc())
             await interaction.followup.send("❌ Something broke while processing your turn-in. Please ping an admin.", ephemeral=True)
 
-
 class RewardConfirmView(discord.ui.View):
     def __init__(self, player_id, item_name):
-        super().__init__(timeout=None)
+        super().__init__(timeout=86400)
         self.add_item(ConfirmRewardButton(player_id, item_name))
-
 
 class ConfirmRewardButton(discord.ui.Button):
     def __init__(self, player_id, item_name):
-        super().__init__(label="✅ Confirm Reward", style=discord.ButtonStyle.success)
+        super().__init__(label="✅ Confirm Reward Ready", style=discord.ButtonStyle.success)
         self.player_id = player_id
         self.item_name = item_name
 
@@ -151,13 +117,11 @@ class ConfirmRewardButton(discord.ui.Button):
         if not any(str(role.id) in ADMIN_ROLE_IDS for role in interaction.user.roles):
             return await interaction.response.send_message("❌ You are not authorized to confirm rewards.", ephemeral=True)
 
-        await interaction.message.edit(content=f"✅ Reward confirmed by <@{interaction.user.id}>", view=None)
+        await interaction.message.edit(content=f"✅ Confirmed by {interaction.user.mention}", view=None)
 
         try:
-            profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
-            player_data = profiles.get(self.player_id)
-            if not player_data:
-                return
+            profiles = await load_file(USER_DATA) or {}
+            player_data = profiles.get(self.player_id, {})
 
             prestige_total = player_data.get("prestige", 0)
             crafted_total = len(player_data.get("crafted_log", []))
@@ -181,39 +145,40 @@ class ConfirmRewardButton(discord.ui.Button):
                     f"🫡 Stay frosty, Survivor — your legend is growing!"
                 )
         except Exception as e:
-            print(f"❌ [DM Error] Failed to DM user {self.player_id}: {e}")
+            print(f"⚠️ [RewardConfirmButton Error] {e}")
 
-        await interaction.response.send_message("✅ Confirmation complete.", ephemeral=True)
-
+        await interaction.response.defer()
 
 class TurnIn(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="turnin", description="View your eligible crafted items to turn in for rewards.")
+    @app_commands.command(name="turnin", description="Submit a crafted item for rewards")
     async def turnin(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        profiles = await load_file(USER_DATA, base_url_override=PERSISTENT_DATA_URL) or {}
+        profiles = await load_file(USER_DATA) or {}
         user_data = profiles.get(user_id)
 
-        if not user_data or not user_data.get("crafted"):
-            return await interaction.response.send_message("❌ You have no crafted items to turn in.", ephemeral=True)
+        if not user_data:
+            return await interaction.response.send_message("❌ You don’t have a profile yet. Use `/register` first.", ephemeral=True)
 
-        eligible_items = [item for item in user_data["crafted"] if item in TURNIN_ELIGIBLE]
-        if not eligible_items:
-            return await interaction.response.send_message("❌ No eligible turn-ins found.", ephemeral=True)
+        crafted = [x.strip() for x in user_data.get("crafted", [])]
+        eligible = [item for item in crafted if item in TURNIN_ELIGIBLE]
+
+        if not eligible:
+            return await interaction.response.send_message("❌ No eligible crafted items to turn in. Use `/craft` first.", ephemeral=True)
 
         embed = discord.Embed(
-            title="🧾 Available Turn-Ins",
-            description="Click a button below to turn in one of your crafted items.",
+            title="📦 Crafted Items Ready",
+            description="Click a button to submit an item for rewards:",
             color=0x3498DB
         )
-        view = discord.ui.View(timeout=60)
-        for item in eligible_items[:5]:
+
+        view = discord.ui.View(timeout=86400)
+        for item in eligible[:10]:
             view.add_item(TurnInButton(item, user_id))
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
 
 async def setup(bot):
     await bot.add_cog(TurnIn(bot))
