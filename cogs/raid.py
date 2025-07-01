@@ -501,10 +501,11 @@ class Raid(commands.Cog):
         is_test = target.display_name.lower() == "warlab"
 
         users = await load_file(USER_DATA) or {}
+
         attacker = users.get(attacker_id)
         if not attacker:
-            return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.",
-                                                   ephemeral=True)
+            print(f"❌ [Raid] Attacker profile not found: {attacker_id}")
+            return await interaction.followup.send("❌ You don’t have a profile yet. Use `/register`.", ephemeral=True)
 
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
@@ -536,8 +537,8 @@ class Raid(commands.Cog):
         # Defender Setup
         defender = users.get(defender_id)
         if not defender:
-            return await interaction.followup.send(
-                "❌ That player doesn’t have a profile yet.", ephemeral=True)
+            print(f"❌ [Raid] Defender profile not found: {defender_id}")
+            return await interaction.followup.send("❌ That player doesn’t have a profile yet.", ephemeral=True)
 
         reinforcements = defender.get("reinforcements", {})
         catalog = await load_file(CATALOG_PATH) or {}
