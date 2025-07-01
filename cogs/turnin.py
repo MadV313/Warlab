@@ -1,15 +1,16 @@
-# cogs/turnin.py — Clean Turn-In system with admin confirm DM + proper file paths
+# cogs/turnin.py — Persistent Turn-In system with admin confirm DM + Railway file routing
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-from utils.fileIO import load_file, save_file
+from utils.storageClient import load_file, save_file  # ✅ Use persistent storage functions
 from utils.prestigeUtils import get_prestige_rank, get_prestige_progress
 from datetime import datetime
 import traceback
+import asyncio  # (if not already imported)
 
-USER_DATA = "data/user_profiles.json"
-TURNIN_LOG = "logs/turnin_log.json"
+USER_DATA = "user_profiles.json"  # ✅ Remove "data/" path prefix
+TURNIN_LOG = "turnin_log.json"    # ✅ Remove "logs/" path prefix
 TRADER_ORDERS_CHANNEL_ID = 1367583463775146167
 ADMIN_ROLE_IDS = ["1173049392371085392", "1184921037830373468"]
 
