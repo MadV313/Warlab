@@ -1,39 +1,32 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import asyncio
 from utils.fileIO import load_file, save_file
 
 USER_DATA = "data/user_profiles.json"
-WARLAB_CHANNEL_ID = 1382187883590455296  # Replace with your actual Warlab channel ID
-ADMIN_ROLE_IDS = ["1173049392371085392"]  # Add your admin role IDs here
+WARLAB_CHANNEL_ID = 1382187883590455296  # Warlab channel ID
 
 class WarlabNuke(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="warlabnuke", description="☢️ ADMIN: Reset all Warlab player data!")
-    @app_commands.guilds(discord.Object(id=1166441420643639348))  # Replace with your server ID
+    @app_commands.guilds(discord.Object(id=1166441420643639348))  # Your server ID
+    @app_commands.checks.has_permissions(administrator=True)
     async def warlabnuke(self, interaction: discord.Interaction):
         print(f"☢️ [warlabnuke] Called by {interaction.user} ({interaction.user.id})")
 
-        # ❌ Channel restriction
+        # Restrict to Warlab channel
         if interaction.channel_id != WARLAB_CHANNEL_ID:
             return await interaction.response.send_message(
                 "❌ This command can only be used in the Warlab channel.", ephemeral=True
             )
 
-        # ❌ Admin check
-        member = interaction.guild.get_member(interaction.user.id) or await interaction.guild.fetch_member(interaction.user.id)
-        user_roles = [role.id for role in member.roles]
-
-        if not any(role_id in ADMIN_ROLE_IDS for role_id in user_roles):
-            return await interaction.response.send_message(
-                "❌ You do not have permission to use this command.", ephemeral=True
-            )
-
-        # Confirm intent
+        # Confirmation prompt
         await interaction.response.send_message(
-            "⚠️ Are you **sure** you want to NUKE all player data? This action **cannot be undone.**\nType `CONFIRM` to proceed.",
+            "⚠️ Are you **sure** you want to NUKE all player data? This action **cannot be undone.**\n"
+            "Type `CONFIRM` in this channel within 30 seconds to proceed.",
             ephemeral=True
         )
 
@@ -49,7 +42,7 @@ class WarlabNuke(commands.Cog):
         except asyncio.TimeoutError:
             return await interaction.followup.send("⌛ Nuke cancelled — no confirmation received.", ephemeral=True)
 
-        # Proceed with nuke
+        # Execute nuke
         try:
             data = await load_file(USER_DATA) or {}
             wiped = {}
