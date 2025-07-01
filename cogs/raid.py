@@ -31,6 +31,9 @@ RARITY_WEIGHTS  = "data/rarity_weights.json"
 OVERLAY_GIFS = ["hit.gif", "hit2.gif", "victory.gif"]
 MISS_GIF     = "miss.gif"
 
+RAID_LIMIT = 3  # max raids
+RAID_WINDOW_HOURS = 12
+
 # ---------------------- helper: non-blocking countdown ------------------- #
 async def countdown_ephemeral(base_msg: str, followup: discord.webhook.WebhookMessage):
     """
@@ -489,7 +492,8 @@ class RaidView(discord.ui.View):
 
 # --------------------------  /raid Command  ------------------------------ #
 class Raid(commands.Cog):
-    def __init__(self, bot): self.bot = bot
+    def __init__(self, bot):
+        self.bot = bot
 
     @app_commands.command(name="raid", description="Attempt to raid another player's stash.")
     async def raid(self, interaction: discord.Interaction, target: discord.Member):
@@ -510,31 +514,33 @@ class Raid(commands.Cog):
         if attacker_id == defender_id:
             return await interaction.followup.send("❌ You can’t raid yourself.", ephemeral=True)
 
-        # ⏳ Load and check raid cooldowns
-        cooldowns = await load_file(COOLDOWN_FILE) or {}
-        recent_raids = cooldowns.get(attacker_id, {})
-        past_12_hours = now - timedelta(hours=12)
+        # ⏳ Enforce 3-raids-per-12-hours cooldown per attacker
+        try:
+            raid_window_hours = 12
+            raid_limit = 3
+            cooldowns = await load_file(COOLDOWN_FILE) or {}
+            raid_timestamps = cooldowns.get(attacker_id, [])
 
-        # Count raids in past 12 hours
-        raid_timestamps = [datetime.fromisoformat(ts) for ts in recent_raids.values()]
-        recent_valid_raids = [ts for ts in raid_timestamps if ts > past_12_hours]
+            recent_raids = [
+                datetime.fromisoformat(ts)
+                for ts in raid_timestamps
+                if now - datetime.fromisoformat(ts) <= timedelta(hours=raid_window_hours)
+            ]
 
-        if len(recent_valid_raids) >= 3:
-            return await interaction.followup.send(
-                "🧨 You’ve reached your **raid limit**.\nYou can only raid **3 times every 12 hours**.",
-                ephemeral=True
-            )
-
-        # Per-defender 24h cooldown
-        if defender_id in recent_raids:
-            last = datetime.fromisoformat(recent_raids[defender_id])
-            if now - last < timedelta(hours=24):
-                wait = timedelta(hours=24) - (now - last)
+            if len(recent_raids) >= raid_limit:
                 return await interaction.followup.send(
-                    f"⏳ Wait **{wait.seconds//3600}h** before raiding this player again.",
+                    f"🚫 You’ve already raided 3 times in the past {raid_window_hours} hours.\nTry again later.",
                     ephemeral=True
                 )
 
+            # ✅ Log this new raid timestamp
+            recent_raids.append(now)
+            cooldowns[attacker_id] = [ts.isoformat() for ts in recent_raids]
+            await save_file(COOLDOWN_FILE, cooldowns)
+        except Exception as e:
+            print(f"⚠️ Failed raid cooldown check: {e}")
+
+        # Setup test or real defender
         if is_test:
             catalog = await load_file(CATALOG_PATH) or {}
             skin = random.choice(list(catalog))
