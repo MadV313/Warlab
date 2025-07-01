@@ -105,7 +105,8 @@ class Task(commands.Cog):
 
         if is_weekend_boost_active():
             bonus_rolls += 1
-            active_boosts.append("📆 Weekend Boost")
+            active_boosts.append("<a:bonus:1386436403000512694> Weekend Boost")
+            await interaction.followup.send("<a:bonus:1386436403000512694> **Weekend Boost Active!**", ephemeral=True)
 
         total_rolls = 1 + bonus_rolls
         guaranteed_tool = random.choice(TOOL_POOL)
