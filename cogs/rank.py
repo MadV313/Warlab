@@ -56,7 +56,7 @@ class RankView(discord.ui.View):
         self.update_callback = update_callback
         self.add_item(CloseButton())
 
-    @discord.ui.button(label="⚡ Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
+    @discord.ui.button(label="<a:bonus:1386436403000512694> Buy Boost", style=discord.ButtonStyle.primary, custom_id="buyboost_button")
     async def buy_boost_button(self, itx: discord.Interaction, _):
         if str(itx.user.id) != self.user_id:
             await itx.response.send_message("❌ You can’t use another player’s UI.", ephemeral=True)
@@ -111,7 +111,7 @@ class BoostDropdown(discord.ui.View):
         print(f"⚡ [Boost] {self.uid} bought {key} for {cost} coins.")
         await self.update_cb(self.uid, self.udata)
 
-        await itx.response.send_message(f"✅ Boost purchased: **{meta['label']}**", ephemeral=True)
+        await itx.response.send_message(f"<a:bonus:1386436403000512694> Boost purchased: **{meta['label']}**", ephemeral=True)
 
 class Rank(commands.Cog):
     def __init__(self, bot):
@@ -165,7 +165,7 @@ class Rank(commands.Cog):
         for k, meta in BOOST_CATALOG.items():
             status = "✅" if boosts.get(k) else "❌"
             lines.append(f"{status} {meta['label']} — {meta['cost']} coins")
-        emb.add_field(name="⚡ Boosts", value="\n".join(lines), inline=False)
+        emb.add_field(name="<a:bonus:1386436403000512694> Boosts", value="\n".join(lines), inline=False)
 
         await itx.response.send_message(embed=emb, view=RankView(uid, user, self._update_user), ephemeral=True)
 
