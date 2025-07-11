@@ -69,6 +69,9 @@ class Task(commands.Cog):
             )
             return
 
+        # ✅ Defer early to avoid timeout
+        await interaction.response.defer(ephemeral=True)
+
         print(f"📅 New task triggered for user {uid} — {interaction.user.display_name}")
 
         items_master  = await load_file(ITEMS_MASTER_FILE)
@@ -152,7 +155,8 @@ class Task(commands.Cog):
                 inline=False
             )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        # ✅ Use followup to respond after deferral
+        await interaction.followup.send(embed=embed)
 
         if crafted_rewards:
             crafted_line = ", ".join([f"**{itm}**" for itm in crafted_rewards])
