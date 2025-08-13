@@ -1,4 +1,4 @@
-# cogs/scavenge.py — WARLAB daily gathering logic (3-hour cooldown + boost-aware + counter)
+# cogs/scavenge.py — WARLAB daily gathering logic (config-driven cooldown + boost-aware + counter)
 
 import discord
 from discord.ext import commands
@@ -14,6 +14,7 @@ from utils.boosts import is_weekend_boost_active
 USER_DATA = "data/user_profiles.json"
 RARITY_WEIGHTS = "data/rarity_weights.json"
 ITEMS_MASTER = "data/items_master.json"
+CONFIG_PATH = "config.json"
 
 SCAVENGE_MISSIONS = [
     "Scavenged rare parts from a downed chopper.",
@@ -29,11 +30,31 @@ SCAVENGE_MISSIONS = [
     "Searched beneath a collapsed checkpoint gate near the Zalesie crossing."
 ]
 
+def _load_scavenge_cooldown_minutes(default_min: int = 180) -> int:
+    """
+    Read cooldown minutes from config.json -> scavenge_cooldown_minutes.
+    Falls back to `default_min` if missing or invalid.
+    """
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        val = cfg.get("scavenge_cooldown_minutes", default_min)
+        # Coerce to int; reject nonsense
+        val_int = int(val)
+        if val_int <= 0:
+            return default_min
+        return val_int
+    except Exception:
+        return default_min
+
+SCAVENGE_COOLDOWN_MIN = _load_scavenge_cooldown_minutes()
+
 class Scavenge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="scavenge", description="Scavenge for random materials (cooldown: 3 hours)")
+    # Keep description generic so UI never drifts from config value.
+    @app_commands.command(name="scavenge", description="Scavenge for random materials (cooldown applies)")
     async def scavenge(self, interaction: discord.Interaction):
         print(f"🟢 /scavenge triggered by {interaction.user.display_name} ({interaction.user.id})")
         await interaction.response.defer(ephemeral=True)
@@ -79,7 +100,7 @@ class Scavenge(commands.Cog):
                 else:
                     print("❌ daily_loot_boost already used today")
 
-            cooldown_min = 180
+            cooldown_min = SCAVENGE_COOLDOWN_MIN
             if user["last_scavenge"]:
                 last_time = datetime.fromisoformat(user["last_scavenge"])
                 if now < last_time + timedelta(minutes=cooldown_min):
@@ -163,7 +184,7 @@ class Scavenge(commands.Cog):
             loot_display = [f"🧰 {x}" if x in crafted_found else x for x in found]
             embed = discord.Embed(title="🧭 Scavenge Report", color=0x8DE68A)
             embed.add_field(name="🧪 Mission", value=random.choice(SCAVENGE_MISSIONS), inline=False)
-            embed.add_field(name="📦 Items Gained", value="\n".join(loot_display), inline=False)
+            embed.add_field(name="📦 Items Gained", value="\n".join(loot_display) if loot_display else "*Nothing this time…*", inline=False)
             embed.add_field(name="💰 Coins Found", value=str(coins_found), inline=True)
             embed.add_field(name="✅ Scavenges Completed", value=str(user["scavenges"]), inline=True)
             
