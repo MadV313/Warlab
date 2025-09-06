@@ -69,7 +69,7 @@ class Task(commands.Cog):
             )
             return
 
-        # ✅ Defer early to avoid timeout
+        # ✅ Defer early to avoid timeout (ephemeral root)
         await interaction.response.defer(ephemeral=True)
 
         print(f"📅 New task triggered for user {uid} — {interaction.user.display_name}")
@@ -155,8 +155,8 @@ class Task(commands.Cog):
                 inline=False
             )
 
-        # ✅ Use followup to respond after deferral
-        await interaction.followup.send(embed=embed)
+        # ✅ Make the main result embed ephemeral
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
         if crafted_rewards:
             crafted_line = ", ".join([f"**{itm}**" for itm in crafted_rewards])
