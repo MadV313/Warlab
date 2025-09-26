@@ -2,15 +2,18 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import random, os, asyncio
+import random, os, asyncio, gc
 from datetime import datetime, timedelta
-from PIL import Image, ImageSequence
+from PIL import Image, ImageSequence, ImageFile
 
 from utils.storageClient import load_file, save_file
 from utils.boosts import is_weekend_boost_active
 from utils.prestigeUtils import apply_prestige_xp, PRESTIGE_TIERS, broadcast_prestige_announcement
 from cogs.fortify import render_stash_visual, get_skin_visuals
 from stash_image_generator import generate_stash_image
+
+# PIL safety for partial/large files
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 USER_DATA       = "data/user_profiles.json"
 COOLDOWN_FILE   = "data/raid_cooldowns.json"
@@ -33,6 +36,11 @@ MISS_GIF     = "miss.gif"
 
 RAID_LIMIT = 3  # max raids
 RAID_WINDOW_HOURS = 12
+
+# --- memory-safe merge settings ---
+MAX_WORKING_WIDTH = 720   # cap working size; Discord downscales anyway
+FRAME_STEP        = 2     # sample every 2nd frame for animated overlays
+MAX_FRAMES        = 20    # hard cap frames to avoid huge RAM spikes
 
 # ---------------------- helper: non-blocking countdown ------------------- #
 async def countdown_ephemeral(base_msg: str, followup: discord.webhook.WebhookMessage):
@@ -65,33 +73,93 @@ def calculate_block_chance(reinforcements: dict, rtype: str, attacker: dict) -> 
             return 25 if count and has_pliers else 0
         case _:                   return 0
 
+def _fit_to_width(img: Image.Image, max_w: int) -> Image.Image:
+    if img.width <= max_w:
+        return img
+    ratio = max_w / float(img.width)
+    new_size = (max_w, int(img.height * ratio))
+    return img.resize(new_size, Image.LANCZOS)
+
 def merge_overlay(base_path: str, overlay_path: str, out_path: str) -> str:
+    """
+    Memory-conscious compositor:
+    - Downscales base to MAX_WORKING_WIDTH
+    - Samples animated overlay frames (FRAME_STEP) and caps to MAX_FRAMES
+    - Ensures images are closed and memory freed after save
+    """
+    base = overlay = None
+    frames = None
     try:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        base    = Image.open(base_path).convert("RGBA")
+        base = Image.open(base_path).convert("RGBA")
+        base = _fit_to_width(base, MAX_WORKING_WIDTH)
+
         overlay = Image.open(overlay_path)
 
-        if overlay.is_animated:
-            frames = []
-            scale_factor = 1.15
+        if getattr(overlay, "is_animated", False):
+            # Slightly larger overlay for effect
+            scale_factor = 1.10
             new_size = (int(base.width * scale_factor), int(base.height * scale_factor))
-            for frame in ImageSequence.Iterator(overlay):
-                frame = frame.convert("RGBA").resize(new_size)
+            pos = ((base.width - new_size[0]) // 2, (base.height - new_size[1]) // 2)
+
+            frames = []
+            for idx, frame in enumerate(ImageSequence.Iterator(overlay)):
+                if idx % FRAME_STEP != 0:
+                    continue
+                f = frame.convert("RGBA").resize(new_size, Image.LANCZOS)
                 combined = base.copy()
-                pos = ((base.width - frame.width) // 2, (base.height - frame.height) // 2)
-                combined.paste(frame, pos, frame)
-                frames.append(combined)
-            frames[0].save(out_path, save_all=True, append_images=frames[1:], loop=0,
-                           duration=overlay.info.get("duration", 100))
+                combined.paste(f, pos, f)
+                # Convert to palette per-frame to keep memory low
+                frames.append(combined.convert("P", palette=Image.ADAPTIVE))
+                # cap frames
+                if len(frames) >= MAX_FRAMES:
+                    break
+
+            if not frames:
+                # fallback single frame if overlay had too few frames
+                still = base.copy().convert("P", palette=Image.ADAPTIVE)
+                frames = [still]
+
+            duration = overlay.info.get("duration", 100)
+            frames[0].save(
+                out_path,
+                save_all=True,
+                append_images=frames[1:],
+                loop=0,
+                duration=duration,
+                optimize=True,
+                disposal=2
+            )
+
+            # explicit cleanup
+            for f in frames:
+                try: f.close()
+                except: pass
+            del frames
         else:
-            overlay = overlay.convert("RGBA").resize(base.size)
-            base.paste(overlay, (0, 0), overlay)
-            base.convert("RGB").save(out_path, "GIF")
+            ov = overlay.convert("RGBA").resize(base.size, Image.LANCZOS)
+            base.paste(ov, (0, 0), ov)
+            base.convert("RGB").save(out_path, "GIF", optimize=True)
 
         return out_path
     except Exception as e:
         print(f"❌ merge_overlay failed: {e}")
-        return base_path
+        # fall back to base image if something goes wrong
+        try:
+            if base_path != out_path:
+                # copy base to out_path to keep downstream happy
+                Image.open(base_path).save(out_path)
+            return out_path
+        except Exception:
+            return base_path
+    finally:
+        try:
+            if overlay: overlay.close()
+        except: pass
+        try:
+            if base: base.close()
+        except: pass
+        gc.collect()
 
 def format_defense_status(reinforcements: dict) -> str:
     emoji_map = {
@@ -574,7 +642,9 @@ class Raid(commands.Cog):
         file = discord.File(stash_img_path, "raid_stash.png")
         embed = discord.Embed(
             title=f"{visuals['emoji']} {target.display_name}'s Fortified Stash",
-            description=f"""```\n{stash_visual}\n```""",
+            description=f"""```
+{stash_visual}
+```""",
             color=visuals["color"]
         ).set_image(url="attachment://raid_stash.png")
 
