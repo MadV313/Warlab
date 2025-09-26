@@ -13,6 +13,12 @@ import pytz
 
 from utils.fileIO import load_file, save_file
 
+# Optional: allow graceful close of shared aiohttp session if present
+try:
+    from utils import storageClient as _storage_client_mod  # may define SESSION
+except Exception:
+    _storage_client_mod = None
+
 # ── Load config ──────────────────────────────────────────────────────────────
 try:
     with open("config.json", "r") as f:
@@ -106,9 +112,11 @@ async def on_ready():
     except Exception as exc:
         print(f"❌ Slash-sync error: {exc}")
 
-    weekly_backup_loop.start()
-
-    check_weekend_boosts.start()
+    # Start loops only once to avoid duplicates after reconnects
+    if not weekly_backup_loop.is_running():
+        weekly_backup_loop.start()
+    if not check_weekend_boosts.is_running():
+        check_weekend_boosts.start()
 
 @tasks.loop(minutes=60)
 async def weekly_backup_loop():
@@ -148,8 +156,18 @@ async def _log(inter):
 # ── Run bot ──────────────────────────────────────────────────────────────────
 async def main():
     print("🚀 Starting bot…")
-    async with bot:
-        await bot.start(TOKEN)
+    try:
+        async with bot:
+            await bot.start(TOKEN)
+    finally:
+        # Graceful shutdown of shared HTTP session (if implemented)
+        try:
+            if _storage_client_mod and getattr(_storage_client_mod, "SESSION", None):
+                if not _storage_client_mod.SESSION.closed:
+                    await _storage_client_mod.SESSION.close()
+                print("🧹 Closed shared HTTP session.")
+        except Exception as e:
+            print(f"⚠️ Failed to close shared HTTP session: {e}")
 
 if __name__ == "__main__":
     try:
